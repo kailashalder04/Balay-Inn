@@ -1,0 +1,6 @@
+{
+  "name": "Balay-Inn",
+  "description": "Philippine rental property marketplace for tenants, owners, and authorized managers with hierarchical location search and verified listings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
