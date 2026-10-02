@@ -2,6 +2,7 @@ package com.example.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.entity.AuditLogEntity
@@ -25,6 +26,12 @@ import com.example.data.local.entity.ViewingRequestEntity
 import com.example.data.model.UserRole
 import com.example.data.repository.BalayInnRepository
 import com.example.data.repository.PropertyMatchResult
+import com.example.data.remote.supabase.SupabaseClient
+import com.example.data.remote.supabase.SupabaseSignInRequest
+import com.example.data.remote.supabase.SupabaseSignUpRequest
+import com.example.data.remote.supabase.SupabaseAuthUser
+import com.example.data.remote.supabase.SupabaseSyncStatus
+import com.example.data.seed.MarketplaceDataSeed
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -82,6 +89,16 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
     val repository = BalayInnRepository(application)
 
     val currentUser: StateFlow<UserEntity> = repository.currentUser
+
+    // Supabase Cloud Backend & Sync Status
+    val supabaseSyncStatus: StateFlow<SupabaseSyncStatus> = repository.supabaseSyncManager.syncStatus
+    val isSupabaseConfigured: Boolean get() = SupabaseClient.isConfigured
+
+    fun syncWithSupabase() {
+        viewModelScope.launch {
+            repository.supabaseSyncManager.syncAll()
+        }
+    }
 
     // Master Geographic Lists
     val countries: StateFlow<List<CountryEntity>> = repository.getActiveCountries()
@@ -212,6 +229,12 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
+        val savedToken = prefs.getString("supabase_access_token", null)
+        val savedRefresh = prefs.getString("supabase_refresh_token", null)
+        if (!savedToken.isNullOrBlank()) {
+            SupabaseClient.saveSession(savedToken, savedRefresh)
+        }
+
         viewModelScope.launch {
             repository.initializeDatabaseIfEmpty()
         }
@@ -388,7 +411,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         _filterState.value = MarketplaceFilterState()
     }
 
-    // User Switching
+    // User Switching & Authentication
     fun switchUser(user: UserEntity) {
         viewModelScope.launch {
             repository.switchUser(user)
@@ -397,6 +420,341 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
 
     val allUsers: StateFlow<List<UserEntity>> = repository.getAllUsers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Onboarding State Persistence
+    private val _hasCompletedOnboarding = MutableStateFlow(
+        prefs.getBoolean("has_completed_onboarding", false)
+    )
+    val hasCompletedOnboarding: StateFlow<Boolean> = _hasCompletedOnboarding.asStateFlow()
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        _hasCompletedOnboarding.value = completed
+        prefs.edit().putBoolean("has_completed_onboarding", completed).apply()
+    }
+
+    // Supabase Auth session state
+    private val _supabaseAuthUser = MutableStateFlow<SupabaseAuthUser?>(SupabaseClient.currentAuthUser)
+    val supabaseAuthUser: StateFlow<SupabaseAuthUser?> = _supabaseAuthUser.asStateFlow()
+    val isSupabaseAuthenticated: Boolean get() = SupabaseClient.isAuthenticated
+
+    fun registerUser(
+        fullName: String,
+        email: String,
+        phone: String,
+        role: String,
+        relationshipToProperty: String = "Property owner",
+        password: String = "password123",
+        onSuccess: (UserEntity) -> Unit,
+        onError: ((String) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim()
+            val cleanName = fullName.trim()
+            val cleanPhone = phone.trim()
+            val cleanPassword = password.trim().ifBlank { "password123" }
+
+            // 1. Try real Supabase GoTrue Auth registration if configured
+            if (SupabaseClient.isConfigured) {
+                val authApi = SupabaseClient.authApi
+                if (authApi != null) {
+                    try {
+                        val response = authApi.signUp(
+                            SupabaseSignUpRequest(
+                                email = cleanEmail,
+                                password = cleanPassword,
+                                data = mapOf(
+                                    "full_name" to cleanName,
+                                    "phone" to cleanPhone,
+                                    "role" to role,
+                                    "relationship_to_property" to relationshipToProperty
+                                )
+                            )
+                        )
+                        if (response.isSuccessful && response.body() != null) {
+                            val session = response.body()!!
+                            val userDto = session.user
+                            if (userDto != null) {
+                                SupabaseClient.saveSession(session.accessToken, session.refreshToken, userDto)
+                                prefs.edit()
+                                    .putString("supabase_access_token", session.accessToken)
+                                    .putString("supabase_refresh_token", session.refreshToken)
+                                    .putString("supabase_user_id", userDto.id)
+                                    .apply()
+
+                                _supabaseAuthUser.value = userDto
+                                val userEntity = userDto.toUserEntity()
+                                repository.registerUser(userEntity)
+                                repository.supabaseSyncManager.syncAll()
+                                onSuccess(userEntity)
+                                return@launch
+                            }
+                        } else {
+                            val errorBody = response.errorBody()?.string()
+                            val msg = SupabaseClient.parseAuthError(errorBody)
+                            if (response.code() in 400..499) {
+                                onError?.invoke(msg)
+                                return@launch
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("SupabaseAuth", "Supabase signup exception: ${e.message}. Falling back to local profile registration.")
+                    }
+                }
+            }
+
+            // 2. Offline / local fallback registration
+            val newUser = UserEntity(
+                id = "usr_${System.currentTimeMillis() % 1000000}",
+                fullName = cleanName,
+                email = cleanEmail,
+                phone = cleanPhone,
+                role = role,
+                relationshipToProperty = relationshipToProperty,
+                isAuthorizedByOwner = true,
+                verificationLevel = 1,
+                phoneVerified = true,
+                emailVerified = true,
+                identitySubmitted = false,
+                professionalVerified = role == "REAL_ESTATE_BROKER"
+            )
+            repository.registerUser(newUser)
+            onSuccess(newUser)
+        }
+    }
+
+    fun loginWithEmail(
+        email: String,
+        password: String = "password123",
+        onSuccess: (UserEntity) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim().lowercase()
+            val cleanPassword = password.trim()
+
+            // 1. Try real Supabase GoTrue Auth login if configured
+            if (SupabaseClient.isConfigured && cleanPassword.isNotBlank()) {
+                val authApi = SupabaseClient.authApi
+                if (authApi != null) {
+                    try {
+                        val response = authApi.signInWithPassword(
+                            SupabaseSignInRequest(
+                                email = cleanEmail,
+                                password = cleanPassword
+                            )
+                        )
+                        if (response.isSuccessful && response.body() != null) {
+                            val session = response.body()!!
+                            val userDto = session.user
+                            if (userDto != null) {
+                                SupabaseClient.saveSession(session.accessToken, session.refreshToken, userDto)
+                                prefs.edit()
+                                    .putString("supabase_access_token", session.accessToken)
+                                    .putString("supabase_refresh_token", session.refreshToken)
+                                    .putString("supabase_user_id", userDto.id)
+                                    .apply()
+
+                                _supabaseAuthUser.value = userDto
+                                val userEntity = userDto.toUserEntity()
+                                repository.registerUser(userEntity)
+                                repository.supabaseSyncManager.syncAll()
+                                onSuccess(userEntity)
+                                return@launch
+                            }
+                        } else {
+                            val errorBody = response.errorBody()?.string()
+                            val msg = SupabaseClient.parseAuthError(errorBody)
+                            if (response.code() == 400 || response.code() == 401) {
+                                onError(msg)
+                                return@launch
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("SupabaseAuth", "Supabase login exception: ${e.message}. Checking local profiles.")
+                    }
+                }
+            }
+
+            // 2. Offline / local fallback or Demo user matching
+            val match = allUsers.value.find { it.email.lowercase() == cleanEmail }
+            if (match != null) {
+                repository.switchUser(match)
+                onSuccess(match)
+            } else {
+                val partialMatch = allUsers.value.find { it.fullName.contains(cleanEmail, ignoreCase = true) }
+                if (partialMatch != null) {
+                    repository.switchUser(partialMatch)
+                    onSuccess(partialMatch)
+                } else {
+                    onError("No account found for '$email'. Please sign up or select a quick demo profile.")
+                }
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            if (SupabaseClient.isConfigured) {
+                try {
+                    SupabaseClient.authApi?.logout()
+                } catch (_: Exception) {}
+            }
+            SupabaseClient.clearSession()
+            prefs.edit()
+                .remove("supabase_access_token")
+                .remove("supabase_refresh_token")
+                .remove("supabase_user_id")
+                .apply()
+            _supabaseAuthUser.value = null
+            val fallback = allUsers.value.firstOrNull() ?: MarketplaceDataSeed.seedUsers.first()
+            repository.switchUser(fallback)
+        }
+    }
+
+    fun submitTenantOnboarding(
+        provinceId: String,
+        cityId: String,
+        minBudget: Double,
+        maxBudget: Double,
+        propertyType: String,
+        furnished: Boolean,
+        petFriendly: Boolean,
+        parking: Boolean,
+        idType: String,
+        idNumber: String,
+        onDone: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val user = currentUser.value
+            val cityName = allCities.value.find { it.id == cityId }?.name ?: "Cebu City"
+            val req = TenantRequirementEntity(
+                id = "req_onboard_${user.id}_${System.currentTimeMillis() % 10000}",
+                userId = user.id,
+                profileName = "My Onboarding Preferences ($cityName)",
+                preferredProvinceId = provinceId,
+                preferredCityId = cityId,
+                preferredLocationName = cityName,
+                minBudget = minBudget,
+                maxBudget = maxBudget,
+                propertyTypesJson = "[\"$propertyType\"]",
+                minBedrooms = 1,
+                minBathrooms = 1,
+                furnishedRequired = furnished,
+                parkingRequired = parking,
+                petFriendlyRequired = petFriendly,
+                moveInDate = "Flexible",
+                notes = "Configured during new tenant onboarding."
+            )
+            repository.saveRequirement(req)
+
+            if (idNumber.isNotBlank()) {
+                val updatedUser = user.copy(
+                    identitySubmitted = true,
+                    verificationLevel = maxOf(user.verificationLevel, 2)
+                )
+                repository.updateUser(updatedUser)
+                repository.submitDocument(
+                    userId = user.id,
+                    propertyId = null,
+                    docType = "GOVERNMENT_ID ($idType: $idNumber)",
+                    fileName = "id_${user.id}_verified.jpg"
+                )
+            }
+
+            setOnboardingCompleted(true)
+            onDone()
+        }
+    }
+
+    fun submitLandlordOnboarding(
+        title: String,
+        rent: Double,
+        propertyType: String,
+        bedrooms: Int,
+        bathrooms: Int,
+        floorArea: Double,
+        provinceId: String,
+        cityId: String,
+        barangayId: String,
+        furnished: String,
+        parking: Boolean,
+        petPolicy: String,
+        docType: String,
+        docReference: String,
+        onDone: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val user = currentUser.value
+            val propId = "prop_onboard_${System.currentTimeMillis() % 100000}"
+
+            val newProp = PropertyEntity(
+                id = propId,
+                title = title.ifBlank { "Modern Rental Unit in ${allCities.value.find { it.id == cityId }?.name ?: "Cebu"}" },
+                description = "Newly listed rental property on Balay-Inn with verified host ownership. Direct lease, transparent terms.",
+                propertyType = propertyType,
+                monthlyRent = rent,
+                countryId = "ctry_ph",
+                regionId = "reg_vii",
+                provinceId = provinceId.ifBlank { "prov_cebu" },
+                cityMunicipalityId = cityId.ifBlank { "cebu_cebu_city" },
+                barangayId = barangayId.ifBlank { "bgy_ceb_c_0" },
+                neighborhood = "Prime Central District",
+                nearbyLandmark = "Commercial Center",
+                streetAddressPrivate = "Contact landlord upon viewing schedule",
+                locationPrivacy = "APPROXIMATE",
+                latitude = 10.3157,
+                longitude = 123.8854,
+                bedrooms = bedrooms,
+                bathrooms = bathrooms,
+                floorAreaSqm = floorArea,
+                furnishedStatus = furnished,
+                parkingAvailable = parking,
+                petPolicy = petPolicy,
+                availabilityDate = "Immediate",
+                associationDues = 0.0,
+                internetIncluded = false,
+                amenitiesJson = "[\"Air Conditioning\",\"Elevator\",\"24/7 Security\"]",
+                status = "ACTIVE",
+                ownerId = user.id,
+                posterId = user.id,
+                posterName = user.fullName,
+                posterRole = user.relationshipToProperty,
+                isPosterAuthorized = true,
+                verificationLevel = maxOf(user.verificationLevel, 2),
+                phoneVerified = true,
+                emailVerified = true,
+                identitySubmitted = docReference.isNotBlank(),
+                professionalVerified = user.professionalVerified
+            )
+
+            val sampleImage = PropertyImageEntity(
+                id = "img_${propId}_0",
+                propertyId = propId,
+                imageUrl = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop",
+                isPrimary = true,
+                orderIndex = 0
+            )
+
+            repository.createProperty(newProp, listOf(sampleImage), user)
+
+            if (docReference.isNotBlank()) {
+                val updatedUser = user.copy(
+                    identitySubmitted = true,
+                    verificationLevel = maxOf(user.verificationLevel, 2)
+                )
+                repository.updateUser(updatedUser)
+                repository.submitDocument(
+                    userId = user.id,
+                    propertyId = propId,
+                    docType = "$docType ($docReference)",
+                    fileName = "doc_${user.id}_ownership.pdf"
+                )
+            }
+
+            setOnboardingCompleted(true)
+            onDone()
+        }
+    }
 
     // Viewing Requests
     val tenantViewings: StateFlow<List<ViewingRequestEntity>> = currentUser
@@ -416,6 +774,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         time: String,
         visitors: Int,
         message: String,
+        sendEmailAlert: Boolean = false,
         onComplete: () -> Unit
     ) {
         viewModelScope.launch {
@@ -428,13 +787,109 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 visitors = visitors,
                 message = message
             )
+            if (sendEmailAlert) {
+                val property = properties.value.find { it.id == propertyId }
+                val propTitle = property?.title ?: "Rental Listing"
+                val poster = allUsers.value.find { it.id == posterId }
+                val targetEmail = poster?.email?.ifBlank { "host@balayinn.ph" } ?: "host@balayinn.ph"
+                repository.gmailNotificationService.sendViewingRequestNotification(
+                    landlordEmail = targetEmail,
+                    tenantName = currentUser.value.fullName,
+                    propertyTitle = propTitle,
+                    preferredDate = date,
+                    preferredTime = time,
+                    tenantMessage = message
+                )
+            }
             onComplete()
         }
     }
 
-    fun updateViewingStatus(viewing: ViewingRequestEntity, status: String, note: String) {
+    fun updateViewingStatus(
+        viewing: ViewingRequestEntity,
+        status: String,
+        note: String,
+        sendEmailAlert: Boolean = false
+    ) {
         viewModelScope.launch {
             repository.updateViewingStatus(viewing, status, note)
+            if (sendEmailAlert) {
+                val property = properties.value.find { it.id == viewing.propertyId }
+                val propTitle = property?.title ?: "Rental Listing"
+                val tenant = allUsers.value.find { it.id == viewing.tenantId }
+                val tenantEmail = tenant?.email?.ifBlank { "tenant@balayinn.ph" } ?: "tenant@balayinn.ph"
+                repository.gmailNotificationService.sendViewingStatusNotification(
+                    recipientEmail = tenantEmail,
+                    propertyTitle = propTitle,
+                    newStatus = status,
+                    date = viewing.preferredDate,
+                    time = viewing.preferredTime,
+                    notes = note
+                )
+            }
+        }
+    }
+
+    fun dispatchViewingNotificationEmail(
+        recipientEmail: String,
+        propertyTitle: String,
+        date: String,
+        time: String,
+        message: String
+    ) {
+        repository.gmailNotificationService.sendViewingRequestNotification(
+            landlordEmail = recipientEmail,
+            tenantName = currentUser.value.fullName,
+            propertyTitle = propertyTitle,
+            preferredDate = date,
+            preferredTime = time,
+            tenantMessage = message
+        )
+    }
+
+    fun dispatchViewingStatusNotificationEmail(
+        recipientEmail: String,
+        propertyTitle: String,
+        status: String,
+        date: String,
+        time: String,
+        notes: String
+    ) {
+        repository.gmailNotificationService.sendViewingStatusNotification(
+            recipientEmail = recipientEmail,
+            propertyTitle = propertyTitle,
+            newStatus = status,
+            date = date,
+            time = time,
+            notes = notes
+        )
+    }
+
+    fun dispatchServerSideEdgeNotification(
+        recipientEmail: String,
+        propertyTitle: String,
+        date: String,
+        time: String,
+        message: String,
+        onResult: (Boolean) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val payload = com.example.data.remote.supabase.EdgeNotificationPayload(
+                action = "SEND_NOTIFICATION",
+                type = "VIEWING_REQUEST",
+                recipientEmail = recipientEmail,
+                propertyTitle = propertyTitle,
+                tenantName = currentUser.value.fullName,
+                date = date,
+                time = time,
+                message = message
+            )
+            val success = repository.supabaseSyncManager.triggerEdgeNotification(payload)
+            // If Edge Function call succeeds, great! If not (e.g. offline / unconfigured), fallback to client-side Gmail intent
+            if (!success) {
+                dispatchViewingNotificationEmail(recipientEmail, propertyTitle, date, time, message)
+            }
+            onResult(success)
         }
     }
 

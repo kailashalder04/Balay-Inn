@@ -18,6 +18,8 @@ import com.example.data.local.entity.TenantRequirementEntity
 import com.example.data.local.entity.UserEntity
 import com.example.data.local.entity.VerificationDocumentEntity
 import com.example.data.local.entity.ViewingRequestEntity
+import com.example.data.remote.gmail.GmailNotificationService
+import com.example.data.remote.supabase.SupabaseSyncManager
 import com.example.data.seed.MarketplaceDataSeed
 import com.example.data.seed.PropertyDataSeed
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +46,9 @@ class BalayInnRepository(context: Context) {
     private val commDao = db.communicationDao()
     private val platDao = db.platformDao()
 
+    val supabaseSyncManager = SupabaseSyncManager(propDao, viewDao, commDao)
+    val gmailNotificationService = GmailNotificationService(context)
+
     // Current logged-in user state (defaults to Tenant Joshua Alcantara)
     private val _currentUser = MutableStateFlow<UserEntity>(MarketplaceDataSeed.seedUsers.first())
     val currentUser: StateFlow<UserEntity> = _currentUser.asStateFlow()
@@ -53,50 +58,60 @@ class BalayInnRepository(context: Context) {
     }
 
     suspend fun initializeDatabaseIfEmpty() = withContext(Dispatchers.IO) {
-        val count = geoDao.getCountryCount()
-        if (count == 0) {
-            // Seed Geographic Hierarchy
-            geoDao.insertCountries(listOf(MarketplaceDataSeed.country))
-            geoDao.insertRegions(listOf(MarketplaceDataSeed.regionVII))
-            geoDao.insertProvinces(MarketplaceDataSeed.provinces)
-            geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities)
-            geoDao.insertBarangays(MarketplaceDataSeed.generateBarangays())
+        try {
+            val count = geoDao.getCountryCount()
+            if (count == 0) {
+                // Seed Geographic Hierarchy
+                geoDao.insertCountries(listOf(MarketplaceDataSeed.country))
+                geoDao.insertRegions(listOf(MarketplaceDataSeed.regionVII))
+                geoDao.insertProvinces(MarketplaceDataSeed.provinces)
+                geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities)
+                geoDao.insertBarangays(MarketplaceDataSeed.generateBarangays())
 
-            // Seed Users
-            userDao.insertUsers(MarketplaceDataSeed.seedUsers)
+                // Seed Users
+                userDao.insertUsers(MarketplaceDataSeed.seedUsers)
 
-            // Seed Properties & Images
-            propDao.insertProperties(PropertyDataSeed.sampleProperties)
-            propDao.insertImages(PropertyDataSeed.sampleImages)
+                // Seed Properties & Images
+                propDao.insertProperties(PropertyDataSeed.sampleProperties)
+                propDao.insertImages(PropertyDataSeed.sampleImages)
 
-            // Seed Viewings
-            PropertyDataSeed.sampleViewingRequests.forEach { viewDao.insertViewingRequest(it) }
+                // Seed Viewings
+                PropertyDataSeed.sampleViewingRequests.forEach { viewDao.insertViewingRequest(it) }
 
-            // Seed Conversations & Messages
-            PropertyDataSeed.sampleConversations.forEach { commDao.insertConversation(it) }
-            PropertyDataSeed.sampleMessages.forEach { commDao.insertMessage(it) }
+                // Seed Conversations & Messages
+                PropertyDataSeed.sampleConversations.forEach { commDao.insertConversation(it) }
+                PropertyDataSeed.sampleMessages.forEach { commDao.insertMessage(it) }
 
-            // Seed Platform data
-            PropertyDataSeed.sampleRequirements.forEach { platDao.insertRequirement(it) }
-            PropertyDataSeed.sampleSavedSearches.forEach { platDao.insertSavedSearch(it) }
-            PropertyDataSeed.sampleNotifications.forEach { platDao.insertNotification(it) }
-            PropertyDataSeed.sampleReports.forEach { platDao.insertReport(it) }
-            PropertyDataSeed.sampleDocuments.forEach { platDao.insertDocument(it) }
+                // Seed Platform data
+                PropertyDataSeed.sampleRequirements.forEach { platDao.insertRequirement(it) }
+                PropertyDataSeed.sampleSavedSearches.forEach { platDao.insertSavedSearch(it) }
+                PropertyDataSeed.sampleNotifications.forEach { platDao.insertNotification(it) }
+                PropertyDataSeed.sampleReports.forEach { platDao.insertReport(it) }
+                PropertyDataSeed.sampleDocuments.forEach { platDao.insertDocument(it) }
 
-            // Log initialization
-            platDao.insertAuditLog(
-                AuditLogEntity(
-                    id = UUID.randomUUID().toString(),
-                    adminUserId = "usr_admin_1",
-                    actionType = "INITIAL_SEED",
-                    entityType = "DATABASE",
-                    entityId = "ALL",
-                    notes = "Balay-Inn database seeded with full Bohol 48 LGUs, Cebu hierarchy, verified demo properties, and roles."
+                // Log initialization
+                platDao.insertAuditLog(
+                    AuditLogEntity(
+                        id = UUID.randomUUID().toString(),
+                        adminUserId = "usr_admin_1",
+                        actionType = "INITIAL_SEED",
+                        entityType = "DATABASE",
+                        entityId = "ALL",
+                        notes = "Balay-Inn database seeded with full Bohol 48 LGUs, Cebu hierarchy, verified demo properties, and roles."
+                    )
                 )
-            )
+            }
+            try {
+                propDao.insertImages(PropertyDataSeed.sampleImages)
+            } catch (_: Exception) {}
+
+            // Attempt background synchronization with Supabase if configured
+            try {
+                supabaseSyncManager.syncAll()
+            } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("BalayInnRepo", "Database initialization encountered an error: ${e.message}", e)
         }
-        // Ensure property images are populated with full 4-5 images per listing
-        propDao.insertImages(PropertyDataSeed.sampleImages)
     }
 
     // Geographic Queries
@@ -196,6 +211,9 @@ class BalayInnRepository(context: Context) {
         propDao.insertProperty(property)
         propDao.insertImages(images)
         logAudit("CREATE_PROPERTY", "PROPERTY", property.id, "Property created: ${property.title} by ${property.posterName}")
+        try {
+            supabaseSyncManager.pushPropertyToRemote(property)
+        } catch (_: Exception) {}
     }
 
     // Favorites / Saved
@@ -247,6 +265,9 @@ class BalayInnRepository(context: Context) {
             status = "REQUESTED"
         )
         viewDao.insertViewingRequest(req)
+        try {
+            supabaseSyncManager.pushViewingRequestToRemote(req)
+        } catch (_: Exception) {}
 
         // Trigger notification to poster
         platDao.insertNotification(
@@ -268,6 +289,9 @@ class BalayInnRepository(context: Context) {
             updatedAt = System.currentTimeMillis()
         )
         viewDao.updateViewingRequest(updated)
+        try {
+            supabaseSyncManager.pushViewingRequestToRemote(updated)
+        } catch (_: Exception) {}
 
         // Notify tenant
         platDao.insertNotification(
@@ -481,4 +505,16 @@ class BalayInnRepository(context: Context) {
 
     // Users
     fun getAllUsers() = userDao.getAllUsers()
+
+    suspend fun registerUser(user: UserEntity) = withContext(Dispatchers.IO) {
+        userDao.insertUser(user)
+        _currentUser.value = user
+    }
+
+    suspend fun updateUser(user: UserEntity) = withContext(Dispatchers.IO) {
+        userDao.updateUser(user)
+        if (_currentUser.value.id == user.id) {
+            _currentUser.value = user
+        }
+    }
 }

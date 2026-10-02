@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -20,7 +21,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -61,8 +64,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.CascadingLocationSelector
@@ -119,58 +125,127 @@ fun ExploreScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = filterState.keyword,
-                        onValueChange = { viewModel.updateKeyword(it) },
-                        placeholder = { Text("Search location, landmark, title...", fontSize = 13.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.primary) },
-                        trailingIcon = {
-                            if (filterState.keyword.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.updateKeyword("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                }
-                            }
-                        },
+                    // Small / Compact Search Box
+                    Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .testTag("search_text_input"),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
+                            .height(40.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (filterState.keyword.isEmpty()) {
+                                    Text(
+                                        text = "Search location, landmark...",
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                BasicTextField(
+                                    value = filterState.keyword,
+                                    onValueChange = { viewModel.updateKeyword(it) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("search_text_input"),
+                                    singleLine = true,
+                                    textStyle = TextStyle(
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                            if (filterState.keyword.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { viewModel.updateKeyword("") },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Clear,
+                                        contentDescription = "Clear",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
                     // Filter Button with Badge
-                    IconButton(
-                        onClick = { showFilterSheet = true },
+                    val hasActiveFilters = filterState.provinceId.isNotEmpty() ||
+                            filterState.cityMunicipalityId.isNotEmpty() ||
+                            filterState.barangayId.isNotEmpty() ||
+                            filterState.propertyType != "All" ||
+                            filterState.verifiedOnly ||
+                            filterState.minRent > 0 ||
+                            filterState.maxRent < 100000
+
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.primaryContainer)
-                            .testTag("filter_button")
+                            .clickable { showFilterSheet = true }
+                            .testTag("filter_button"),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.FilterList,
                             contentDescription = "Filters",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp)
                         )
+                        if (hasActiveFilters) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .size(7.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(6.dp))
 
                     // Toggle View (List vs Map)
-                    IconButton(
-                        onClick = {
-                            viewModel.setViewMode(if (viewMode == "LIST") "MAP" else "LIST")
-                        },
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .testTag("toggle_map_list_btn")
+                            .clickable {
+                                viewModel.setViewMode(if (viewMode == "LIST") "MAP" else "LIST")
+                            }
+                            .testTag("toggle_map_list_btn"),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (viewMode == "LIST") Icons.Default.Map else Icons.Default.ViewList,
                             contentDescription = "Toggle View",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

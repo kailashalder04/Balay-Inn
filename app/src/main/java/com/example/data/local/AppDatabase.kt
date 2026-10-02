@@ -50,7 +50,7 @@ import com.example.data.local.entity.ViewingRequestEntity
         VerificationDocumentEntity::class,
         AuditLogEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -72,7 +72,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "balay_inn_marketplace.db"
                 )
-                .fallbackToDestructiveMigration(false)
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

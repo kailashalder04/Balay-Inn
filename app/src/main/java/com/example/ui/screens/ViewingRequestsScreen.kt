@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
@@ -145,10 +146,20 @@ fun ViewingRequestsScreen(
                             viewing = viewing,
                             isPoster = selectedTab == 1,
                             onAccept = {
-                                viewModel.updateViewingStatus(viewing, "CONFIRMED", "Confirmed by poster.")
+                                viewModel.updateViewingStatus(viewing, "CONFIRMED", "Confirmed by host.", sendEmailAlert = true)
                             },
                             onCancel = {
-                                viewModel.updateViewingStatus(viewing, "CANCELLED", "Cancelled.")
+                                viewModel.updateViewingStatus(viewing, "CANCELLED", "Cancelled by user.", sendEmailAlert = true)
+                            },
+                            onSendEmailAlert = {
+                                viewModel.dispatchViewingStatusNotificationEmail(
+                                    recipientEmail = if (selectedTab == 1) "tenant@balayinn.ph" else "host@balayinn.ph",
+                                    propertyTitle = "Balay-Inn Viewing Appointment",
+                                    status = viewing.status,
+                                    date = viewing.preferredDate,
+                                    time = viewing.preferredTime,
+                                    notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
+                                )
                             },
                             onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
                         )
@@ -165,6 +176,7 @@ fun ViewingCard(
     isPoster: Boolean,
     onAccept: () -> Unit,
     onCancel: () -> Unit,
+    onSendEmailAlert: () -> Unit,
     onViewProperty: () -> Unit
 ) {
     Card(
@@ -273,6 +285,14 @@ fun ViewingCard(
                     ) {
                         Text("Cancel", fontSize = 12.sp, color = MaterialTheme.colorScheme.error, maxLines = 1, softWrap = false)
                     }
+                }
+
+                OutlinedButton(
+                    onClick = onSendEmailAlert,
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(Icons.Default.Email, contentDescription = "Send Email Alert", modifier = Modifier.size(16.dp), tint = Color(0xFFEA4335))
                 }
             }
         }

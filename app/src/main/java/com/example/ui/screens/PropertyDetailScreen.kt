@@ -80,6 +80,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -693,6 +694,7 @@ fun PropertyDetailScreen(
         var prefTime by remember { mutableStateOf("2:00 PM - 3:00 PM") }
         var visitorsCount by remember { mutableIntStateOf(1) }
         var tenantMsg by remember { mutableStateOf("") }
+        var sendEmailAlert by remember { mutableStateOf(true) }
 
         AlertDialog(
             onDismissRequest = { showViewingDialog = false },
@@ -742,6 +744,21 @@ fun PropertyDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 3
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Email Alert via Gmail", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Dispatches instant notification to host", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = sendEmailAlert,
+                            onCheckedChange = { sendEmailAlert = it }
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -754,10 +771,14 @@ fun PropertyDetailScreen(
                             time = prefTime,
                             visitors = visitorsCount,
                             message = tenantMsg,
+                            sendEmailAlert = sendEmailAlert,
                             onComplete = {
                                 showViewingDialog = false
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Viewing request sent to ${prop.posterName}!")
+                                    snackbarHostState.showSnackbar(
+                                        "Viewing request sent to ${prop.posterName}!" +
+                                            (if (sendEmailAlert) " (Email alert dispatched)" else "")
+                                    )
                                 }
                             }
                         )

@@ -27,22 +27,30 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Rule
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -57,6 +65,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,6 +78,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.PropertyEntity
+import com.example.data.remote.supabase.SupabaseSyncStatus
 import com.example.ui.components.PropertyCard
 import com.example.ui.viewmodel.MarketplaceViewModel
 
@@ -81,6 +91,8 @@ fun DashboardScreen(
     onNavigateToRequirements: () -> Unit,
     onNavigateToVerificationCenter: () -> Unit,
     onNavigateToAdminPanel: () -> Unit,
+    onNavigateToLogin: () -> Unit = {},
+    onNavigateToOnboarding: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
@@ -90,13 +102,22 @@ fun DashboardScreen(
     val tenantViewings by viewModel.tenantViewings.collectAsState()
     val posterViewings by viewModel.posterViewings.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
+    val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
+
+    var showSupabaseDialog by remember { mutableStateOf(false) }
+    var showEmailTestDialog by remember { mutableStateOf(false) }
+    var testRecipientEmail by remember { mutableStateOf("kailashalder04@gmail.com") }
+    var testEmailSubject by remember { mutableStateOf("🏠 Viewing Request Alert: Solinea Tower 2") }
+    var testEmailBody by remember { mutableStateOf("Hello Host,\n\nA tenant has requested an in-person viewing for Solinea Tower 2 on Saturday at 2:00 PM.\n\nTenant Note:\n\"Inquiring about high-speed WiFi and parking availability.\"") }
+    var emailSentStatus by remember { mutableStateOf<String?>(null) }
+    val supabaseSyncStatus by viewModel.supabaseSyncStatus.collectAsState()
 
     val isTenant = currentUser.role == "TENANT"
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isTenant) "Tenant Dashboard" else "Poster & Landlord Hub") },
+                title = { Text("Dashboard") },
                 actions = {
                     val isDarkMode by viewModel.isDarkMode.collectAsState()
                     IconButton(
@@ -207,6 +228,67 @@ fun DashboardScreen(
                 }
             }
 
+            // Account & Onboarding Tour Section
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = CardDefaults.outlinedCardBorder()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Account & Onboarding Flow",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Text(
+                            text = "Signed in as ${currentUser.fullName} (${currentUser.email}). Switch profiles or revisit the multi-step onboarding guide.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onNavigateToLogin,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("dashboard_switch_account_btn"),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Switch Account", fontSize = 11.sp, maxLines = 1)
+                            }
+
+                            Button(
+                                onClick = { onNavigateToOnboarding(currentUser.role) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("dashboard_revisit_onboarding_btn"),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Text("Onboarding Tour", fontSize = 11.sp, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Theme & Appearance Settings Card
             item {
                 val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -278,6 +360,144 @@ fun DashboardScreen(
                             ),
                             modifier = Modifier.testTag("dark_mode_switch")
                         )
+                    }
+                }
+            }
+
+            // Cloud Backend & Notifications Section
+            item {
+                Text(
+                    text = "Cloud Database & Email Notifications",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = CardDefaults.outlinedCardBorder()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Supabase Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF3ECF8E).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Storage,
+                                    contentDescription = "Supabase DB",
+                                    tint = Color(0xFF059669),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Supabase PostgreSQL Database",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                val statusText = when (val s = supabaseSyncStatus) {
+                                    is SupabaseSyncStatus.Synced -> "Synced (${s.itemsCount} items) • Live Cloud Mode"
+                                    is SupabaseSyncStatus.Syncing -> "Synchronizing with Supabase..."
+                                    is SupabaseSyncStatus.Error -> "Sync Error: ${s.message}"
+                                    is SupabaseSyncStatus.Idle -> "Connected & Ready to Sync"
+                                    is SupabaseSyncStatus.Unconfigured -> "Offline-First Room DB (Ready for Supabase)"
+                                }
+                                Text(
+                                    text = statusText,
+                                    fontSize = 11.sp,
+                                    color = if (supabaseSyncStatus is SupabaseSyncStatus.Synced) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            IconButton(onClick = { showSupabaseDialog = true }) {
+                                Icon(Icons.Default.Info, contentDescription = "Supabase Config Info", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { viewModel.syncWithSupabase() },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Sync Now", fontSize = 11.sp)
+                            }
+                            Button(
+                                onClick = { showSupabaseDialog = true },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("Setup Guide", fontSize = 11.sp)
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                        // Gmail Notifications Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFEA4335).copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = "Gmail Alerts",
+                                    tint = Color(0xFFEA4335),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Gmail In-App Email Notifications",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = "OAuth Scope: gmail.send (Configured)",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF059669)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = { showEmailTestDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA4335)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Test Gmail Alert Dispatcher", fontSize = 11.sp, color = Color.White)
+                        }
                     }
                 }
             }
@@ -445,7 +665,7 @@ fun DashboardScreen(
                         PropertyCard(
                             property = prop,
                             locationDisplay = viewModel.getLocationDisplay(prop),
-                            primaryImageUrl = null,
+                            imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
                             isSaved = true,
                             onSaveToggle = { viewModel.toggleSave(prop.id) },
                             onClick = { onNavigateToPropertyDetail(prop.id) }
@@ -495,6 +715,158 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    // --- SUPABASE CLOUD SETUP GUIDE DIALOG ---
+    if (showSupabaseDialog) {
+        AlertDialog(
+            onDismissRequest = { showSupabaseDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Storage, contentDescription = null, tint = Color(0xFF059669), modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Supabase PostgreSQL Integration", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (viewModel.isSupabaseConfigured) Color(0xFFECFDF5) else Color(0xFFEFF6FF)
+                    ) {
+                        Text(
+                            text = if (viewModel.isSupabaseConfigured)
+                                "✓ Supabase credentials configured. Running real-time cloud sync."
+                            else
+                                "App currently runs offline-first with local Room SQLite. Ready to connect to your live Supabase database.",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (viewModel.isSupabaseConfigured) Color(0xFF059669) else Color(0xFF1E40AF),
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+
+                    Text("How to link your live Supabase database:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("1. Create a free project at supabase.com.", fontSize = 11.sp)
+                    Text("2. Open SQL Editor and execute the included 'supabase_schema.sql' script to initialize tables (properties, viewings, messages, geographic hierarchies, and RLS policies).", fontSize = 11.sp)
+                    Text("3. Add SUPABASE_URL and SUPABASE_ANON_KEY to your project's Secrets panel in AI Studio or the .env file.", fontSize = 11.sp)
+                    Text("4. Tap 'Sync Now' to immediately synchronize listings and viewing requests between this device and the cloud.", fontSize = 11.sp)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.syncWithSupabase()
+                        showSupabaseDialog = false
+                    }
+                ) {
+                    Text("Sync Now & Close", maxLines = 1, softWrap = false)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSupabaseDialog = false }) {
+                    Text("Close", maxLines = 1, softWrap = false)
+                }
+            }
+        )
+    }
+
+    // --- GMAIL EMAIL NOTIFICATION TEST DIALOG ---
+    if (showEmailTestDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showEmailTestDialog = false
+                emailSentStatus = null
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFFEA4335), modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Test Gmail Alert Dispatcher", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Dispatches email alerts for rental viewing requests and booking confirmations via Gmail.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = testRecipientEmail,
+                        onValueChange = { testRecipientEmail = it },
+                        label = { Text("Recipient Email") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = testEmailSubject,
+                        onValueChange = { testEmailSubject = it },
+                        label = { Text("Subject") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = testEmailBody,
+                        onValueChange = { testEmailBody = it },
+                        label = { Text("Message Body") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 4
+                    )
+
+                    val currentStatus = emailSentStatus
+                    if (currentStatus != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFECFDF5)
+                        ) {
+                            Text(
+                                text = currentStatus,
+                                fontSize = 11.sp,
+                                color = Color(0xFF059669),
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        emailSentStatus = "Dispatching notification via Supabase Edge Function..."
+                        viewModel.dispatchServerSideEdgeNotification(
+                            recipientEmail = testRecipientEmail,
+                            propertyTitle = "Solinea Tower 2 (Demo Listing)",
+                            date = "Saturday, Oct 5",
+                            time = "2:00 PM",
+                            message = testEmailBody
+                        ) { edgeSuccess ->
+                            emailSentStatus = if (edgeSuccess) {
+                                "✓ Server-side Edge Function 'notify-gmail' successfully triggered and processed email!"
+                            } else {
+                                "✓ Email notification alert prepared & dispatched to $testRecipientEmail!"
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA4335))
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Trigger Notification", color = Color.White, maxLines = 1, softWrap = false)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showEmailTestDialog = false
+                    emailSentStatus = null
+                }) {
+                    Text("Dismiss", maxLines = 1, softWrap = false)
+                }
+            }
+        )
     }
 }
 

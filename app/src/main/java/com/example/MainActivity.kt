@@ -57,7 +57,9 @@ import com.example.ui.screens.AdminPanelScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.ExploreScreen
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.MessagesScreen
+import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.PostPropertyScreen
 import com.example.ui.screens.PropertyDetailScreen
 import com.example.ui.screens.TenantRequirementScreen
@@ -77,6 +79,8 @@ sealed class AppScreen {
     object TenantRequirements : AppScreen()
     object VerificationCenter : AppScreen()
     object AdminPanel : AppScreen()
+    object Login : AppScreen()
+    data class Onboarding(val initialRole: String? = null) : AppScreen()
 }
 
 class MainActivity : ComponentActivity() {
@@ -151,7 +155,9 @@ fun BalayInnApp(
                         onNavigateToExplore = { navigateTo(AppScreen.Explore) },
                         onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) },
                         onNavigateToPostProperty = { navigateTo(AppScreen.Post) },
-                        onNavigateToVerificationCenter = { navigateTo(AppScreen.VerificationCenter) }
+                        onNavigateToVerificationCenter = { navigateTo(AppScreen.VerificationCenter) },
+                        onNavigateToLogin = { navigateTo(AppScreen.Login) },
+                        onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) }
                     )
                 }
                 is AppScreen.Explore -> {
@@ -186,7 +192,9 @@ fun BalayInnApp(
                         onNavigateToPostProperty = { navigateTo(AppScreen.Post) },
                         onNavigateToRequirements = { navigateTo(AppScreen.TenantRequirements) },
                         onNavigateToVerificationCenter = { navigateTo(AppScreen.VerificationCenter) },
-                        onNavigateToAdminPanel = { navigateTo(AppScreen.AdminPanel) }
+                        onNavigateToAdminPanel = { navigateTo(AppScreen.AdminPanel) },
+                        onNavigateToLogin = { navigateTo(AppScreen.Login) },
+                        onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) }
                     )
                 }
                 is AppScreen.PropertyDetail -> {
@@ -214,6 +222,24 @@ fun BalayInnApp(
                     AdminPanelScreen(
                         viewModel = viewModel,
                         onBack = { navigateBack() }
+                    )
+                }
+                is AppScreen.Login -> {
+                    LoginScreen(
+                        viewModel = viewModel,
+                        onLoginSuccess = { navigateTo(AppScreen.Home) },
+                        onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) },
+                        onContinueAsGuest = { navigateTo(AppScreen.Home) }
+                    )
+                }
+                is AppScreen.Onboarding -> {
+                    OnboardingScreen(
+                        viewModel = viewModel,
+                        initialRole = currentScreen.initialRole,
+                        onFinishOnboarding = { navigateTo(AppScreen.Home) },
+                        onNavigateToHome = { navigateTo(AppScreen.Home) },
+                        onNavigateToDashboard = { navigateTo(AppScreen.Dashboard) },
+                        onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) }
                     )
                 }
             }
