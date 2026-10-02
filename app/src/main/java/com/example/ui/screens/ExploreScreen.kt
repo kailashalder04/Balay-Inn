@@ -197,6 +197,8 @@ fun ExploreScreen(
                             filterState.cityMunicipalityId.isNotEmpty() ||
                             filterState.barangayId.isNotEmpty() ||
                             filterState.propertyType != "All" ||
+                            filterState.listedBy != "All" ||
+                            filterState.authorizedPosterOnly ||
                             filterState.verifiedOnly ||
                             filterState.minRent > 0 ||
                             filterState.maxRent < 100000
@@ -293,6 +295,22 @@ fun ExploreScreen(
                         )
                     }
 
+                    // Listed by filter chip
+                    if (filterState.listedBy != "All") {
+                        FilterBadge(
+                            label = "Listed by: ${filterState.listedBy}",
+                            onRemove = { viewModel.updateListedBy("All") }
+                        )
+                    }
+
+                    // Authorized posters filter chip
+                    if (filterState.authorizedPosterOnly) {
+                        FilterBadge(
+                            label = "Authorized Posters",
+                            onRemove = { viewModel.toggleAuthorizedPosterOnly() }
+                        )
+                    }
+
                     // Verified only chip
                     if (filterState.verifiedOnly) {
                         FilterBadge(
@@ -306,6 +324,8 @@ fun ExploreScreen(
                         filterState.cityMunicipalityId.isNotEmpty() ||
                         filterState.barangayId.isNotEmpty() ||
                         filterState.propertyType != "All" ||
+                        filterState.listedBy != "All" ||
+                        filterState.authorizedPosterOnly ||
                         filterState.verifiedOnly ||
                         filterState.minRent > 0 ||
                         filterState.maxRent < 100000
@@ -676,7 +696,70 @@ fun ExploreScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Section 3: Monthly Budget (₱)
+                // Section 3: Listed By
+                Text(
+                    text = "Listed By",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Filter by poster authority & relationship to property",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val listedByOptions = listOf(
+                    "All",
+                    "Direct Owner",
+                    "Licensed Broker",
+                    "Property Manager",
+                    "Caretaker",
+                    "Family Member",
+                    "Authorized Representative"
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listedByOptions.forEach { option ->
+                        FilterChip(
+                            selected = filterState.listedBy == option,
+                            onClick = { viewModel.updateListedBy(option) },
+                            label = { Text(option, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Authorized posters toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Authorized Posters Only", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Only show listings posted by direct owners or verified representatives",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = filterState.authorizedPosterOnly,
+                        onCheckedChange = { viewModel.toggleAuthorizedPosterOnly() }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 4: Monthly Budget (₱)
                 Text(
                     text = "Monthly Rent Budget (₱)",
                     style = MaterialTheme.typography.titleSmall,
@@ -703,7 +786,7 @@ fun ExploreScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Section 4: Specifications & Policies
+                // Section 5: Specifications & Policies
                 Text(
                     text = "Specifications & Amenities",
                     style = MaterialTheme.typography.titleSmall,

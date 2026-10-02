@@ -75,6 +75,27 @@ class ExampleRobolectricTest {
   }
 
   @Test
+  fun `test listed by filter state and updates`() {
+    val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val vm = com.example.ui.viewmodel.MarketplaceViewModel(app)
+    assertEquals("All", vm.filterState.value.listedBy)
+    assertEquals(false, vm.filterState.value.authorizedPosterOnly)
+
+    vm.updateListedBy("Direct Owner")
+    assertEquals("Direct Owner", vm.filterState.value.listedBy)
+
+    vm.updateListedBy("Licensed Broker")
+    assertEquals("Licensed Broker", vm.filterState.value.listedBy)
+
+    vm.toggleAuthorizedPosterOnly()
+    assertEquals(true, vm.filterState.value.authorizedPosterOnly)
+
+    vm.resetFilters()
+    assertEquals("All", vm.filterState.value.listedBy)
+    assertEquals(false, vm.filterState.value.authorizedPosterOnly)
+  }
+
+  @Test
   fun `launch MainActivity`() {
     val scenario = androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
     org.junit.Assert.assertNotNull(scenario)

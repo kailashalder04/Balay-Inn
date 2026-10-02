@@ -82,7 +82,9 @@ data class MarketplaceFilterState(
     val verifiedOnly: Boolean = false,
     val sortBy: String = "NEWEST", // NEWEST, PRICE_ASC, PRICE_DESC
     val bounds: MapBounds? = null,
-    val distanceFilter: DistanceFilter? = null
+    val distanceFilter: DistanceFilter? = null,
+    val listedBy: String = "All", // All, Direct Owner, Licensed Broker, Property Manager, Caretaker, Family Member, Authorized Representative
+    val authorizedPosterOnly: Boolean = false
 )
 
 class MarketplaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -283,6 +285,31 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             // Verified Only
             val matchesVerified = !filter.verifiedOnly || prop.verificationLevel >= 3
 
+            // Listed By
+            val matchesListedBy = when (filter.listedBy) {
+                "All" -> true
+                "Direct Owner", "Property Owner", "Owner" ->
+                    prop.posterRole.contains("owner", ignoreCase = true)
+                "Licensed Broker", "Broker" ->
+                    prop.posterRole.contains("broker", ignoreCase = true) ||
+                    prop.posterRole.contains("salesperson", ignoreCase = true) ||
+                    prop.posterRole.contains("agent", ignoreCase = true)
+                "Property Manager" ->
+                    prop.posterRole.contains("manager", ignoreCase = true)
+                "Caretaker" ->
+                    prop.posterRole.contains("caretaker", ignoreCase = true)
+                "Family Member" ->
+                    prop.posterRole.contains("family", ignoreCase = true)
+                "Authorized Representative" ->
+                    prop.posterRole.contains("representative", ignoreCase = true) ||
+                    (prop.isPosterAuthorized && prop.posterRole.contains("authorized", ignoreCase = true))
+                else -> prop.posterRole.contains(filter.listedBy, ignoreCase = true)
+            }
+
+            // Authorized Poster Only
+            val matchesAuthorized = !filter.authorizedPosterOnly || prop.isPosterAuthorized ||
+                    prop.posterRole.contains("owner", ignoreCase = true)
+
             // Map Bounds ("Search this area" - visible map coordinates)
             val matchesBounds = filter.bounds == null || (
                 prop.latitude in filter.bounds.minLat..filter.bounds.maxLat &&
@@ -301,7 +328,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
 
             matchesKeyword && matchesProvince && matchesCity && matchesBarangay && matchesPrice &&
                 matchesType && matchesBeds && matchesFurnished && matchesParking && matchesPets &&
-                matchesVerified && matchesBounds && matchesDistance
+                matchesVerified && matchesListedBy && matchesAuthorized && matchesBounds && matchesDistance
         }.sortedWith(
             when (filter.sortBy) {
                 "PRICE_ASC" -> compareBy { it.monthlyRent }
@@ -376,6 +403,14 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
 
     fun toggleVerifiedOnly() {
         _filterState.value = _filterState.value.copy(verifiedOnly = !_filterState.value.verifiedOnly)
+    }
+
+    fun updateListedBy(role: String) {
+        _filterState.value = _filterState.value.copy(listedBy = role)
+    }
+
+    fun toggleAuthorizedPosterOnly() {
+        _filterState.value = _filterState.value.copy(authorizedPosterOnly = !_filterState.value.authorizedPosterOnly)
     }
 
     fun setSortBy(sortBy: String) {
