@@ -1,0 +1,97 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Length 1498 >>
+stream
+BT
+/F1 10 Tf
+50 750 Td
+14 TL
+(BALAY-INN RENTAL MARKETPLACE - USER MANUAL & SUPPORT GUIDE) Tj T*
+(==========================================================) Tj T*
+(Version 2.5 | Platform: Android \(Kotlin & Jetpack Compose\) | Room SQLite) Tj T*
+() Tj T*
+(1. OVERVIEW & APPLICATION CAPABILITIES) Tj T*
+(Balay-Inn connects verified tenants, direct property owners, licensed real estate) Tj T*
+(brokers, property managers, and authorized representatives across the Philippines.) Tj T*
+(- Philippine Geographic Hierarchy: Filter rentals across Country -> Province -> City -> Barangay) Tj T*
+(- Interactive Map: Visual pins, pinch-to-zoom clusters, and Search this area bounds) Tj T*
+(- Listed By Filter: Direct Owners, Licensed Brokers, Managers, Caretakers, Representatives) Tj T*
+(- In-Person Viewing Scheduler: Instant booking with push-through notifications) Tj T*
+() Tj T*
+(2. SEARCHING & EXPLORING PROPERTIES) Tj T*
+(- Compact Search Bar: Streamlined 40dp search bar with Map/List toggle and Filter button) Tj T*
+(- Filter Modal: Cascading geographic location, Property types, Price budget slider,) Tj T*
+(  Listed By poster authority chips, and Authorized Posters Only toggle switch) Tj T*
+() Tj T*
+(3. POSTING RENTAL PROPERTIES \(HOST FLOW\)) Tj T*
+(Navigate to the Post tab to complete the 5-step listing wizard:) Tj T*
+(Step 1: Listing Basics & Authority | Step 2: Geographic Hierarchy) Tj T*
+(Step 3: Specifications & Amenities | Step 4: Photo Gallery | Step 5: Proof of Ownership) Tj T*
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+6 0 obj
+<< /Length 1674 >>
+stream
+BT
+/F1 10 Tf
+50 750 Td
+14 TL
+(BALAY-INN RENTAL MARKETPLACE - USER MANUAL & SUPPORT GUIDE \(Page 2\)) Tj T*
+(==================================================================) Tj T*
+() Tj T*
+(4. SCHEDULING VIEWINGS & IN-APP CHAT) Tj T*
+(- Tap Schedule Viewing on any property to choose date and preferred time slot.) Tj T*
+(- Hosts receive push notifications and can Accept, Reschedule, or Decline requests.) Tj T*
+(- Tap Chat with Host to message directly with pinned property details.) Tj T*
+() Tj T*
+(5. PROFILE, APPEARANCE & LOWER DASHBOARD LOG OUT) Tj T*
+(- Profile Tab: Tap Profile on the bottom navigation bar to view your account details.) Tj T*
+(- Edit Profile Modal: Tap Edit on your profile card to update name, phone, email, and role.) Tj T*
+(- Appearance Mode: Tap the little moon/sun icon on the top right to switch Dark/Light mode.) Tj T*
+(- Push Notifications: Toggle push through alerts easily via the dedicated switch.) Tj T*
+(- Lower Dashboard Log Out: Scroll to the bottom of the Profile page to access the) Tj T*
+(  Account Session card and tap the red Log Out button.) Tj T*
+() Tj T*
+(6. FREQUENTLY ASKED QUESTIONS \(FAQ\)) Tj T*
+(Q: How do I filter properties posted only by direct owners?) Tj T*
+(A: Open Explore -> tap Filter -> select Direct Owner under Listed By or toggle Authorized Posters.) Tj T*
+(Q: Where is the Log Out button?) Tj T*
+(A: Tap Profile on bottom nav, scroll down to the Account Session card, and tap Log Out.) Tj T*
+(Q: Does the app work offline?) Tj T*
+(A: Yes. All properties and favorites are stored locally in Room SQLite.) Tj T*
+() Tj T*
+(Support Email: support@balay-inn.ph | Helpdesk: verification@balay-inn.ph) Tj T*
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000001741 00000 n 
+0000001867 00000 n 
+0000003593 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+3719
+%%EOF

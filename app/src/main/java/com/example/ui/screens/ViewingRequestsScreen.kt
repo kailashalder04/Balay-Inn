@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
@@ -29,11 +31,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -45,7 +45,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.ViewingRequestEntity
+import com.example.ui.components.PropertyCard
 import com.example.ui.theme.BadgeAmber
 import com.example.ui.theme.BadgeAmberBg
 import com.example.ui.theme.BadgeGreen
@@ -73,15 +73,18 @@ fun ViewingRequestsScreen(
     val currentUser by viewModel.currentUser.collectAsState()
     val tenantViewings by viewModel.tenantViewings.collectAsState()
     val posterViewings by viewModel.posterViewings.collectAsState()
+    val properties by viewModel.properties.collectAsState()
+    val savedProperties by viewModel.savedProperties.collectAsState()
+    val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = As Tenant, 1 = As Landlord/Poster
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Viewings, 1 = Saved, 2 = Host Requests
 
-    val viewingsToDisplay = if (selectedTab == 0) tenantViewings else posterViewings
+    val savedItems = properties.filter { p -> savedProperties.any { it.propertyId == p.id } }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Viewing Requests") },
+                title = { Text("Viewings & Saved", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
@@ -96,12 +99,17 @@ fun ViewingRequestsScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("My Inquiries (${tenantViewings.size})", maxLines = 1, softWrap = false) }
+                    text = { Text("Viewings (${tenantViewings.size})", maxLines = 1, softWrap = false) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Received Requests (${posterViewings.size})", maxLines = 1, softWrap = false) }
+                    text = { Text("Saved (${savedItems.size})", maxLines = 1, softWrap = false) }
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = { Text("Host Requests (${posterViewings.size})", maxLines = 1, softWrap = false) }
                 )
             }
 
@@ -112,57 +120,159 @@ fun ViewingRequestsScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(bottom = 70.dp)
             ) {
-                if (viewingsToDisplay.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 40.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(Icons.Default.EventNote, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Text("No viewing requests yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    if (selectedTab == 0) "Browse listings to request a physical or live property visit." else "You haven't received viewing requests for your posted properties yet.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                when (selectedTab) {
+                    0 -> {
+                        // Tenant Viewings
+                        if (tenantViewings.isEmpty()) {
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 40.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(Icons.Default.EventNote, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text("No scheduled viewings yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "Browse rentals and schedule an in-person or virtual viewing tour with the property host.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(tenantViewings, key = { it.id }) { viewing ->
+                                ViewingCard(
+                                    viewing = viewing,
+                                    isPoster = false,
+                                    onAccept = {},
+                                    onCancel = {
+                                        viewModel.updateViewingStatus(viewing, "CANCELLED", "Cancelled by user.", sendEmailAlert = true)
+                                    },
+                                    onSendEmailAlert = {
+                                        viewModel.dispatchViewingStatusNotificationEmail(
+                                            recipientEmail = "host@balayinn.ph",
+                                            propertyTitle = "Balay-Inn Viewing Appointment",
+                                            status = viewing.status,
+                                            date = viewing.preferredDate,
+                                            time = viewing.preferredTime,
+                                            notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
+                                        )
+                                    },
+                                    onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
                                 )
                             }
                         }
                     }
-                } else {
-                    items(viewingsToDisplay, key = { it.id }) { viewing ->
-                        ViewingCard(
-                            viewing = viewing,
-                            isPoster = selectedTab == 1,
-                            onAccept = {
-                                viewModel.updateViewingStatus(viewing, "CONFIRMED", "Confirmed by host.", sendEmailAlert = true)
-                            },
-                            onCancel = {
-                                viewModel.updateViewingStatus(viewing, "CANCELLED", "Cancelled by user.", sendEmailAlert = true)
-                            },
-                            onSendEmailAlert = {
-                                viewModel.dispatchViewingStatusNotificationEmail(
-                                    recipientEmail = if (selectedTab == 1) "tenant@balayinn.ph" else "host@balayinn.ph",
-                                    propertyTitle = "Balay-Inn Viewing Appointment",
-                                    status = viewing.status,
-                                    date = viewing.preferredDate,
-                                    time = viewing.preferredTime,
-                                    notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
+                    1 -> {
+                        // Saved Properties (Favorites)
+                        if (savedItems.isEmpty()) {
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 40.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(Icons.Default.FavoriteBorder, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text("No saved properties yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "Tap the heart icon on any listing in Explore or Home to bookmark it here for your upcoming visits.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(savedItems, key = { it.id }) { prop ->
+                                PropertyCard(
+                                    property = prop,
+                                    locationDisplay = viewModel.getLocationDisplay(prop),
+                                    imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                                    isSaved = true,
+                                    onSaveToggle = { viewModel.toggleSave(prop.id) },
+                                    onClick = { onNavigateToPropertyDetail(prop.id) }
                                 )
-                            },
-                            onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
-                        )
+                            }
+                        }
+                    }
+                    2 -> {
+                        // Received Requests (Host View)
+                        if (posterViewings.isEmpty()) {
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 40.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text("No received viewing requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "When prospective tenants request to tour your listed spaces or boarding houses, requests will appear here for you to confirm.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(posterViewings, key = { it.id }) { viewing ->
+                                ViewingCard(
+                                    viewing = viewing,
+                                    isPoster = true,
+                                    onAccept = {
+                                        viewModel.updateViewingStatus(viewing, "CONFIRMED", "Confirmed by host.", sendEmailAlert = true)
+                                    },
+                                    onCancel = {
+                                        viewModel.updateViewingStatus(viewing, "CANCELLED", "Cancelled by host.", sendEmailAlert = true)
+                                    },
+                                    onSendEmailAlert = {
+                                        viewModel.dispatchViewingStatusNotificationEmail(
+                                            recipientEmail = "tenant@balayinn.ph",
+                                            propertyTitle = "Balay-Inn Viewing Appointment",
+                                            status = viewing.status,
+                                            date = viewing.preferredDate,
+                                            time = viewing.preferredTime,
+                                            notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
+                                        )
+                                    },
+                                    onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
+                                )
+                            }
+                        }
                     }
                 }
             }

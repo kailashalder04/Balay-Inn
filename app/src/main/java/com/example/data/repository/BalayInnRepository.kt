@@ -102,6 +102,7 @@ class BalayInnRepository(context: Context) {
                 )
             }
             try {
+                propDao.insertProperties(PropertyDataSeed.sampleProperties)
                 propDao.insertImages(PropertyDataSeed.sampleImages)
             } catch (_: Exception) {}
 
@@ -202,6 +203,11 @@ class BalayInnRepository(context: Context) {
         val updated = existing.copy(status = newStatus, updatedAt = System.currentTimeMillis())
         propDao.updateProperty(updated)
         logAudit("UPDATE_STATUS", "PROPERTY", propertyId, "Status updated to $newStatus by ${requestedBy?.fullName ?: "System"}")
+    }
+
+    suspend fun deleteProperty(propertyId: String) = withContext(Dispatchers.IO) {
+        propDao.deleteProperty(propertyId)
+        logAudit("DELETE_PROPERTY", "PROPERTY", propertyId, "Property deleted: $propertyId")
     }
 
     suspend fun createProperty(property: PropertyEntity, images: List<PropertyImageEntity>, creator: UserEntity? = null) = withContext(Dispatchers.IO) {

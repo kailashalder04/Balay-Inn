@@ -627,6 +627,37 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    private val _pushNotificationsEnabled = MutableStateFlow(prefs.getBoolean("push_notifications_enabled", true))
+    val pushNotificationsEnabled: StateFlow<Boolean> = _pushNotificationsEnabled.asStateFlow()
+
+    fun setPushNotificationsEnabled(enabled: Boolean) {
+        _pushNotificationsEnabled.value = enabled
+        prefs.edit().putBoolean("push_notifications_enabled", enabled).apply()
+    }
+
+    fun updateUserProfile(
+        fullName: String,
+        phone: String,
+        email: String,
+        role: String? = null,
+        relationshipToProperty: String? = null,
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val current = currentUser.value
+            val updated = current.copy(
+                fullName = fullName.trim(),
+                phone = phone.trim(),
+                email = email.trim(),
+                role = role ?: current.role,
+                relationshipToProperty = relationshipToProperty ?: current.relationshipToProperty
+            )
+            repository.updateUser(updated)
+            repository.switchUser(updated)
+            onSuccess()
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             if (SupabaseClient.isConfigured) {
@@ -982,6 +1013,12 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
     fun deleteRequirement(id: String) {
         viewModelScope.launch {
             repository.deleteRequirement(id)
+        }
+    }
+
+    fun deleteProperty(propertyId: String) {
+        viewModelScope.launch {
+            repository.deleteProperty(propertyId)
         }
     }
 

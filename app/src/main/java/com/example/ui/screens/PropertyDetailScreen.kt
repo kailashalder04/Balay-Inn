@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.ui.components.BoardingHouseImagePager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,32 +21,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material.icons.filled.ZoomOut
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import android.content.Intent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Bathtub
 import androidx.compose.material.icons.filled.Bed
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -55,7 +43,6 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Schedule
@@ -64,6 +51,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -105,7 +93,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.entity.PropertyEntity
-import com.example.ui.components.VerificationBadgeRow
 import com.example.ui.viewmodel.MarketplaceViewModel
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -128,12 +115,10 @@ fun PropertyDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Dialog & Lightbox States
+    // Dialog States
     var showViewingDialog by remember { mutableStateOf(false) }
     var showChatDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
-    var showLightbox by remember { mutableStateOf(false) }
-    var lightboxInitialIndex by remember { mutableIntStateOf(0) }
 
     if (property == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -158,15 +143,8 @@ fun PropertyDetailScreen(
         if (urls.isNotEmpty()) urls else defaultFallbackImages
     }
 
-    val heroPagerState = rememberPagerState(pageCount = { displayImages.size })
-
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
-
-    val totalMonthly = prop.monthlyRent + prop.associationDues + prop.parkingFees + prop.maintenanceFees
-    val advanceRentAmount = prop.monthlyRent * prop.advanceRentMonths
-    val securityDepositAmount = prop.monthlyRent * prop.securityDepositMonths
-    val totalMoveInCost = advanceRentAmount + securityDepositAmount
 
     Scaffold(
         topBar = {
@@ -219,7 +197,7 @@ fun PropertyDetailScreen(
                                 softWrap = false
                             )
                             Text(
-                                text = "Est. Total: ${currencyFormat.format(totalMonthly).replace("PHP", "₱")}/mo",
+                                text = if (prop.utilitiesIncluded) "Elec & water included" else "Submetered / Water",
                                 fontSize = if (isNarrow) 10.sp else 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -234,7 +212,7 @@ fun PropertyDetailScreen(
                             contentPadding = PaddingValues(horizontal = if (isNarrow) 8.dp else 12.dp, vertical = 8.dp),
                             modifier = Modifier.testTag("detail_message_btn")
                         ) {
-                            Icon(Icons.Default.Message, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Message", maxLines = 1, softWrap = false, fontSize = 12.sp)
                         }
@@ -263,171 +241,16 @@ fun PropertyDetailScreen(
                 .padding(innerPadding),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // Photos Carousel / Gallery (Full-Width Swipeable Image Carousel)
+            // Photos Carousel / Gallery using BoardingHouseImagePager component
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(280.dp)
-                        .background(Color.Black)
-                ) {
-                    HorizontalPager(
-                        state = heroPagerState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable {
-                                lightboxInitialIndex = heroPagerState.currentPage
-                                showLightbox = true
-                            }
-                            .testTag("detail_hero_carousel")
-                    ) { page ->
-                        AsyncImage(
-                            model = displayImages[page],
-                            contentDescription = "${prop.title} photo ${page + 1}",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    // Subtle gradient for buttons & badges
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Black.copy(alpha = 0.25f),
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.5f)
-                                    )
-                                )
-                            )
-                    )
-
-                    // Navigation Chevrons
-                    if (displayImages.size > 1) {
-                        if (heroPagerState.currentPage > 0) {
-                            IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        heroPagerState.animateScrollToPage(heroPagerState.currentPage - 1)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .padding(start = 8.dp)
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.45f))
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                    contentDescription = "Previous Photo",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-
-                        if (heroPagerState.currentPage < displayImages.size - 1) {
-                            IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        heroPagerState.animateScrollToPage(heroPagerState.currentPage + 1)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .padding(end = 8.dp)
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.45f))
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = "Next Photo",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-                    }
-
-                    // Tap to expand hint (top-left)
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color.Black.copy(alpha = 0.55f),
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(12.dp)
-                            .clickable {
-                                lightboxInitialIndex = heroPagerState.currentPage
-                                showLightbox = true
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Fullscreen,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Full Screen",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    // Floating Photo Count Badge (bottom-right: "1 / 5 Photos")
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color.Black.copy(alpha = 0.65f),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(12.dp)
-                            .clickable {
-                                lightboxInitialIndex = heroPagerState.currentPage
-                                showLightbox = true
-                            }
-                    ) {
-                        Text(
-                            text = "${heroPagerState.currentPage + 1} / ${displayImages.size} Photos",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                        )
-                    }
-
-                    // Dot indicators centered at bottom
-                    if (displayImages.size > 1) {
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            repeat(displayImages.size) { index ->
-                                val isCurrent = heroPagerState.currentPage == index
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = if (isCurrent) 16.dp else 6.dp, height = 6.dp)
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(if (isCurrent) Color.White else Color.White.copy(alpha = 0.45f))
-                                )
-                            }
-                        }
-                    }
-                }
+                BoardingHouseImagePager(
+                    images = displayImages,
+                    propertyTitle = prop.title,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
-            // Title, Type, and Location
+            // 1. Title, Type, Rent, Location Pin, and Utility Badges
             item {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
@@ -449,13 +272,14 @@ fun PropertyDetailScreen(
                         }
 
                         Text(
-                            text = "Availability: ${prop.availabilityDate}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "$formattedRent / month",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
                         text = prop.title,
@@ -463,121 +287,172 @@ fun PropertyDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = locationDisplay,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    // Map Address in a Pin Button
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                        modifier = Modifier.testTag("detail_map_pin_btn")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = "Map Pin",
+                                modifier = Modifier.size(15.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = locationDisplay,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
 
-                    if (prop.neighborhood.isNotBlank() || prop.nearbyLandmark.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = listOfNotNull(
-                                if (prop.neighborhood.isNotBlank()) "Neighborhood: ${prop.neighborhood}" else null,
-                                if (prop.nearbyLandmark.isNotBlank()) "Landmark: ${prop.nearbyLandmark}" else null
-                            ).joinToString(" • "),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
+                    Spacer(modifier = Modifier.height(12.dp))
 
-            // Key Specs Grid: Beds, Baths, Area, Furnished, Lease
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                    border = CardDefaults.outlinedCardBorder()
-                ) {
+                    // Utility and Highway Highlights
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceAround
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SpecColumn(icon = Icons.Default.Bed, label = "Bedrooms", value = if (prop.bedrooms == 0) "Studio" else "${prop.bedrooms} Bed")
-                        SpecColumn(icon = Icons.Default.Bathtub, label = "Baths", value = "${prop.bathrooms} Bath")
-                        SpecColumn(icon = Icons.Default.SquareFoot, label = "Floor Area", value = "${prop.floorAreaSqm.toInt()} sqm")
-                        SpecColumn(icon = Icons.Default.Home, label = "Furnished", value = prop.furnishedStatus)
-                    }
-                }
-            }
+                        // WiFi Available
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFEFF6FF),
+                            border = BorderStroke(0.5.dp, Color(0xFF93C5FD))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("WiFi available", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1D4ED8))
+                            }
+                        }
 
-            // Section 23: Complete Cost Transparency Breakdown
-            item {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Cost Transparency Breakdown",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
+                        // Electricity / Water
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFF0FDF4),
+                            border = BorderStroke(0.5.dp, Color(0xFF86EFAC))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (prop.utilitiesIncluded) "Elec/Water in rent" else "Elec submeter / Water",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF15803D)
+                                )
+                            }
+                        }
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = CardDefaults.outlinedCardBorder()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            CostRow(label = "Monthly Base Rent", amount = prop.monthlyRent, isBold = false)
-                            CostRow(label = "Association Dues", amount = prop.associationDues, isBold = false)
-                            CostRow(label = "Parking Fee", amount = prop.parkingFees, isBold = false)
-                            CostRow(label = "Maintenance / Misc", amount = prop.maintenanceFees, isBold = false)
-
-                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)))
-
-                            CostRow(label = "Total Estimated Monthly Cost", amount = totalMonthly, isBold = true, isHighlight = true)
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = "Estimated Move-in Cash Required:",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            CostRow(label = "Advance Rent (${prop.advanceRentMonths} month)", amount = advanceRentAmount, isBold = false)
-                            CostRow(label = "Security Deposit (${prop.securityDepositMonths} months)", amount = securityDepositAmount, isBold = false)
-                            CostRow(label = "Total Move-in Payment", amount = totalMoveInCost, isBold = true)
+                        // Highway Access
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFFFFBEB),
+                            border = BorderStroke(0.5.dp, Color(0xFFFDE68A))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.AltRoute, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Highway access", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFB45309))
+                            }
                         }
                     }
                 }
             }
 
-            // Section 26: Poster vs Owner Relationship & Permissions
+            // 2. Boarding House Main Description (Simple and Focused)
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     Text(
-                        text = "Listing Representative & Ownership",
+                        text = "Description",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
-
+                    Spacer(modifier = Modifier.height(8.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                        border = CardDefaults.outlinedCardBorder()
+                    ) {
+                        Text(
+                            text = prop.description,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 24.sp,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            }
+
+            // 3. Room Details
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = CardDefaults.outlinedCardBorder()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        SpecColumn(icon = Icons.Default.Bed, label = "Room", value = if (prop.bedrooms == 0) "Bed Space" else "${prop.bedrooms} Bed${if (prop.bedrooms > 1) "s" else ""}")
+                        SpecColumn(icon = Icons.Default.Bathtub, label = "Bathroom", value = "${prop.bathrooms} Bath")
+                        SpecColumn(icon = Icons.Default.Home, label = "Furnished", value = prop.furnishedStatus)
+                    }
+                }
+            }
+
+            // 4. Host Info
+            item {
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    Text(
+                        text = "Host",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         border = CardDefaults.outlinedCardBorder()
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(48.dp)
+                                    .size(42.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primaryContainer),
                                 contentAlignment = Alignment.Center
@@ -592,95 +467,11 @@ fun PropertyDetailScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Relationship: ${prop.posterRole}",
+                                    text = "Host / Caretaker",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (prop.isPosterAuthorized) Icons.Default.CheckCircle else Icons.Default.Lock,
-                                        contentDescription = null,
-                                        tint = if (prop.isPosterAuthorized) Color(0xFF059669) else Color(0xFFD97706),
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (prop.isPosterAuthorized) "Authorized by property owner to advertise" else "Authorization verification pending",
-                                        fontSize = 11.sp,
-                                        color = if (prop.isPosterAuthorized) Color(0xFF059669) else Color(0xFFD97706),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
                             }
-                        }
-                    }
-                }
-            }
-
-            // Layered Verification Section
-            item {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Balay-Inn Layered Verification",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    VerificationBadgeRow(property = prop, showDetailsDialogOnClick = true)
-                }
-            }
-
-            // Description
-            item {
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    Text(
-                        text = "About this Property",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = prop.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 22.sp
-                    )
-                }
-            }
-
-            // Section 18: Location Privacy Information
-            item {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Location Privacy & Area",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                        border = CardDefaults.outlinedCardBorder()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Privacy Setting: ${prop.locationPrivacy.lowercase().replaceFirstChar { it.uppercase() }} Location",
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 13.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "To protect tenant and owner security, exact residential street numbers are kept confidential until an in-app viewing request is accepted. Nearby landmarks: ${prop.nearbyLandmark.ifBlank { "Available upon contact" }}.",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 16.sp
-                            )
                         }
                     }
                 }
@@ -901,256 +692,6 @@ fun PropertyDetailScreen(
             }
         )
     }
-
-    // --- FULL-SCREEN HIGH-RESOLUTION LIGHTBOX MODAL ---
-    if (showLightbox) {
-        Dialog(
-            onDismissRequest = { showLightbox = false },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
-        ) {
-            val lightboxPagerState = rememberPagerState(
-                initialPage = lightboxInitialIndex,
-                pageCount = { displayImages.size }
-            )
-            val context = LocalContext.current
-            var isZoomedIn by remember { mutableStateOf(false) }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-                    .testTag("fullscreen_lightbox_modal")
-            ) {
-                // High-Resolution Swipeable Photo Pager with Pinch-to-Zoom
-                HorizontalPager(
-                    state = lightboxPagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    var scale by remember(page) { mutableFloatStateOf(1f) }
-                    var offset by remember(page) { mutableStateOf(Offset.Zero) }
-
-                    LaunchedEffect(isZoomedIn) {
-                        if (isZoomedIn) {
-                            scale = 2.5f
-                        } else {
-                            scale = 1f
-                            offset = Offset.Zero
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(page) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(1f, 4.5f)
-                                    if (scale > 1.05f) {
-                                        offset += pan
-                                        isZoomedIn = true
-                                    } else {
-                                        offset = Offset.Zero
-                                        isZoomedIn = false
-                                    }
-                                }
-                            }
-                            .pointerInput(page) {
-                                detectTapGestures(
-                                    onDoubleTap = {
-                                        if (scale > 1.05f || isZoomedIn) {
-                                            scale = 1f
-                                            offset = Offset.Zero
-                                            isZoomedIn = false
-                                        } else {
-                                            scale = 2.5f
-                                            isZoomedIn = true
-                                        }
-                                    }
-                                )
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AsyncImage(
-                            model = displayImages[page],
-                            contentDescription = "Full-Screen Photo ${page + 1}",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    translationX = offset.x,
-                                    translationY = offset.y
-                                )
-                        )
-                    }
-                }
-
-                // Top Floating Bar with Index, Zoom Toggle, Share, and Close
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .align(Alignment.TopCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent)
-                            )
-                        ),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${lightboxPagerState.currentPage + 1} of ${displayImages.size}",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        // Zoom Toggle Button
-                        IconButton(
-                            onClick = { isZoomedIn = !isZoomedIn },
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isZoomedIn) Icons.Default.ZoomOut else Icons.Default.ZoomIn,
-                                contentDescription = if (isZoomedIn) "Zoom Out" else "Zoom In",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        // Share Button
-                        IconButton(
-                            onClick = {
-                                val currentUrl = displayImages.getOrNull(lightboxPagerState.currentPage) ?: ""
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, prop.title)
-                                    putExtra(
-                                        Intent.EXTRA_TEXT,
-                                        "Check out this verified listing on Balay-Inn: ${prop.title} • $currentUrl"
-                                    )
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share Listing Photo"))
-                            },
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Share,
-                                contentDescription = "Share Photo",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        // Close Button
-                        IconButton(
-                            onClick = { showLightbox = false },
-                            modifier = Modifier
-                                .size(38.dp)
-                                .testTag("lightbox_close_btn")
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Close Lightbox",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Left & Right Navigation Chevron Buttons
-                if (displayImages.size > 1) {
-                    if (lightboxPagerState.currentPage > 0) {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    lightboxPagerState.animateScrollToPage(lightboxPagerState.currentPage - 1)
-                                }
-                            },
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 12.dp)
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.55f))
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                contentDescription = "Previous photo",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-
-                    if (lightboxPagerState.currentPage < displayImages.size - 1) {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    lightboxPagerState.animateScrollToPage(lightboxPagerState.currentPage + 1)
-                                }
-                            },
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 12.dp)
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.55f))
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = "Next photo",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Bottom thumbnails indicator preview strip
-                if (displayImages.size > 1) {
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                            .padding(bottom = 18.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        displayImages.forEachIndexed { idx, url ->
-                            val isSelected = lightboxPagerState.currentPage == idx
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                border = if (isSelected) BorderStroke(2.dp, Color.White) else null,
-                                modifier = Modifier
-                                    .size(width = 46.dp, height = 32.dp)
-                                    .clickable {
-                                        scope.launch { lightboxPagerState.animateScrollToPage(idx) }
-                                    }
-                            ) {
-                                AsyncImage(
-                                    model = url,
-                                    contentDescription = "Thumbnail ${idx + 1}",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -1160,34 +701,5 @@ private fun SpecColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, la
         Spacer(modifier = Modifier.height(4.dp))
         Text(value, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, softWrap = false)
         Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
-    }
-}
-
-@Composable
-private fun CostRow(label: String, amount: Double, isBold: Boolean, isHighlight: Boolean = false) {
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
-    val formatted = if (amount == 0.0) "Included / Free" else currencyFormat.format(amount).replace("PHP", "₱")
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            fontSize = if (isBold) 13.sp else 12.sp,
-            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
-            color = if (isHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            softWrap = false
-        )
-        Text(
-            text = formatted,
-            fontSize = if (isBold) 14.sp else 12.sp,
-            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
-            color = if (isHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            softWrap = false
-        )
     }
 }

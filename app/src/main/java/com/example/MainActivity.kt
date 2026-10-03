@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -59,6 +61,7 @@ import com.example.ui.screens.ExploreScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.MessagesScreen
+import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.PostPropertyScreen
 import com.example.ui.screens.PropertyDetailScreen
@@ -71,6 +74,7 @@ import com.example.ui.viewmodel.MarketplaceViewModel
 sealed class AppScreen {
     object Home : AppScreen()
     object Explore : AppScreen()
+    object Notifications : AppScreen()
     object Post : AppScreen()
     object Viewings : AppScreen()
     data class Messages(val conversationId: String? = null) : AppScreen()
@@ -105,7 +109,8 @@ fun BalayInnApp(
     val currentScreen = backStack.lastOrNull() ?: AppScreen.Home
 
     fun navigateTo(screen: AppScreen) {
-        if (screen is AppScreen.Home || screen is AppScreen.Explore || screen is AppScreen.Post || screen is AppScreen.Viewings || screen is AppScreen.Dashboard) {
+        if (screen is AppScreen.Home || screen is AppScreen.Explore || screen is AppScreen.Viewings ||
+            (screen is AppScreen.Messages && screen.conversationId == null) || screen is AppScreen.Dashboard) {
             // Root destination: clear stack and push
             backStack.clear()
             backStack.add(screen)
@@ -117,6 +122,9 @@ fun BalayInnApp(
     fun navigateBack() {
         if (backStack.size > 1) {
             backStack.removeAt(backStack.size - 1)
+        } else {
+            backStack.clear()
+            backStack.add(AppScreen.Home)
         }
     }
 
@@ -128,7 +136,7 @@ fun BalayInnApp(
     }
 
     val isRootScreen = currentScreen is AppScreen.Home || currentScreen is AppScreen.Explore ||
-        currentScreen is AppScreen.Post || currentScreen is AppScreen.Viewings ||
+        currentScreen is AppScreen.Viewings ||
         (currentScreen is AppScreen.Messages && currentScreen.conversationId == null) ||
         currentScreen is AppScreen.Dashboard
 
@@ -157,7 +165,9 @@ fun BalayInnApp(
                         onNavigateToPostProperty = { navigateTo(AppScreen.Post) },
                         onNavigateToVerificationCenter = { navigateTo(AppScreen.VerificationCenter) },
                         onNavigateToLogin = { navigateTo(AppScreen.Login) },
-                        onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) }
+                        onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) },
+                        onNavigateToNotifications = { navigateTo(AppScreen.Notifications) },
+                        onNavigateToPreferences = { navigateTo(AppScreen.TenantRequirements) }
                     )
                 }
                 is AppScreen.Explore -> {
@@ -166,11 +176,18 @@ fun BalayInnApp(
                         onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) }
                     )
                 }
+                is AppScreen.Notifications -> {
+                    NotificationsScreen(
+                        viewModel = viewModel,
+                        onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) },
+                        onBack = { navigateBack() }
+                    )
+                }
                 is AppScreen.Post -> {
                     PostPropertyScreen(
                         viewModel = viewModel,
                         onBack = { navigateBack() },
-                        onSuccess = { navigateTo(AppScreen.Explore) }
+                        onSuccess = { navigateBack() }
                     )
                 }
                 is AppScreen.Viewings -> {
@@ -182,7 +199,9 @@ fun BalayInnApp(
                 is AppScreen.Messages -> {
                     MessagesScreen(
                         viewModel = viewModel,
-                        initialConversationId = currentScreen.conversationId
+                        initialConversationId = currentScreen.conversationId,
+                        onSelectConversation = { convId -> navigateTo(AppScreen.Messages(convId)) },
+                        onBack = { navigateBack() }
                     )
                 }
                 is AppScreen.Dashboard -> {
@@ -281,10 +300,9 @@ fun ResponsiveBottomNav(
             val navItems = listOf(
                 NavItemData("Home", Icons.Default.Home, AppScreen.Home, "nav_home"),
                 NavItemData("Explore", Icons.Default.Explore, AppScreen.Explore, "nav_explore"),
-                NavItemData("Post", Icons.Default.AddCircle, AppScreen.Post, "nav_post"),
                 NavItemData("Viewings", Icons.Default.CalendarMonth, AppScreen.Viewings, "nav_viewings"),
                 NavItemData("Messages", Icons.Default.Chat, AppScreen.Messages(), "nav_messages"),
-                NavItemData("Dashboard", Icons.Default.AccountCircle, AppScreen.Dashboard, "nav_dashboard")
+                NavItemData("Profile", Icons.Default.Person, AppScreen.Dashboard, "nav_dashboard")
             )
 
             Row(
@@ -299,7 +317,6 @@ fun ResponsiveBottomNav(
                     val isSelected = when (item.screen) {
                         is AppScreen.Home -> currentScreen is AppScreen.Home
                         is AppScreen.Explore -> currentScreen is AppScreen.Explore
-                        is AppScreen.Post -> currentScreen is AppScreen.Post
                         is AppScreen.Viewings -> currentScreen is AppScreen.Viewings
                         is AppScreen.Messages -> currentScreen is AppScreen.Messages
                         is AppScreen.Dashboard -> currentScreen is AppScreen.Dashboard

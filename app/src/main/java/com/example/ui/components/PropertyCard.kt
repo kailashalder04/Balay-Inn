@@ -1,7 +1,9 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,11 +16,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bathtub
 import androidx.compose.material.icons.filled.Bed
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -51,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.runtime.rememberCoroutineScope
@@ -259,7 +264,7 @@ fun PropertyCard(
                     }
                 }
 
-                // Bottom-Left Image Info: Monthly Rent & Estimated Total
+                // Bottom-Left Image Info: Monthly Rent
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -273,17 +278,6 @@ fun PropertyCard(
                         maxLines = 1,
                         softWrap = false
                     )
-                    if (totalEstimatedMonthly > property.monthlyRent) {
-                        Text(
-                            text = "Est. Total: $formattedTotalCost/mo (incl. dues/fees)",
-                            fontSize = 10.sp,
-                            color = Color(0xFFFDE68A),
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
                 }
             }
 
@@ -299,166 +293,153 @@ fun PropertyCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // Location row with Map button
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                // Map Address in a Pin Button
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .clickable { onViewOnMap?.invoke() ?: onClick() }
+                        .testTag("property_map_pin_btn_${property.id}")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Icon(
                             Icons.Default.LocationOn,
-                            contentDescription = "Location",
-                            modifier = Modifier.size(14.dp),
+                            contentDescription = "Map Pin",
+                            modifier = Modifier.size(15.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = locationDisplay,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             maxLines = 1,
-                            softWrap = false,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                }
 
-                    if (onViewOnMap != null) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
-                            modifier = Modifier
-                                .clickable { onViewOnMap() }
-                                .padding(start = 6.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Boarding house amenities highlights: WiFi available, Electricity, Water, Highway access
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // WiFi Available
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFEFF6FF),
+                        border = BorderStroke(0.5.dp, Color(0xFF93C5FD))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Map,
-                                    contentDescription = "View on Map",
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = "Map",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
+                            Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("WiFi available", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1D4ED8))
+                        }
+                    }
+
+                    // Electricity / Water
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFF0FDF4),
+                        border = BorderStroke(0.5.dp, Color(0xFF86EFAC))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (property.utilitiesIncluded) "Elec/Water in rent" else "Elec submeter / Water",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF15803D)
+                            )
+                        }
+                    }
+
+                    // Highway Access
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFFFFBEB),
+                        border = BorderStroke(0.5.dp, Color(0xFFFDE68A))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.AltRoute, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Highway access", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFB45309))
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Responsive Specs: Beds, Baths, Parking, Furnished, WiFi
-                FlowRow(
+                // Description
+                Text(
+                    text = property.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Concise Specs: Beds, Baths, Furnished
+                Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Bed, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.Bed, contentDescription = null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = if (property.bedrooms == 0) "Studio" else "${property.bedrooms} Bed${if (property.bedrooms > 1) "s" else ""}",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = if (property.bedrooms == 0) "Studio / Bedspace" else "${property.bedrooms} Bed${if (property.bedrooms > 1) "s" else ""}",
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             softWrap = false
                         )
                     }
+                    Text("•", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Bathtub, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.Bathtub, contentDescription = null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = "${property.bathrooms} Bath${if (property.bathrooms > 1) "s" else ""}",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = "${property.bathrooms} Bath",
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             softWrap = false
                         )
                     }
-                    if (property.parkingAvailable) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "Parking",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
-                    }
+                    Text("•", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        text = "• ${property.furnishedStatus}",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = property.furnishedStatus,
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false
-                    )
-                    if (property.internetIncluded) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Wifi, contentDescription = "WiFi", modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text("WiFi", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Verification Badges Row
-                VerificationBadgeRow(property = property, showDetailsDialogOnClick = false)
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Poster & Ownership Relation (Rule 1: Owner and poster can be different people)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Poster",
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Listed by: ${property.posterName}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "(${property.posterRole})",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

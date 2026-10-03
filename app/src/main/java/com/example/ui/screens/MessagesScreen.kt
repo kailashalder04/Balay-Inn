@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,18 +63,31 @@ import java.util.Locale
 fun MessagesScreen(
     viewModel: MarketplaceViewModel,
     initialConversationId: String? = null,
+    onSelectConversation: ((String) -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
     val conversations by viewModel.conversations.collectAsState()
 
+    // When navigating to Messages, it must open on the list of messages (conversations list),
+    // and not automatically open into a specific conversation!
     var activeConversationId by remember(initialConversationId) {
-        mutableStateOf(initialConversationId ?: conversations.firstOrNull()?.id)
+        mutableStateOf(initialConversationId)
     }
 
     val activeConv = conversations.find { it.id == activeConversationId }
 
     if (activeConv != null && activeConversationId != null) {
+        // Back press inside chat returns to conversations list
+        BackHandler {
+            if (initialConversationId != null && onBack != null) {
+                onBack()
+            } else {
+                activeConversationId = null
+            }
+        }
+
         // Chat View
         val messages by viewModel.getMessagesForConversation(activeConversationId!!).collectAsState(initial = emptyList())
         var inputMessage by remember { mutableStateOf("") }
@@ -90,7 +103,15 @@ fun MessagesScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { activeConversationId = null }) {
+                        IconButton(
+                            onClick = {
+                                if (initialConversationId != null && onBack != null) {
+                                    onBack()
+                                } else {
+                                    activeConversationId = null
+                                }
+                            }
+                        ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
@@ -200,11 +221,20 @@ fun MessagesScreen(
             }
         }
     } else {
-        // Conversations List
+        // Conversations List: Opens initially when clicking Messages
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Messages & Inquiries") },
+                    title = {
+                        Column {
+                            Text("Messages", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Text(
+                                "${conversations.size} active conversation${if (conversations.size == 1) "" else "s"}",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
                 )
             },
@@ -216,7 +246,7 @@ fun MessagesScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 70.dp)
+                contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)
             ) {
                 if (conversations.isEmpty()) {
                     item {
@@ -244,12 +274,23 @@ fun MessagesScreen(
                 } else {
                     items(conversations, key = { it.id }) { conv ->
                         val otherParty = if (currentUser.id == conv.tenantId) conv.posterName else conv.tenantName
+                        val unreadCount = if (currentUser.id == conv.tenantId) conv.unreadForTenant else conv.unreadForPoster
+                        val timeStr = if (conv.lastMessageTime > 0) {
+                            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(conv.lastMessageTime))
+                        } else ""
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { activeConversationId = conv.id }
+                                .clickable {
+                                    if (onSelectConversation != null) {
+                                        onSelectConversation(conv.id)
+                                    } else {
+                                        activeConversationId = conv.id
+                                    }
+                                }
                                 .testTag("conversation_item_${conv.id}"),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             border = CardDefaults.outlinedCardBorder()
                         ) {
@@ -259,19 +300,85 @@ fun MessagesScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(46.dp)
+                                        .size(48.dp)
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.primaryContainer),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    val initialChar = otherParty.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
+                                    Text(
+                                        text = initialChar,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(otherParty, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                                    Text(conv.propertyTitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            otherParty,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        if (timeStr.isNotBlank()) {
+                                            Text(
+                                                timeStr,
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(conv.lastMessageText, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                                    Text(
+                                        conv.propertyTitle,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            conv.lastMessageText.ifBlank { "No messages yet" },
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (unreadCount > 0) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.error),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    unreadCount.toString(),
+                                                    color = MaterialTheme.colorScheme.onError,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

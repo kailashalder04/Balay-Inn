@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -90,10 +91,12 @@ fun TenantRequirementScreen(
 
     val activeReq = requirements.find { it.id == selectedReqId } ?: requirements.firstOrNull()
 
+    BackHandler(onBack = onBack)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("What are you looking for?") },
+                title = { Text("Rental Preferences") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

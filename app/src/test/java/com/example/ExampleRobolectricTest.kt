@@ -96,6 +96,15 @@ class ExampleRobolectricTest {
   }
 
   @Test
+  fun `test viewModel logout`() {
+    val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val vm = com.example.ui.viewmodel.MarketplaceViewModel(app)
+    vm.logout()
+    org.junit.Assert.assertNull(vm.supabaseAuthUser.value)
+    org.junit.Assert.assertNotNull(vm.currentUser.value)
+  }
+
+  @Test
   fun `launch MainActivity`() {
     val scenario = androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
     org.junit.Assert.assertNotNull(scenario)

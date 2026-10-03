@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,55 +18,52 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AdminPanelSettings
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Rule
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -77,9 +76,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.local.entity.PropertyEntity
-import com.example.data.remote.supabase.SupabaseSyncStatus
-import com.example.ui.components.PropertyCard
 import com.example.ui.viewmodel.MarketplaceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,38 +84,45 @@ fun DashboardScreen(
     viewModel: MarketplaceViewModel,
     onNavigateToPropertyDetail: (String) -> Unit,
     onNavigateToPostProperty: () -> Unit,
-    onNavigateToRequirements: () -> Unit,
-    onNavigateToVerificationCenter: () -> Unit,
-    onNavigateToAdminPanel: () -> Unit,
+    onNavigateToRequirements: () -> Unit = {},
+    onNavigateToVerificationCenter: () -> Unit = {},
+    onNavigateToAdminPanel: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
     onNavigateToOnboarding: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
-    val properties by viewModel.properties.collectAsState()
-    val savedProperties by viewModel.savedProperties.collectAsState()
     val posterProperties by viewModel.posterProperties.collectAsState()
     val tenantViewings by viewModel.tenantViewings.collectAsState()
     val posterViewings by viewModel.posterViewings.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
-    val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
+    val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val pushNotificationsEnabled by viewModel.pushNotificationsEnabled.collectAsState()
+    val requirements by viewModel.requirements.collectAsState()
 
-    var showSupabaseDialog by remember { mutableStateOf(false) }
-    var showEmailTestDialog by remember { mutableStateOf(false) }
-    var testRecipientEmail by remember { mutableStateOf("kailashalder04@gmail.com") }
-    var testEmailSubject by remember { mutableStateOf("🏠 Viewing Request Alert: Solinea Tower 2") }
-    var testEmailBody by remember { mutableStateOf("Hello Host,\n\nA tenant has requested an in-person viewing for Solinea Tower 2 on Saturday at 2:00 PM.\n\nTenant Note:\n\"Inquiring about high-speed WiFi and parking availability.\"") }
-    var emailSentStatus by remember { mutableStateOf<String?>(null) }
-    val supabaseSyncStatus by viewModel.supabaseSyncStatus.collectAsState()
+    var showEditProfileModal by remember { mutableStateOf(false) }
+
+    // Edit Profile State
+    var editFullName by remember(currentUser) { mutableStateOf(currentUser.fullName) }
+    var editPhone by remember(currentUser) { mutableStateOf(currentUser.phone) }
+    var editEmail by remember(currentUser) { mutableStateOf(currentUser.email) }
+    var editRole by remember(currentUser) { mutableStateOf(currentUser.role) }
+    var editRelationship by remember(currentUser) { mutableStateOf(currentUser.relationshipToProperty) }
 
     val isTenant = currentUser.role == "TENANT"
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Dashboard") },
+                title = {
+                    Text(
+                        text = "Profile",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
                 actions = {
-                    val isDarkMode by viewModel.isDarkMode.collectAsState()
+                    // Appearance Mode: Combined solely on the top-right moon/sun icon
                     IconButton(
                         onClick = { viewModel.toggleDarkMode() },
                         modifier = Modifier.testTag("theme_toggle_btn")
@@ -129,11 +132,6 @@ fun DashboardScreen(
                             contentDescription = if (isDarkMode) "Switch to Light Mode" else "Switch to Dark Mode",
                             tint = if (isDarkMode) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                    if (currentUser.role == "ADMIN" || currentUser.role.contains("STAFF")) {
-                        IconButton(onClick = onNavigateToAdminPanel) {
-                            Icon(Icons.Default.AdminPanelSettings, contentDescription = "Admin Panel", tint = MaterialTheme.colorScheme.primary)
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -149,62 +147,88 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)
         ) {
-            // Profile Card
+            // Profile Card (With Edit Button & No Verification Badges)
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("profile_header_card"),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = CardDefaults.outlinedCardBorder()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(28.dp))
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(currentUser.fullName, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                            Text(
-                                text = "Role: ${currentUser.role.replace("_", " ")} • ${currentUser.relationshipToProperty}",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFFECFDF5)
-                                ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = currentUser.fullName,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = currentUser.email,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (currentUser.phone.isNotBlank()) {
                                     Text(
-                                        text = "Level ${currentUser.verificationLevel} Verified",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF059669),
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                        maxLines = 1,
-                                        softWrap = false
+                                        text = currentUser.phone,
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                                Text(
+                                    text = "Role: ${currentUser.role.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }}",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
-                        }
 
-                        OutlinedButton(
-                            onClick = onNavigateToVerificationCenter,
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text("Verify", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                            // Edit Profile Button
+                            Button(
+                                onClick = {
+                                    editFullName = currentUser.fullName
+                                    editPhone = currentUser.phone
+                                    editEmail = currentUser.email
+                                    editRole = currentUser.role
+                                    editRelationship = currentUser.relationshipToProperty
+                                    showEditProfileModal = true
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("edit_profile_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Profile",
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Edit", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
                         }
                     }
                 }
@@ -217,9 +241,9 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (isTenant) {
-                        StatCard(label = "Saved", value = "${savedProperties.size}", modifier = Modifier.weight(1f))
                         StatCard(label = "Viewings", value = "${tenantViewings.size}", modifier = Modifier.weight(1f))
-                        StatCard(label = "Alerts", value = "${notifications.size}", modifier = Modifier.weight(1f))
+                        StatCard(label = "Notifications", value = "${notifications.size}", modifier = Modifier.weight(1f))
+                        StatCard(label = "My Listings", value = "${posterProperties.size}", modifier = Modifier.weight(1f))
                     } else {
                         StatCard(label = "My Listings", value = "${posterProperties.size}", modifier = Modifier.weight(1f))
                         StatCard(label = "Inquiries", value = "${posterViewings.size}", modifier = Modifier.weight(1f))
@@ -228,76 +252,355 @@ fun DashboardScreen(
                 }
             }
 
-            // Account & Onboarding Tour Section
+            // Rental Preferences Section (Configured here in Profile)
             item {
+                val activeReq = requirements.firstOrNull()
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToRequirements() }
+                        .testTag("profile_rental_preferences_card"),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = CardDefaults.outlinedCardBorder()
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Account & Onboarding Flow",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Text(
-                            text = "Signed in as ${currentUser.fullName} (${currentUser.email}). Switch profiles or revisit the multi-step onboarding guide.",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                        )
-
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(
-                                onClick = onNavigateToLogin,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("dashboard_switch_account_btn"),
-                                shape = RoundedCornerShape(10.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text("Switch Account", fontSize = 11.sp, maxLines = 1)
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tune,
+                                        contentDescription = "Rental Preferences",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Rental Preferences",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                    Text(
+                                        text = if (requirements.isNotEmpty()) "${requirements.size} Active Filter Profile(s)" else "No custom filters configured",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
                             }
 
                             Button(
-                                onClick = { onNavigateToOnboarding(currentUser.role) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("dashboard_revisit_onboarding_btn"),
+                                onClick = onNavigateToRequirements,
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("profile_edit_preferences_btn")
                             ) {
-                                Text("Onboarding Tour", fontSize = 11.sp, maxLines = 1)
+                                Text(
+                                    text = if (activeReq != null) "Manage" else "Set Up",
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (activeReq != null) {
+                            val loc = if (activeReq.preferredLocationName.isNotBlank()) activeReq.preferredLocationName else "Bohol & Cebu"
+                            val maxBudget = activeReq.maxBudget.toInt()
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = activeReq.profileName.ifBlank { "Primary Rental Criteria" },
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            text = "≤ ₱$maxBudget / mo",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Text(
+                                        text = "📍 $loc",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    val filterTags = buildList {
+                                        if (activeReq.minBedrooms > 0) add("${activeReq.minBedrooms}+ Beds")
+                                        if (activeReq.furnishedRequired) add("Furnished")
+                                        if (activeReq.parkingRequired) add("Parking")
+                                        if (activeReq.petFriendlyRequired) add("Pet Friendly")
+                                    }
+
+                                    if (filterTags.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .horizontalScroll(rememberScrollState())
+                                        ) {
+                                            filterTags.forEach { tag ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                                                ) {
+                                                    Text(
+                                                        text = tag,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        maxLines = 1,
+                                                        softWrap = false
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Set your rental target & amenities",
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Target budget, preferred municipalities, furnished, & pet policy",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Theme & Appearance Settings Card
+            // Function: Add or Post a Boarding House / Rental Space (Available for Tenants & Hosts!)
             item {
-                val isDarkMode by viewModel.isDarkMode.collectAsState()
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable { viewModel.toggleDarkMode() }
-                        .testTag("dark_mode_card"),
+                        .testTag("post_boarding_house_card"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Home,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Post a Boarding House or Space",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Have an extra room, bedspace, apartment, or boarding house to rent? List it now.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Button(
+                            onClick = onNavigateToPostProperty,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .testTag("post_space_button"),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (posterProperties.isEmpty()) "Post a Boarding House / Room" else "Add Another Boarding House",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // My Posted Properties Section (If user has created any listings)
+            if (posterProperties.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "My Posted Spaces & Boarding Houses (${posterProperties.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                items(posterProperties, key = { it.id }) { prop ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = CardDefaults.outlinedCardBorder()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = prop.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (prop.status == "ACTIVE") Color(0xFFECFDF5) else Color(0xFFFEF3C7)
+                                ) {
+                                    Text(
+                                        text = prop.status,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (prop.status == "ACTIVE") Color(0xFF059669) else Color(0xFFD97706),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "₱${prop.monthlyRent.toInt()} / month • ${prop.propertyType} • ${prop.bedrooms} Bed",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text("${prop.viewsCount}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(13.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        val inquiries = posterViewings.count { it.propertyId == prop.id }
+                                        Text("$inquiries viewings", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedButton(
+                                        onClick = { onNavigateToPropertyDetail(prop.id) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("View", fontSize = 11.sp, maxLines = 1)
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.deleteProperty(prop.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Push Notifications Setting Card
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("push_notifications_card"),
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = CardDefaults.outlinedCardBorder()
@@ -312,30 +615,27 @@ fun DashboardScreen(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    if (isDarkMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                    else Color(0xFFFEF3C7)
-                                ),
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                imageVector = Icons.Default.NotificationsActive,
                                 contentDescription = null,
-                                tint = if (isDarkMode) MaterialTheme.colorScheme.primary else Color(0xFFD97706),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Appearance Mode",
+                                text = "Push Notifications",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 maxLines = 1,
                                 softWrap = false
                             )
                             Text(
-                                text = if (isDarkMode) "Dark mode is active" else "Light mode is active",
+                                text = if (pushNotificationsEnabled) "Push through alerts active for viewings & messages" else "Push notifications paused",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -343,530 +643,205 @@ fun DashboardScreen(
                             )
                         }
                         Switch(
-                            checked = isDarkMode,
-                            onCheckedChange = { viewModel.setDarkMode(it) },
-                            thumbContent = {
-                                Icon(
-                                    imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                                uncheckedThumbColor = Color(0xFFD97706),
-                                uncheckedTrackColor = Color(0xFFFEF3C7)
-                            ),
-                            modifier = Modifier.testTag("dark_mode_switch")
+                            checked = pushNotificationsEnabled,
+                            onCheckedChange = { viewModel.setPushNotificationsEnabled(it) },
+                            modifier = Modifier.testTag("push_notifications_switch")
                         )
                     }
                 }
             }
 
-            // Cloud Backend & Notifications Section
+            // Simple Logout Button: Just the logout button at the bottom of Profile
             item {
-                Text(
-                    text = "Cloud Database & Email Notifications",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = CardDefaults.outlinedCardBorder()
+                Spacer(modifier = Modifier.height(14.dp))
+                Button(
+                    onClick = {
+                        viewModel.logout()
+                        onNavigateToLogin()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("dashboard_logout_btn"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        // Supabase Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF3ECF8E).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Storage,
-                                    contentDescription = "Supabase DB",
-                                    tint = Color(0xFF059669),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Supabase PostgreSQL Database",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                                val statusText = when (val s = supabaseSyncStatus) {
-                                    is SupabaseSyncStatus.Synced -> "Synced (${s.itemsCount} items) • Live Cloud Mode"
-                                    is SupabaseSyncStatus.Syncing -> "Synchronizing with Supabase..."
-                                    is SupabaseSyncStatus.Error -> "Sync Error: ${s.message}"
-                                    is SupabaseSyncStatus.Idle -> "Connected & Ready to Sync"
-                                    is SupabaseSyncStatus.Unconfigured -> "Offline-First Room DB (Ready for Supabase)"
-                                }
-                                Text(
-                                    text = statusText,
-                                    fontSize = 11.sp,
-                                    color = if (supabaseSyncStatus is SupabaseSyncStatus.Synced) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            IconButton(onClick = { showSupabaseDialog = true }) {
-                                Icon(Icons.Default.Info, contentDescription = "Supabase Config Info", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { viewModel.syncWithSupabase() },
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Sync Now", fontSize = 11.sp)
-                            }
-                            Button(
-                                onClick = { showSupabaseDialog = true },
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text("Setup Guide", fontSize = 11.sp)
-                            }
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-                        // Gmail Notifications Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFEA4335).copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Email,
-                                    contentDescription = "Gmail Alerts",
-                                    tint = Color(0xFFEA4335),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Gmail In-App Email Notifications",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                                Text(
-                                    text = "OAuth Scope: gmail.send (Configured)",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF059669)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            onClick = { showEmailTestDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA4335)),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Test Gmail Alert Dispatcher", fontSize = 11.sp, color = Color.White)
-                        }
-                    }
-                }
-            }
-
-            // Tenant Section: Requirement Profile Shortcut
-            if (isTenant) {
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToRequirements() },
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Rule, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Rental Requirement Matcher", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text("Manage profiles like 'Bohol Remote Work' or 'Cebu IT Park' with transparent match scores.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Landlord Section: Post New Listing CTA
-                item {
-                    Button(
-                        onClick = onNavigateToPostProperty,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Create New Property Listing", maxLines = 1, softWrap = false)
-                    }
-                }
-            }
-
-            // Section: My Posted Properties or Saved Properties
-            if (!isTenant) {
-                item {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "My Managed Properties (${posterProperties.size})",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Log Out",
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        softWrap = false
+                        fontSize = 14.sp
                     )
                 }
-
-                if (posterProperties.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                        ) {
-                            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("No properties posted yet under this persona.")
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(onClick = onNavigateToPostProperty) {
-                                    Text("Post First Listing", maxLines = 1, softWrap = false)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    items(posterProperties) { prop ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = CardDefaults.outlinedCardBorder()
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(prop.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = if (prop.status == "ACTIVE") Color(0xFFECFDF5) else Color(0xFFFEF3C7)
-                                    ) {
-                                        Text(
-                                            prop.status,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (prop.status == "ACTIVE") Color(0xFF059669) else Color(0xFFD97706),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = "Rent: ₱${prop.monthlyRent.toInt()}/mo • Views: ${prop.viewsCount} • Saves: ${prop.savesCount}",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = { onNavigateToPropertyDetail(prop.id) },
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("Preview", fontSize = 11.sp, maxLines = 1, softWrap = false)
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            val newStatus = if (prop.status == "ACTIVE") "RENTED" else "ACTIVE"
-                                            viewModel.updatePropertyListingStatus(prop.id, newStatus)
-                                        },
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(if (prop.status == "ACTIVE") "Mark Rented" else "Activate", fontSize = 11.sp, maxLines = 1, softWrap = false)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Saved Properties List
-                item {
-                    Text(
-                        text = "Saved Properties (${savedProperties.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                val savedItems = properties.filter { p -> savedProperties.any { it.propertyId == p.id } }
-
-                if (savedItems.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                        ) {
-                            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("No saved properties yet", fontWeight = FontWeight.Bold)
-                                Text("Tap the heart icon on any property to save it to your favorites.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                } else {
-                    items(savedItems) { prop ->
-                        PropertyCard(
-                            property = prop,
-                            locationDisplay = viewModel.getLocationDisplay(prop),
-                            imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                            isSaved = true,
-                            onSaveToggle = { viewModel.toggleSave(prop.id) },
-                            onClick = { onNavigateToPropertyDetail(prop.id) }
-                        )
-                    }
-                }
-            }
-
-            // Notifications Center
-            item {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Notification Center",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            if (notifications.isEmpty()) {
-                item {
-                    Text("No notifications right now.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                items(notifications) { notif ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (!notif.isRead) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-                        ),
-                        border = CardDefaults.outlinedCardBorder()
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(notif.title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                                Text(notif.message, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            if (!notif.isRead) {
-                                TextButton(onClick = { viewModel.markNotificationRead(notif.id) }) {
-                                    Text("Mark Read", fontSize = 10.sp, maxLines = 1, softWrap = false)
-                                }
-                            }
-                        }
-                    }
-                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 
-    // --- SUPABASE CLOUD SETUP GUIDE DIALOG ---
-    if (showSupabaseDialog) {
-        AlertDialog(
-            onDismissRequest = { showSupabaseDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Storage, contentDescription = null, tint = Color(0xFF059669), modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Supabase PostgreSQL Integration", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    // --- EDIT PROFILE MODAL BOTTOM SHEET ---
+    if (showEditProfileModal) {
+        ModalBottomSheet(
+            onDismissRequest = { showEditProfileModal = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Edit Profile",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { showEditProfileModal = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
                 }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (viewModel.isSupabaseConfigured) Color(0xFFECFDF5) else Color(0xFFEFF6FF)
-                    ) {
-                        Text(
-                            text = if (viewModel.isSupabaseConfigured)
-                                "✓ Supabase credentials configured. Running real-time cloud sync."
-                            else
-                                "App currently runs offline-first with local Room SQLite. Ready to connect to your live Supabase database.",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (viewModel.isSupabaseConfigured) Color(0xFF059669) else Color(0xFF1E40AF),
-                            modifier = Modifier.padding(10.dp)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Full Name
+                OutlinedTextField(
+                    value = editFullName,
+                    onValueChange = { editFullName = it },
+                    label = { Text("Full Name") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_profile_name_input"),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Phone
+                OutlinedTextField(
+                    value = editPhone,
+                    onValueChange = { editPhone = it },
+                    label = { Text("Phone Number") },
+                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_profile_phone_input"),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Email
+                OutlinedTextField(
+                    value = editEmail,
+                    onValueChange = { editEmail = it },
+                    label = { Text("Email Address") },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_profile_email_input"),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Role Selector
+                Text(
+                    text = "Account Role",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                val roleOptions = listOf(
+                    "TENANT" to "Tenant",
+                    "PROPERTY_OWNER" to "Property Owner",
+                    "REAL_ESTATE_BROKER" to "Licensed Broker",
+                    "PROPERTY_MANAGER" to "Property Manager",
+                    "CARETAKER" to "Caretaker",
+                    "FAMILY_MEMBER" to "Family Member"
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    roleOptions.forEach { (roleKey, roleLabel) ->
+                        FilterChip(
+                            selected = editRole == roleKey,
+                            onClick = { editRole = roleKey },
+                            label = { Text(roleLabel, fontSize = 12.sp) },
+                            leadingIcon = if (editRole == roleKey) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                            } else null
                         )
                     }
-
-                    Text("How to link your live Supabase database:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    Text("1. Create a free project at supabase.com.", fontSize = 11.sp)
-                    Text("2. Open SQL Editor and execute the included 'supabase_schema.sql' script to initialize tables (properties, viewings, messages, geographic hierarchies, and RLS policies).", fontSize = 11.sp)
-                    Text("3. Add SUPABASE_URL and SUPABASE_ANON_KEY to your project's Secrets panel in AI Studio or the .env file.", fontSize = 11.sp)
-                    Text("4. Tap 'Sync Now' to immediately synchronize listings and viewing requests between this device and the cloud.", fontSize = 11.sp)
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.syncWithSupabase()
-                        showSupabaseDialog = false
-                    }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Relationship to Property
+                OutlinedTextField(
+                    value = editRelationship,
+                    onValueChange = { editRelationship = it },
+                    label = { Text("Relationship to Property") },
+                    placeholder = { Text("e.g. Direct owner, Authorized representative, Tenant") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Sync Now & Close", maxLines = 1, softWrap = false)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSupabaseDialog = false }) {
-                    Text("Close", maxLines = 1, softWrap = false)
-                }
-            }
-        )
-    }
+                    OutlinedButton(
+                        onClick = { showEditProfileModal = false },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel")
+                    }
 
-    // --- GMAIL EMAIL NOTIFICATION TEST DIALOG ---
-    if (showEmailTestDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showEmailTestDialog = false
-                emailSentStatus = null
-            },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFFEA4335), modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Test Gmail Alert Dispatcher", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Dispatches email alerts for rental viewing requests and booking confirmations via Gmail.",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = testRecipientEmail,
-                        onValueChange = { testRecipientEmail = it },
-                        label = { Text("Recipient Email") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = testEmailSubject,
-                        onValueChange = { testEmailSubject = it },
-                        label = { Text("Subject") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = testEmailBody,
-                        onValueChange = { testEmailBody = it },
-                        label = { Text("Message Body") },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 4
-                    )
-
-                    val currentStatus = emailSentStatus
-                    if (currentStatus != null) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFECFDF5)
-                        ) {
-                            Text(
-                                text = currentStatus,
-                                fontSize = 11.sp,
-                                color = Color(0xFF059669),
-                                modifier = Modifier.padding(8.dp)
+                    Button(
+                        onClick = {
+                            viewModel.updateUserProfile(
+                                fullName = editFullName,
+                                phone = editPhone,
+                                email = editEmail,
+                                role = editRole,
+                                relationshipToProperty = editRelationship,
+                                onSuccess = {
+                                    showEditProfileModal = false
+                                }
                             )
-                        }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("save_profile_btn"),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save Changes")
                     }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        emailSentStatus = "Dispatching notification via Supabase Edge Function..."
-                        viewModel.dispatchServerSideEdgeNotification(
-                            recipientEmail = testRecipientEmail,
-                            propertyTitle = "Solinea Tower 2 (Demo Listing)",
-                            date = "Saturday, Oct 5",
-                            time = "2:00 PM",
-                            message = testEmailBody
-                        ) { edgeSuccess ->
-                            emailSentStatus = if (edgeSuccess) {
-                                "✓ Server-side Edge Function 'notify-gmail' successfully triggered and processed email!"
-                            } else {
-                                "✓ Email notification alert prepared & dispatched to $testRecipientEmail!"
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA4335))
-                ) {
-                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Trigger Notification", color = Color.White, maxLines = 1, softWrap = false)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showEmailTestDialog = false
-                    emailSentStatus = null
-                }) {
-                    Text("Dismiss", maxLines = 1, softWrap = false)
-                }
+                Spacer(modifier = Modifier.height(28.dp))
             }
-        )
+        }
     }
 }
 

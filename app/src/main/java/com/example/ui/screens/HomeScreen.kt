@@ -19,13 +19,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -63,11 +68,15 @@ fun HomeScreen(
     onNavigateToAdminPanel: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
     onNavigateToOnboarding: (String) -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToPreferences: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
-    val allUsers by viewModel.allUsers.collectAsState()
-    var showUserMenu by remember { mutableStateOf(false) }
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadNotificationsCount = remember(notifications) {
+        notifications.count { !it.isRead && it.category != "MESSAGE" }
+    }
 
     Column(
         modifier = modifier
@@ -118,152 +127,49 @@ fun HomeScreen(
                 }
             }
 
-            // Role switcher pill
-            Box {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier
-                        .clickable { showUserMenu = true }
-                        .testTag("role_switcher_btn")
+            // Top-right action: Filter preferences icon beside notification button
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(
+                    onClick = onNavigateToPreferences,
+                    modifier = Modifier.testTag("home_filter_preferences_btn")
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.SwapHoriz,
-                            contentDescription = "Switch Role",
-                            modifier = Modifier.size(15.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${currentUser.canonicalRole.roleBadge}: ${currentUser.fullName.split(" ").first()}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = "Rental Preferences",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
 
-                // Modal Role & Persona Switcher Dialog
-                if (showUserMenu) {
-                    AlertDialog(
-                        onDismissRequest = { showUserMenu = false },
-                        title = {
-                            Text(
-                                text = "Switch Persona & Role",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 17.sp
-                            )
-                        },
-                        text = {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "Select an authenticated profile to test role-specific features:",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                allUsers.forEach { user ->
-                                    val isSelected = user.id == currentUser.id
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                showUserMenu = false
-                                                viewModel.switchUser(user)
-                                            }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(
-                                                        text = user.fullName,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 14.sp
-                                                    )
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                    ) {
-                                                        Text(
-                                                            text = user.canonicalRole.roleBadge,
-                                                            fontSize = 10.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.primary,
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                        )
-                                                    }
-                                                }
-                                                Text(
-                                                    text = "${user.role.replace("_", " ")} • ${user.relationshipToProperty}",
-                                                    fontSize = 11.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            if (isSelected) {
-                                                Icon(
-                                                    imageVector = Icons.Default.CheckCircle,
-                                                    contentDescription = "Active",
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                IconButton(
+                    onClick = onNavigateToNotifications,
+                    modifier = Modifier.testTag("home_notification_btn")
+                ) {
+                    BadgedBox(
+                        badge = {
+                            if (unreadNotificationsCount > 0) {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
                                 ) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            showUserMenu = false
-                                            onNavigateToLogin()
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text("Sign In Page", fontSize = 11.sp, maxLines = 1)
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            showUserMenu = false
-                                            onNavigateToOnboarding(currentUser.role)
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text("Onboarding", fontSize = 11.sp, maxLines = 1)
-                                    }
+                                    Text(
+                                        text = if (unreadNotificationsCount > 9) "9+" else "$unreadNotificationsCount",
+                                        fontSize = 9.sp
+                                    )
                                 }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(onClick = { showUserMenu = false }) {
-                                Text("Close")
                             }
                         }
-                    )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }

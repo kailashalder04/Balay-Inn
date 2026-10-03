@@ -1,5 +1,6 @@
 package com.example.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -77,13 +78,9 @@ fun TenantHomeScreen(
 ) {
     val properties by viewModel.properties.collectAsState()
     val savedProperties by viewModel.savedProperties.collectAsState()
-    val tenantViewings by viewModel.tenantViewings.collectAsState()
-    val conversations by viewModel.conversations.collectAsState()
     val savedSearches by viewModel.savedSearches.collectAsState()
     val recentlyViewed by viewModel.recentlyViewedProperties.collectAsState()
-    val newMatches by viewModel.newMatchesProperties.collectAsState()
     val recommended by viewModel.recommendedProperties.collectAsState()
-    val requirements by viewModel.requirements.collectAsState()
     val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
 
     val savedPropIds = savedProperties.map { it.propertyId }.toSet()
@@ -112,50 +109,13 @@ fun TenantHomeScreen(
                             Brush.verticalGradient(
                                 colors = listOf(
                                     MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
                                 )
                             )
                         )
                         .padding(20.dp)
                 ) {
                     Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = Color.White.copy(alpha = 0.2f)
-                            ) {
-                                Text(
-                                    text = "Personalized Rental Discovery",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (currentUser.verificationLevel >= 2) Color(0xFF10B981) else Color(0xFFF59E0B)
-                            ) {
-                                Text(
-                                    text = "L${currentUser.verificationLevel} Verified",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
                         Text(
                             text = "Mabuhay, ${currentUser.fullName}!",
                             style = MaterialTheme.typography.headlineSmall,
@@ -166,97 +126,64 @@ fun TenantHomeScreen(
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Discover verified, scam-protected homes, condos, and beach apartments in Bohol & Cebu.",
+                            text = "Discover cheap and verified boarding houses, budget studios, apartments, and bed spaces across Bohol & Cebu. Safe, student and worker-friendly stays with transparent electricity & water rates, fast WiFi, and direct highway access — no condos, strictly affordable living.",
                             fontSize = 13.sp,
-                            color = Color.White.copy(alpha = 0.9f)
+                            color = Color.White.copy(alpha = 0.95f),
+                            lineHeight = 19.sp
                         )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Button(
-                            onClick = onNavigateToExplore,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = MaterialTheme.colorScheme.primary
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.testTag("tenant_search_btn")
-                        ) {
-                            Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Search Available Rentals",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
                     }
                 }
             }
         }
 
-        // 2. Tenant Rental Preferences Summary Card
+        // 2. Search Bar (Positioned below Welcome Panel and above Saved Search Alerts)
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToExplore() }
+                    .testTag("home_search_bar"),
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                shadowElevation = 1.dp
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Your Rental Preferences",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
-                        Text(
-                            text = if (requirements.isNotEmpty()) "${requirements.size} Active Profile" else "Default Filters",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    val activeReq = requirements.firstOrNull()
-                    val prefLocation = activeReq?.preferredLocationName ?: "Bohol (Panglao/Tagbilaran) & Cebu"
-                    val prefBudget = activeReq?.maxBudget?.toInt() ?: 25000
-
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Preferred Area: $prefLocation • Target: ≤ ₱$prefBudget/mo",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Medium,
+                        text = "Search boarding houses, bed spaces, studios...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
                         maxLines = 1,
-                        softWrap = false,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = "Requirements: Fully Furnished • Direct In-App Chat • Verified Landlords Only",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                    ) {
+                        Text(
+                            text = "Search",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -309,123 +236,7 @@ fun TenantHomeScreen(
             }
         }
 
-        // 4. Tenant Activity Summary (Inquiries, Viewings, Verification)
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = "Your Activity & Inquiries",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        ActivityChip(
-                            icon = Icons.Default.Chat,
-                            label = "Inquiries",
-                            value = "${conversations.size}",
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        ActivityChip(
-                            icon = Icons.Default.CalendarMonth,
-                            label = "Viewings",
-                            value = "${tenantViewings.size}",
-                            color = Color(0xFF2563EB),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        ActivityChip(
-                            icon = Icons.Default.Favorite,
-                            label = "Favorites",
-                            value = "${savedProperties.size}",
-                            color = Color(0xFFE11D48),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Security, contentDescription = null, tint = BadgeGreen, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Verification Status: Level ${currentUser.verificationLevel}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = BadgeGreen,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
-                        TextButton(
-                            onClick = onNavigateToVerificationCenter,
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            Text("Boost Trust", fontSize = 11.sp, maxLines = 1, softWrap = false)
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5. New Matches Section
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = BadgeAmber, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "New Matches",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-                TextButton(onClick = onNavigateToExplore) {
-                    Text("Explore All (${properties.size})", fontSize = 12.sp, maxLines = 1, softWrap = false)
-                }
-            }
-        }
-
-        items(newMatches.take(3), key = { "new_match_${it.id}" }) { prop ->
-            PropertyCard(
-                property = prop,
-                locationDisplay = viewModel.getLocationDisplay(prop),
-                imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                isSaved = prop.id in savedPropIds,
-                onSaveToggle = { viewModel.toggleSave(prop.id) },
-                onClick = {
-                    viewModel.recordPropertyView(prop.id)
-                    onNavigateToPropertyDetail(prop.id)
-                }
-            )
-        }
-
-        // 6. Recently Viewed Properties
+        // 3. Recently Viewed Properties (Placed on top of Recommended)
         if (recentlyViewed.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -473,7 +284,7 @@ fun TenantHomeScreen(
             }
         }
 
-        // 7. Recommended for You
+        // 4. Recommended for You
         item {
             Spacer(modifier = Modifier.height(4.dp))
             Row(
@@ -492,11 +303,13 @@ fun TenantHomeScreen(
                         softWrap = false
                     )
                 }
-                Text("Verified Listings", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                TextButton(onClick = onNavigateToExplore) {
+                    Text("Explore All (${properties.size})", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                }
             }
         }
 
-        items(recommended.take(3), key = { "rec_${it.id}" }) { prop ->
+        items(recommended.take(6), key = { "rec_${it.id}" }) { prop ->
             PropertyCard(
                 property = prop,
                 locationDisplay = viewModel.getLocationDisplay(prop),
@@ -506,7 +319,8 @@ fun TenantHomeScreen(
                 onClick = {
                     viewModel.recordPropertyView(prop.id)
                     onNavigateToPropertyDetail(prop.id)
-                }
+                },
+                onViewOnMap = onNavigateToExplore
             )
         }
 
@@ -544,34 +358,10 @@ fun TenantHomeScreen(
                     onClick = {
                         viewModel.recordPropertyView(prop.id)
                         onNavigateToPropertyDetail(prop.id)
-                    }
+                    },
+                    onViewOnMap = onNavigateToExplore
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun ActivityChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = color.copy(alpha = 0.08f),
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = color, maxLines = 1, softWrap = false)
-            Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
         }
     }
 }
@@ -615,14 +405,33 @@ private fun RecentPropertyMiniCard(
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = locationDisplay,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                modifier = Modifier.padding(vertical = 2.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(11.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = locationDisplay,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${currencyFormat.format(property.monthlyRent).replace("PHP", "₱")} / mo",
