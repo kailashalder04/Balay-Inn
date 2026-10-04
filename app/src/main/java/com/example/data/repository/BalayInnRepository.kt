@@ -65,7 +65,7 @@ class BalayInnRepository(context: Context) {
                 geoDao.insertCountries(listOf(MarketplaceDataSeed.country))
                 geoDao.insertRegions(listOf(MarketplaceDataSeed.regionVII))
                 geoDao.insertProvinces(MarketplaceDataSeed.provinces)
-                geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities)
+                geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities + MarketplaceDataSeed.bacolodCities)
                 geoDao.insertBarangays(MarketplaceDataSeed.generateBarangays())
 
                 // Seed Users
@@ -102,6 +102,9 @@ class BalayInnRepository(context: Context) {
                 )
             }
             try {
+                geoDao.insertProvinces(MarketplaceDataSeed.provinces)
+                geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities + MarketplaceDataSeed.bacolodCities)
+                geoDao.insertBarangays(MarketplaceDataSeed.generateBarangays())
                 propDao.insertProperties(PropertyDataSeed.sampleProperties)
                 propDao.insertImages(PropertyDataSeed.sampleImages)
             } catch (_: Exception) {}

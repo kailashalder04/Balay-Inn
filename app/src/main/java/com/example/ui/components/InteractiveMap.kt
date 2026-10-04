@@ -325,15 +325,31 @@ fun InteractiveRentalMap(
         list.add(SearchableLocation("bohol_hub", "Bohol Province", "Central Visayas • 48 LGUs", "PROVINCE", 9.8500, 124.1500, 9.5f))
         list.add(SearchableLocation("panglao_island", "Panglao Island", "Alona Beach, Tawala, Doljo • Bohol", "CITY", 9.5800, 123.7700, 13.5f))
         list.add(SearchableLocation("tagbilaran_city", "Tagbilaran City", "Capital of Bohol • Cogon, Dao", "CITY", 9.6500, 123.8550, 13.0f))
+        list.add(SearchableLocation("bacolod_city", "Bacolod City", "City of Smiles • Lacson St, Mandalagan, USLS", "CITY", 10.6766, 122.9509, 13.0f))
         list.add(SearchableLocation("philippines_country", "Philippines", "Southeast Asia • Nationwide Discovery", "COUNTRY", 12.8797, 121.7740, 6.0f))
         list.add(SearchableLocation("worldwide_globe", "Worldwide", "Global Rental Discovery", "WORLD", 15.0, 120.0, 3.0f))
 
         allCities.forEach { city ->
             val coords = when {
                 city.name.contains("Cebu", ignoreCase = true) -> Pair(10.3157, 123.8854)
+                city.name.contains("Bacolod", ignoreCase = true) -> Pair(10.6766, 122.9509)
+                city.name.contains("Silay", ignoreCase = true) -> Pair(10.7967, 122.9772)
+                city.name.contains("Bago", ignoreCase = true) -> Pair(10.5375, 122.8361)
+                city.name.contains("Murcia", ignoreCase = true) -> Pair(10.6039, 123.0422)
+                city.name.contains("Victorias", ignoreCase = true) -> Pair(10.9000, 123.0833)
+                city.name.contains("Cadiz", ignoreCase = true) -> Pair(10.9575, 123.2847)
+                city.name.contains("Sagay", ignoreCase = true) -> Pair(10.9000, 123.4167)
+                city.name.contains("San Carlos", ignoreCase = true) -> Pair(10.4833, 123.4167)
+                city.name.contains("Kabankalan", ignoreCase = true) -> Pair(9.9889, 122.8125)
+                city.name.contains("Himamaylan", ignoreCase = true) -> Pair(10.1000, 122.8667)
+                city.name.contains("La Carlota", ignoreCase = true) -> Pair(10.4242, 122.9231)
+                city.name.contains("Escalante", ignoreCase = true) -> Pair(10.8333, 123.5000)
+                city.name.contains("Sipalay", ignoreCase = true) -> Pair(9.7500, 122.4000)
                 city.name.contains("Mandaue", ignoreCase = true) -> Pair(10.3340, 123.9400)
                 city.name.contains("Lapu", ignoreCase = true) -> Pair(10.3120, 123.9780)
-                city.name.contains("Talisay", ignoreCase = true) -> Pair(10.2447, 123.8492)
+                city.name.contains("Talisay", ignoreCase = true) -> {
+                    if (city.provinceId == "prov_bacolod") Pair(10.7333, 122.9667) else Pair(10.2447, 123.8492)
+                }
                 city.name.contains("Tagbilaran", ignoreCase = true) -> Pair(9.6500, 123.8550)
                 city.name.contains("Panglao", ignoreCase = true) -> Pair(9.5800, 123.7700)
                 city.name.contains("Dauis", ignoreCase = true) -> Pair(9.6200, 123.8600)
@@ -854,6 +870,8 @@ fun InteractiveRentalMap(
             ) {
                 RegionChip(label = "🏙️ Metro Cebu", onClick = { flyTo(10.3157, 123.8854, 12.0f) })
                 RegionChip(label = "🌴 Bohol & Panglao", onClick = { flyTo(9.7500, 123.9500, 10.25f) })
+                RegionChip(label = "🎭 Bacolod & Cities", onClick = { flyTo(10.6766, 122.9509, 12.0f) })
+                RegionChip(label = "🏛️ Silay & Talisay", onClick = { flyTo(10.7600, 122.9700, 12.5f) })
                 RegionChip(label = "🏖️ Panglao Beach", onClick = { flyTo(9.5800, 123.7700, 13.5f) })
                 RegionChip(label = "🏛️ Tagbilaran", onClick = { flyTo(9.6500, 123.8550, 13.0f) })
                 RegionChip(label = "🏢 Mandaue", onClick = { flyTo(10.3340, 123.9400, 13.0f) })

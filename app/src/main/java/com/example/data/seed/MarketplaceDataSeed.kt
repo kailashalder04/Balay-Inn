@@ -38,6 +38,13 @@ object MarketplaceDataSeed {
             name = "Cebu",
             code = "CEB",
             isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_bacolod",
+            regionId = "reg_vii",
+            name = "Bacolod & Negros Occidental",
+            code = "BCD",
+            isActive = true
         )
     )
 
@@ -101,6 +108,47 @@ object MarketplaceDataSeed {
         CityMunicipalityEntity("cebu_talisay_city", "prov_cebu", "Talisay City", "City", "CEB_TAL"),
         CityMunicipalityEntity("cebu_consolacion", "prov_cebu", "Consolacion", "Municipality", "CEB_CON"),
         CityMunicipalityEntity("cebu_liloan", "prov_cebu", "Liloan", "Municipality", "CEB_LIL")
+    )
+
+    // Bacolod & Negros Occidental Cities and Municipalities
+    val bacolodCities = listOf(
+        // Highly Urbanized Provincial Capital
+        CityMunicipalityEntity("bacolod_city", "prov_bacolod", "Bacolod City", "City", "BCD_BAC"),
+
+        // Metro Bacolod & Adjacent Component Cities
+        CityMunicipalityEntity("bacolod_talisay", "prov_bacolod", "Talisay City", "City", "BCD_TAL"),
+        CityMunicipalityEntity("bacolod_silay", "prov_bacolod", "Silay City", "City", "BCD_SIL"),
+        CityMunicipalityEntity("bacolod_bago", "prov_bacolod", "Bago City", "City", "BCD_BAG"),
+        CityMunicipalityEntity("bacolod_victorias", "prov_bacolod", "Victorias City", "City", "BCD_VIC"),
+        CityMunicipalityEntity("bacolod_cadiz", "prov_bacolod", "Cadiz City", "City", "BCD_CAD"),
+        CityMunicipalityEntity("bacolod_sagay", "prov_bacolod", "Sagay City", "City", "BCD_SAG"),
+        CityMunicipalityEntity("bacolod_san_carlos", "prov_bacolod", "San Carlos City", "City", "BCD_SCA"),
+        CityMunicipalityEntity("bacolod_kabankalan", "prov_bacolod", "Kabankalan City", "City", "BCD_KAB"),
+        CityMunicipalityEntity("bacolod_himamaylan", "prov_bacolod", "Himamaylan City", "City", "BCD_HIM"),
+        CityMunicipalityEntity("bacolod_la_carlota", "prov_bacolod", "La Carlota City", "City", "BCD_LCA"),
+        CityMunicipalityEntity("bacolod_escalante", "prov_bacolod", "Escalante City", "City", "BCD_ESC"),
+        CityMunicipalityEntity("bacolod_sipalay", "prov_bacolod", "Sipalay City", "City", "BCD_SIP"),
+
+        // Municipalities of Bacolod / Negros Occidental
+        CityMunicipalityEntity("bacolod_murcia", "prov_bacolod", "Murcia", "Municipality", "BCD_MUR"),
+        CityMunicipalityEntity("bacolod_eb_magalona", "prov_bacolod", "E.B. Magalona", "Municipality", "BCD_EBM"),
+        CityMunicipalityEntity("bacolod_hinigaran", "prov_bacolod", "Hinigaran", "Municipality", "BCD_HIN"),
+        CityMunicipalityEntity("bacolod_binalbagan", "prov_bacolod", "Binalbagan", "Municipality", "BCD_BIN"),
+        CityMunicipalityEntity("bacolod_manapla", "prov_bacolod", "Manapla", "Municipality", "BCD_MAN"),
+        CityMunicipalityEntity("bacolod_pulupandan", "prov_bacolod", "Pulupandan", "Municipality", "BCD_PUL"),
+        CityMunicipalityEntity("bacolod_valladolid", "prov_bacolod", "Valladolid", "Municipality", "BCD_VAL"),
+        CityMunicipalityEntity("bacolod_san_enrique", "prov_bacolod", "San Enrique", "Municipality", "BCD_SEN"),
+        CityMunicipalityEntity("bacolod_pontevedra", "prov_bacolod", "Pontevedra", "Municipality", "BCD_PON"),
+        CityMunicipalityEntity("bacolod_dsb", "prov_bacolod", "Don Salvador Benedicto", "Municipality", "BCD_DSB"),
+        CityMunicipalityEntity("bacolod_la_castellana", "prov_bacolod", "La Castellana", "Municipality", "BCD_LCS"),
+        CityMunicipalityEntity("bacolod_moises_padilla", "prov_bacolod", "Moises Padilla", "Municipality", "BCD_MPA"),
+        CityMunicipalityEntity("bacolod_isabela", "prov_bacolod", "Isabela", "Municipality", "BCD_ISA"),
+        CityMunicipalityEntity("bacolod_cauayan", "prov_bacolod", "Cauayan", "Municipality", "BCD_CAU"),
+        CityMunicipalityEntity("bacolod_ilog", "prov_bacolod", "Ilog", "Municipality", "BCD_ILO"),
+        CityMunicipalityEntity("bacolod_candoni", "prov_bacolod", "Candoni", "Municipality", "BCD_CAN"),
+        CityMunicipalityEntity("bacolod_hinobaan", "prov_bacolod", "Hinoba-an", "Municipality", "BCD_HNB"),
+        CityMunicipalityEntity("bacolod_toboso", "prov_bacolod", "Toboso", "Municipality", "BCD_TOB"),
+        CityMunicipalityEntity("bacolod_calatrava", "prov_bacolod", "Calatrava", "Municipality", "BCD_CAL")
     )
 
     fun generateBarangays(): List<BarangayEntity> {
@@ -215,6 +263,112 @@ object MarketplaceDataSeed {
         val talisayBgy = listOf("Poblacion", "Bulacao", "Dumlog", "San Roque", "Tabunok", "Pooc", "Cansojong")
         talisayBgy.forEachIndexed { i, name ->
             list.add(BarangayEntity("bgy_ceb_t_$i", "cebu_talisay_city", name, "CEB_T_$i"))
+        }
+
+        // Bacolod City Barangays (Mandalagan, Villamonte, Bata, Taculing, Singcang, Mansilingan, etc.)
+        val bacolodBgy = listOf(
+            "Mandalagan", "Villamonte (USLS Area)", "Bata", "Taculing", "Singcang-Airport",
+            "Mansilingan", "Alijis", "Tangub", "Estefania", "Banago",
+            "Granada", "Sum-ag", "Downtown (Barangay 1)", "Handumanan",
+            "Pahanocoy", "Punta Taytay", "Montevista", "Barangay 16", "Barangay 29"
+        )
+        bacolodBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_$i", "bacolod_city", name, "BCD_$i"))
+        }
+
+        // Talisay City (Negros Occidental) Barangays
+        val talisayNegrosBgy = listOf("Zone 1 (Poblacion)", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Zone 7", "Zone 8", "Zone 9", "Zone 10", "Zone 11", "Zone 12", "Zone 14", "Zone 15", "Bubog", "Cabatangan", "Concepcion", "Dos Hermanas", "Efigenio Lizares", "Matab-ang", "San Fernando")
+        talisayNegrosBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_tal_$i", "bacolod_talisay", name, "BCD_TAL_$i"))
+        }
+
+        // Silay City Barangays
+        val silayBgy = listOf("Barangay I (Poblacion)", "Barangay II", "Barangay III", "Barangay IV", "Barangay V", "Bagtic", "Balaring", "E. Lopez", "Guinhalaran", "Kapitan Ramon", "Lantad", "Mambulac", "Patag", "Rizal")
+        silayBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_sil_$i", "bacolod_silay", name, "BCD_SIL_$i"))
+        }
+
+        // Bago City Barangays
+        val bagoBgy = listOf("Poblacion", "Balingasag", "Busay", "Caridad", "Dulao", "Ilijan", "Lag-asan", "Ma-ao", "Mailum", "Malingin", "Napoles", "Pacol", "Sampinit", "Taloc")
+        bagoBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_bag_$i", "bacolod_bago", name, "BCD_BAG_$i"))
+        }
+
+        // Victorias City Barangays
+        val victoriasBgy = listOf("Barangay I", "Barangay II", "Barangay III", "Barangay IV", "Barangay V", "Barangay VI", "Barangay VII", "Estado", "Gahit", "Salvacion", "Daan Banwa")
+        victoriasBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_vic_$i", "bacolod_victorias", name, "BCD_VIC_$i"))
+        }
+
+        // Murcia Barangays
+        val murciaBgy = listOf("Poblacion", "Zone 1", "Zone 2", "Zone 3", "Alegria", "Blumentritt", "Buenavista", "Caliban", "Canlandog", "Cansilayan", "Damsite", "Lopez Jaena", "Minoyan (Mambukal)", "Salvacion", "Santa Cruz")
+        murciaBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_mur_$i", "bacolod_murcia", name, "BCD_MUR_$i"))
+        }
+
+        // Kabankalan City Barangays
+        val kabankalanBgy = listOf("Barangay 1 (Poblacion)", "Barangay 2", "Barangay 3", "Barangay 4", "Barangay 5", "Barangay 6", "Barangay 7", "Barangay 8", "Barangay 9", "Camansi", "Camingawan", "Carol-an", "Daan Banwa", "Hilamonan", "Inapoy", "Linao", "Magballo", "Oringao", "Orong", "Salong", "Tabugon", "Talubangi", "Tampalon")
+        kabankalanBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_kab_$i", "bacolod_kabankalan", name, "BCD_KAB_$i"))
+        }
+
+        // San Carlos City Barangays
+        val sanCarlosBgy = listOf("Barangay 1", "Barangay 2", "Barangay 3", "Barangay 4", "Barangay 5", "Barangay 6", "Bagonbon", "Buluangan", "Codcod", "Ermita", "Guadalupe", "Nataban", "Palampas", "Prosperidad", "Punao", "Quezon", "Rizal", "San Juan")
+        sanCarlosBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_sca_$i", "bacolod_san_carlos", name, "BCD_SCA_$i"))
+        }
+
+        // Cadiz City Barangays
+        val cadizBgy = listOf("Poblacion 1", "Poblacion 2", "Poblacion 3", "Banquerohan", "Cabahug", "Cadiz Viejo", "Celestino Villacin", "Daga", "Jerusalem", "Luna", "Mabini", "Sicaba", "Tiglawigan", "Tinampa-an", "V.F. Gustilo")
+        cadizBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_cad_$i", "bacolod_cadiz", name, "BCD_CAD_$i"))
+        }
+
+        // Sagay City Barangays
+        val sagayBgy = listOf("Poblacion 1", "Poblacion 2", "Bato", "Bulanon", "Campo Himoga-an", "Colonia Divina", "Fabrica", "General Luna", "Himoga-an Baybay", "Lopez Jaena", "Old Sagay", "Paraiso", "Plaridel", "Puey", "Rizal", "Taba-ao", "Vito")
+        sagayBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_sag_$i", "bacolod_sagay", name, "BCD_SAG_$i"))
+        }
+
+        // Himamaylan City Barangays
+        val himamaylanBgy = listOf("Poblacion", "Aguisan", "Buenavista", "Cabadiangan", "Cabanbanan", "Carabalan", "Caradio-an", "Libacao", "Mambagaton", "Nabali-an", "San Antonio", "Sara-et", "Su-ay", "Talaban", "To-oy")
+        himamaylanBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_him_$i", "bacolod_himamaylan", name, "BCD_HIM_$i"))
+        }
+
+        // La Carlota City Barangays
+        val laCarlotaBgy = listOf("Barangay 1", "Barangay 2", "Barangay 3", "Ara-al", "Ayungon", "Balabag", "Batuan", "Cubay", "Haguimit", "La Granja", "Nagasi", "San Miguel", "Ybalon")
+        laCarlotaBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_lca_$i", "bacolod_la_carlota", name, "BCD_LCA_$i"))
+        }
+
+        // Escalante City Barangays
+        val escalanteBgy = listOf("Poblacion", "Balintawak", "Cervantes", "Dian-ay", "Hacienda Fe", "Jonobjonob", "Langub", "Libertad", "Mabini", "Malbug", "Old Escalante", "Paitan", "Pinapugasan", "Rizal", "Tamlang", "Udtongan", "Washington")
+        escalanteBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_esc_$i", "bacolod_escalante", name, "BCD_ESC_$i"))
+        }
+
+        // Sipalay City Barangays
+        val sipalayBgy = listOf("Poblacion", "Camparic", "Cartagena", "Cayhagan", "Gil Montilla", "Mambaroto", "Manlocahoc", "Maricalum", "Nabulao", "Nauhang", "San Jose")
+        sipalayBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bcd_sip_$i", "bacolod_sipalay", name, "BCD_SIP_$i"))
+        }
+
+        // Remaining Bacolod / Negros Municipalities
+        val remainingBacolodMunicipalities = bacolodCities.filter { c ->
+            c.id !in listOf(
+                "bacolod_city", "bacolod_talisay", "bacolod_silay", "bacolod_bago",
+                "bacolod_victorias", "bacolod_murcia", "bacolod_kabankalan", "bacolod_san_carlos",
+                "bacolod_cadiz", "bacolod_sagay", "bacolod_himamaylan", "bacolod_la_carlota",
+                "bacolod_escalante", "bacolod_sipalay"
+            )
+        }
+        remainingBacolodMunicipalities.forEach { m ->
+            list.add(BarangayEntity("bgy_${m.code.lowercase()}_pob", m.id, "Poblacion", "${m.code}_POB"))
+            list.add(BarangayEntity("bgy_${m.code.lowercase()}_san_roque", m.id, "San Roque", "${m.code}_SRO"))
+            list.add(BarangayEntity("bgy_${m.code.lowercase()}_san_isidro", m.id, "San Isidro", "${m.code}_SIS"))
+            list.add(BarangayEntity("bgy_${m.code.lowercase()}_santa_cruz", m.id, "Santa Cruz", "${m.code}_STC"))
+            list.add(BarangayEntity("bgy_${m.code.lowercase()}_central", m.id, "Central", "${m.code}_CEN"))
         }
 
         return list

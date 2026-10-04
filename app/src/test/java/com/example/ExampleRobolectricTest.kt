@@ -105,6 +105,19 @@ class ExampleRobolectricTest {
   }
 
   @Test
+  fun `test bacolod and its cities in seed data`() {
+    val bacolodCities = com.example.data.seed.MarketplaceDataSeed.bacolodCities
+    org.junit.Assert.assertTrue(bacolodCities.size >= 14)
+    val cityNames = bacolodCities.map { it.name }
+    org.junit.Assert.assertTrue(cityNames.contains("Bacolod City"))
+    org.junit.Assert.assertTrue(cityNames.contains("Talisay City"))
+    org.junit.Assert.assertTrue(cityNames.contains("Silay City"))
+    org.junit.Assert.assertTrue(cityNames.contains("Bago City"))
+    org.junit.Assert.assertTrue(cityNames.contains("Victorias City"))
+    org.junit.Assert.assertTrue(cityNames.contains("Kabankalan City"))
+  }
+
+  @Test
   fun `launch MainActivity`() {
     val scenario = androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
     org.junit.Assert.assertNotNull(scenario)

@@ -451,7 +451,7 @@ private fun TenantStepOneWelcome(onNext: () -> Unit) {
         )
 
         Text(
-            text = "Your safe, scam-free rental journey across Cebu & Bohol starts here.",
+            text = "Your safe, scam-free rental journey across Cebu, Bohol & Bacolod City starts here.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

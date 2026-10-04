@@ -129,7 +129,7 @@ fun TenantHomeScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Discover cheap and verified boarding houses, budget studios, apartments, and bed spaces across Bohol & Cebu. Safe, student and worker-friendly stays with transparent electricity & water rates, fast WiFi, and direct highway access — no condos, strictly affordable living.",
+                            text = "Discover cheap and verified boarding houses, budget studios, apartments, and bed spaces across Cebu, Bohol & Bacolod City. Safe, student and worker-friendly stays with transparent electricity & water rates, fast WiFi, and direct highway access — no condos, strictly affordable living.",
                             fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.95f),
                             lineHeight = 19.sp
@@ -223,7 +223,7 @@ fun TenantHomeScreen(
                             softWrap = false
                         )
                         Text(
-                            text = if (savedSearches.isNotEmpty()) "${savedSearches.size} active alert(s) for Bohol coastal & Cebu City" else "Instant notifications for new properties matching your budget",
+                            text = if (savedSearches.isNotEmpty()) "${savedSearches.size} active alert(s) for Cebu, Bohol & Bacolod City" else "Instant notifications for new properties matching your budget",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

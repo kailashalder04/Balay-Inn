@@ -184,7 +184,7 @@ fun LoginScreen(
                     }
 
                     Text(
-                        text = "Cebu & Bohol Anti-Scam Housing Platform",
+                        text = "Cebu, Bohol & Bacolod City Housing Platform",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.outline
                     )
