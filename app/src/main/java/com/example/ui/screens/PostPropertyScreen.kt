@@ -7,6 +7,9 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -444,11 +447,63 @@ fun PostPropertyScreen(
                         OutlinedTextField(
                             value = landmark,
                             onValueChange = { landmark = it },
-                            label = { Text("Nearby Landmark") },
-                            placeholder = { Text("e.g. Near Bellevue Resort, Behind Mall") },
-                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Nearby Landmark / Key Destination") },
+                            placeholder = { Text("e.g. Near USLS Gate 1, Behind Ayala Mall, Near Beach") },
+                            modifier = Modifier.fillMaxWidth().testTag("post_landmark_input"),
                             shape = RoundedCornerShape(10.dp)
                         )
+
+                        // Quick Curated Landmark Chips based on selected region
+                        val suggestedLandmarks = remember(selectedProvinceId, selectedCityId) {
+                            when {
+                                selectedProvinceId == "prov_bacolod" -> listOf(
+                                    "USLS (La Salle)", "Riverside College", "Lacson BPO Corridor",
+                                    "Ayala Capitol Central", "SM City Bacolod", "Robinsons Place",
+                                    "Bacolod-Silay Airport", "The Ruins Talisay"
+                                )
+                                selectedProvinceId == "prov_cebu" -> listOf(
+                                    "Cebu I.T. Park", "Ayala Center / CBP", "USC Talamban",
+                                    "UP Cebu", "SM City Cebu", "Chong Hua Hospital", "CDU Mandaue"
+                                )
+                                else -> listOf(
+                                    "HNU Dampas", "BISU Main", "Island City Mall (ICM)",
+                                    "Tagbilaran Port", "Alona Beach", "Bohol-Panglao Airport"
+                                )
+                            }
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Quick Suggest Landmark (powers Commute Route Guide):",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                suggestedLandmarks.forEach { sugg ->
+                                    val isSelected = landmark.contains(sugg, ignoreCase = true)
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                                        modifier = Modifier.clickable { landmark = sugg }
+                                    ) {
+                                        Text(
+                                            text = sugg,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         OutlinedTextField(
                             value = streetAddress,

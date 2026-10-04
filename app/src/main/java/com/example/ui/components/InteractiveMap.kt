@@ -1210,7 +1210,7 @@ fun InteractiveRentalMap(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = if (prop.locationPrivacy == "APPROXIMATE") Color(0xFFE6F4EA) else MaterialTheme.colorScheme.surfaceVariant
+                                color = if (prop.locationPrivacy == "APPROXIMATE") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1219,7 +1219,7 @@ fun InteractiveRentalMap(
                                     Icon(
                                         Icons.Default.Shield,
                                         contentDescription = null,
-                                        tint = if (prop.locationPrivacy == "APPROXIMATE") Color(0xFF137333) else MaterialTheme.colorScheme.primary,
+                                        tint = if (prop.locationPrivacy == "APPROXIMATE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(12.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -1227,7 +1227,7 @@ fun InteractiveRentalMap(
                                         text = if (prop.locationPrivacy == "APPROXIMATE") "Approximate Location" else "Verified Address",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = if (prop.locationPrivacy == "APPROXIMATE") Color(0xFF137333) else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (prop.locationPrivacy == "APPROXIMATE") MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }

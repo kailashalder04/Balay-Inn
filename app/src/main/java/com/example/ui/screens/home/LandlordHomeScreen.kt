@@ -2,6 +2,7 @@ package com.example.ui.screens.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -271,15 +272,24 @@ fun LandlordHomeScreen(
                         softWrap = false
                     )
                 }
+                val isDark = isSystemInDarkTheme()
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (pendingViewings.isNotEmpty()) Color(0xFFFEF3C7) else Color(0xFFF1F5F9)
+                    color = if (pendingViewings.isNotEmpty()) {
+                        if (isDark) Color(0xFFD97706).copy(alpha = 0.22f) else Color(0xFFFEF3C7)
+                    } else {
+                        if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
+                    }
                 ) {
                     Text(
                         text = "${pendingViewings.size} pending confirmation",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (pendingViewings.isNotEmpty()) BadgeAmber else Color(0xFF64748B),
+                        color = if (pendingViewings.isNotEmpty()) {
+                            if (isDark) Color(0xFFFBBF24) else BadgeAmber
+                        } else {
+                            if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
+                        },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         maxLines = 1,
                         softWrap = false
@@ -620,6 +630,7 @@ private fun LandlordPropertyManagementCard(
 ) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val isActive = property.status == "ACTIVE"
+    val isDark = isSystemInDarkTheme()
 
     Card(
         modifier = Modifier
@@ -637,13 +648,21 @@ private fun LandlordPropertyManagementCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = if (isActive) BadgeGreenBg else Color(0xFFEFF6FF)
+                    color = if (isActive) {
+                        if (isDark) BadgeGreen.copy(alpha = 0.22f) else BadgeGreenBg
+                    } else {
+                        if (isDark) Color(0xFF2563EB).copy(alpha = 0.22f) else Color(0xFFEFF6FF)
+                    }
                 ) {
                     Text(
                         text = property.status,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isActive) BadgeGreen else Color(0xFF2563EB),
+                        color = if (isActive) {
+                            if (isDark) Color(0xFF34D399) else BadgeGreen
+                        } else {
+                            if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+                        },
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         maxLines = 1,
                         softWrap = false

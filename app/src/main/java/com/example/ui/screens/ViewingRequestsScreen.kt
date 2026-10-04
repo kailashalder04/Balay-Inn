@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -301,12 +302,13 @@ fun ViewingCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val isDark = isSystemInDarkTheme()
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = when (viewing.status) {
-                        "CONFIRMED" -> BadgeGreenBg
-                        "REQUESTED" -> BadgeAmberBg
-                        else -> Color(0xFFF1F5F9)
+                        "CONFIRMED" -> if (isDark) BadgeGreen.copy(alpha = 0.22f) else BadgeGreenBg
+                        "REQUESTED" -> if (isDark) BadgeAmber.copy(alpha = 0.22f) else BadgeAmberBg
+                        else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                     }
                 ) {
                     Text(
@@ -314,9 +316,9 @@ fun ViewingCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = when (viewing.status) {
-                            "CONFIRMED" -> BadgeGreen
-                            "REQUESTED" -> BadgeAmber
-                            else -> Color(0xFF64748B)
+                            "CONFIRMED" -> if (isDark) Color(0xFF34D399) else BadgeGreen
+                            "REQUESTED" -> if (isDark) Color(0xFFFBBF24) else BadgeAmber
+                            else -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                         },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         maxLines = 1,

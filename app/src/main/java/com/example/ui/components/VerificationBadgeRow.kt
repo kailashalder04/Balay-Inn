@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -141,17 +142,29 @@ fun BadgeChip(
     bg: Color,
     isVerified: Boolean
 ) {
+    val isDark = isSystemInDarkTheme()
+    val actualBg = if (isDark) color.copy(alpha = 0.2f) else bg
+    val actualColor = if (isDark) {
+        when (color) {
+            BadgeGreen -> Color(0xFF34D399) // Emerald-400
+            BadgeBlue -> Color(0xFF60A5FA) // Blue-400
+            BadgeAmber -> Color(0xFFFBBF24) // Amber-400
+            BadgePurple -> Color(0xFFA78BFA) // Purple-400
+            else -> color
+        }
+    } else color
+
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(bg)
+            .background(actualBg)
             .padding(horizontal = 7.dp, vertical = 3.5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = if (isVerified) Icons.Default.CheckCircle else Icons.Default.Warning,
             contentDescription = null,
-            tint = color,
+            tint = actualColor,
             modifier = Modifier.size(12.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
@@ -159,7 +172,7 @@ fun BadgeChip(
             text = label,
             fontSize = 10.5.sp,
             fontWeight = FontWeight.Medium,
-            color = color,
+            color = actualColor,
             maxLines = 1,
             softWrap = false
         )

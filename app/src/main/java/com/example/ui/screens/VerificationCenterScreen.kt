@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -221,18 +222,29 @@ fun VerificationCenterScreen(
                         modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val isDark = isSystemInDarkTheme()
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(if (item.status == "VERIFIED") Color(0xFFECFDF5) else Color(0xFFF1F5F9)),
+                                .background(
+                                    if (item.status == "VERIFIED") {
+                                        if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                    } else {
+                                        if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
+                                    }
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "L${item.levelNumber}",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
-                                color = if (item.status == "VERIFIED") BadgeGreen else Color(0xFF64748B),
+                                color = if (item.status == "VERIFIED") {
+                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                } else {
+                                    if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
+                                },
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -248,9 +260,9 @@ fun VerificationCenterScreen(
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = when (item.status) {
-                                "VERIFIED" -> Color(0xFFECFDF5)
-                                "SUBMITTED" -> Color(0xFFEFF6FF)
-                                else -> Color(0xFFF1F5F9)
+                                "VERIFIED" -> if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                "SUBMITTED" -> if (isDark) BadgeBlue.copy(alpha = 0.22f) else Color(0xFFEFF6FF)
+                                else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                             }
                         ) {
                             Text(
@@ -262,9 +274,9 @@ fun VerificationCenterScreen(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = when (item.status) {
-                                    "VERIFIED" -> BadgeGreen
-                                    "SUBMITTED" -> BadgeBlue
-                                    else -> Color(0xFF64748B)
+                                    "VERIFIED" -> if (isDark) Color(0xFF34D399) else BadgeGreen
+                                    "SUBMITTED" -> if (isDark) Color(0xFF60A5FA) else BadgeBlue
+                                    else -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                 },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 maxLines = 1,

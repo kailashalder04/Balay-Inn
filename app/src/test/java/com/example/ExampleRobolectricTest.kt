@@ -118,6 +118,33 @@ class ExampleRobolectricTest {
   }
 
   @Test
+  fun `test commute route guide destinations and quick badge`() {
+    val bcdProp = com.example.data.seed.PropertyDataSeed.sampleProperties.first { it.id == "prop_bcd_01" }
+    val destinations = com.example.data.model.CommuteGuideProvider.getCommuteDestinations(bcdProp)
+    org.junit.Assert.assertTrue(destinations.isNotEmpty())
+    val nearest = destinations.first()
+    org.junit.Assert.assertTrue(nearest.distanceMeters > 0)
+    org.junit.Assert.assertTrue(nearest.walkingTimeMinutes > 0)
+    org.junit.Assert.assertTrue(nearest.transitRouteName.isNotBlank())
+
+    val grouped = com.example.data.model.CommuteGuideProvider.getGroupedDestinations(bcdProp)
+    org.junit.Assert.assertTrue(grouped.containsKey(com.example.data.model.DestinationGroup.TRANSIT))
+    org.junit.Assert.assertTrue(grouped.containsKey(com.example.data.model.DestinationGroup.ESSENTIALS))
+    org.junit.Assert.assertTrue(grouped.containsKey(com.example.data.model.DestinationGroup.UTILITY))
+
+    val transitList = grouped[com.example.data.model.DestinationGroup.TRANSIT]!!
+    org.junit.Assert.assertTrue(transitList.isNotEmpty())
+    org.junit.Assert.assertTrue(transitList.first().subcategory.isNotBlank())
+
+    val subcatMap = com.example.data.model.CommuteGuideProvider.getDestinationsBySubcategory(bcdProp, com.example.data.model.DestinationGroup.TRANSIT)
+    org.junit.Assert.assertTrue(subcatMap.isNotEmpty())
+    org.junit.Assert.assertTrue(transitList.first().formattedDistanceAndTime.contains("|"))
+
+    val badge = com.example.data.model.CommuteGuideProvider.getQuickCommuteBadge(bcdProp)
+    org.junit.Assert.assertTrue(badge.isNotBlank())
+  }
+
+  @Test
   fun `launch MainActivity`() {
     val scenario = androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
     org.junit.Assert.assertNotNull(scenario)

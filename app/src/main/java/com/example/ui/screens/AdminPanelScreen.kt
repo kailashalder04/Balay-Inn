@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -179,13 +180,22 @@ fun AdminPanelScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text("${prov.name} (${prov.code})", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        val isDark = isSystemInDarkTheme()
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = if (prov.isActive) Color(0xFFECFDF5) else Color(0xFFF1F5F9)
+                                            color = if (prov.isActive) {
+                                                if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                            } else {
+                                                if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
+                                            }
                                         ) {
                                             Text(
                                                 if (prov.isActive) "Active" else "Disabled",
-                                                color = if (prov.isActive) BadgeGreen else Color.Gray,
+                                                color = if (prov.isActive) {
+                                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                                } else {
+                                                    if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.Gray
+                                                },
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -248,11 +258,26 @@ fun AdminPanelScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text("Reason: ${report.reason.replace("_", " ")}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        val isDark = isSystemInDarkTheme()
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = if (report.status == "PENDING") Color(0xFFFEF3C7) else Color(0xFFECFDF5)
+                                            color = if (report.status == "PENDING") {
+                                                if (isDark) BadgeAmber.copy(alpha = 0.22f) else Color(0xFFFEF3C7)
+                                            } else {
+                                                if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                            }
                                         ) {
-                                            Text(report.status, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (report.status == "PENDING") BadgeAmber else BadgeGreen, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                            Text(
+                                                report.status,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (report.status == "PENDING") {
+                                                    if (isDark) Color(0xFFFBBF24) else BadgeAmber
+                                                } else {
+                                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                                },
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
                                         }
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -300,11 +325,28 @@ fun AdminPanelScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(doc.documentType.replace("_", " "), fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, softWrap = false)
+                                        val isDark = isSystemInDarkTheme()
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = if (doc.status == "VERIFIED") Color(0xFFECFDF5) else Color(0xFFEFF6FF)
+                                            color = if (doc.status == "VERIFIED") {
+                                                if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                            } else {
+                                                if (isDark) Color(0xFF2563EB).copy(alpha = 0.22f) else Color(0xFFEFF6FF)
+                                            }
                                         ) {
-                                            Text(doc.status, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (doc.status == "VERIFIED") BadgeGreen else Color(0xFF2563EB), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), maxLines = 1, softWrap = false)
+                                            Text(
+                                                doc.status,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (doc.status == "VERIFIED") {
+                                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                                } else {
+                                                    if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+                                                },
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
                                         }
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))

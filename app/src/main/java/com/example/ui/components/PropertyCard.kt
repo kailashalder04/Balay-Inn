@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -329,6 +330,7 @@ fun PropertyCard(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Boarding house amenities highlights: WiFi available, Electricity, Water, Highway access
+                val isDark = isSystemInDarkTheme()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -339,36 +341,51 @@ fun PropertyCard(
                     // WiFi Available
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFEFF6FF),
-                        border = BorderStroke(0.5.dp, Color(0xFF93C5FD))
+                        color = if (isDark) Color(0xFF2563EB).copy(alpha = 0.2f) else Color(0xFFEFF6FF),
+                        border = BorderStroke(0.5.dp, if (isDark) Color(0xFF3B82F6).copy(alpha = 0.45f) else Color(0xFF93C5FD))
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         ) {
-                            Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(12.dp))
+                            Icon(
+                                Icons.Default.Wifi,
+                                contentDescription = null,
+                                tint = if (isDark) Color(0xFF93C5FD) else Color(0xFF2563EB),
+                                modifier = Modifier.size(12.dp)
+                            )
                             Spacer(modifier = Modifier.width(3.dp))
-                            Text("WiFi available", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1D4ED8))
+                            Text(
+                                "WiFi available",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) Color(0xFFBFDBFE) else Color(0xFF1D4ED8)
+                            )
                         }
                     }
 
                     // Electricity / Water
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF0FDF4),
-                        border = BorderStroke(0.5.dp, Color(0xFF86EFAC))
+                        color = if (isDark) Color(0xFF16A34A).copy(alpha = 0.2f) else Color(0xFFF0FDF4),
+                        border = BorderStroke(0.5.dp, if (isDark) Color(0xFF22C55E).copy(alpha = 0.45f) else Color(0xFF86EFAC))
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         ) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(12.dp))
+                            Icon(
+                                Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = if (isDark) Color(0xFF86EFAC) else Color(0xFF16A34A),
+                                modifier = Modifier.size(12.dp)
+                            )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = if (property.utilitiesIncluded) "Elec/Water in rent" else "Elec submeter / Water",
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF15803D)
+                                color = if (isDark) Color(0xFFBBF7D0) else Color(0xFF15803D)
                             )
                         }
                     }
@@ -376,16 +393,26 @@ fun PropertyCard(
                     // Highway Access
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFFFFBEB),
-                        border = BorderStroke(0.5.dp, Color(0xFFFDE68A))
+                        color = if (isDark) Color(0xFFD97706).copy(alpha = 0.2f) else Color(0xFFFFFBEB),
+                        border = BorderStroke(0.5.dp, if (isDark) Color(0xFFF59E0B).copy(alpha = 0.45f) else Color(0xFFFDE68A))
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.AltRoute, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(12.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.AltRoute,
+                                contentDescription = null,
+                                tint = if (isDark) Color(0xFFFDE68A) else Color(0xFFD97706),
+                                modifier = Modifier.size(12.dp)
+                            )
                             Spacer(modifier = Modifier.width(3.dp))
-                            Text("Highway access", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFB45309))
+                            Text(
+                                "Highway access",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) Color(0xFFFEF08A) else Color(0xFFB45309)
+                            )
                         }
                     }
                 }
