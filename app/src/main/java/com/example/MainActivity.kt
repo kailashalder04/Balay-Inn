@@ -142,6 +142,7 @@ fun BalayInnApp(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (isRootScreen) {
                 ResponsiveBottomNav(
@@ -173,7 +174,8 @@ fun BalayInnApp(
                 is AppScreen.Explore -> {
                     ExploreScreen(
                         viewModel = viewModel,
-                        onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) }
+                        onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) },
+                        onNavigateToChat = { convId -> navigateTo(AppScreen.Messages(convId)) }
                     )
                 }
                 is AppScreen.Notifications -> {

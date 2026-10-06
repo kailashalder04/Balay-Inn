@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -120,6 +121,8 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .statusBarsPadding()
+                .padding(top = 10.dp)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -192,8 +195,8 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = if (viewModel.isSupabaseConfigured) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, if (viewModel.isSupabaseConfigured) Color(0xFF4CAF50).copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant)
+                        color = if (viewModel.isSupabaseConfigured) Color(0xFFEBF5EE) else MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, if (viewModel.isSupabaseConfigured) Color(0xFFBDDCC8) else MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -203,14 +206,14 @@ fun LoginScreen(
                                 modifier = Modifier
                                     .size(7.dp)
                                     .clip(CircleShape)
-                                    .background(if (viewModel.isSupabaseConfigured) Color(0xFF2E7D32) else Color.Gray)
+                                    .background(if (viewModel.isSupabaseConfigured) Color(0xFF2E6F4E) else Color.Gray)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = if (viewModel.isSupabaseConfigured) "Supabase Cloud Auth Connected" else "Offline-First Demo Mode",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (viewModel.isSupabaseConfigured) Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (viewModel.isSupabaseConfigured) Color(0xFF1D533A) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

@@ -48,6 +48,8 @@ import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
 import com.example.ui.theme.BadgePurple
 import com.example.ui.theme.BadgePurpleBg
+import com.example.ui.theme.SoftGreenDark
+import com.example.ui.theme.SoftGreenDarkBg
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -143,10 +145,12 @@ fun BadgeChip(
     isVerified: Boolean
 ) {
     val isDark = isSystemInDarkTheme()
-    val actualBg = if (isDark) color.copy(alpha = 0.2f) else bg
+    val actualBg = if (isDark) {
+        if (color == BadgeGreen) SoftGreenDarkBg else color.copy(alpha = 0.2f)
+    } else bg
     val actualColor = if (isDark) {
         when (color) {
-            BadgeGreen -> Color(0xFF34D399) // Emerald-400
+            BadgeGreen -> SoftGreenDark
             BadgeBlue -> Color(0xFF60A5FA) // Blue-400
             BadgeAmber -> Color(0xFFFBBF24) // Amber-400
             BadgePurple -> Color(0xFFA78BFA) // Purple-400

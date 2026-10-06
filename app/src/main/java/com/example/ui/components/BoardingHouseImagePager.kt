@@ -299,7 +299,7 @@ fun BoardingHouseImagePager(
  * list of thumbnail preview images so it blends seamlessly without harsh cutouts.
  */
 @Composable
-private fun FullScreenImageLightbox(
+fun FullScreenImageLightbox(
     displayImages: List<String>,
     initialPage: Int,
     propertyTitle: String,
@@ -565,7 +565,7 @@ private fun FullScreenImageLightbox(
                     }
                 }
 
-                // --- Lower list of images with TRANSPARENT MODE, moved UP directly below the main picture ---
+                // --- Lower list of snippet images, elevated cleanly ABOVE the bottom of the page ---
                 if (displayImages.size > 1) {
                     AnimatedVisibility(
                         visible = showControls,
@@ -576,21 +576,21 @@ private fun FullScreenImageLightbox(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 10.dp, bottom = 16.dp),
+                                .padding(top = 8.dp, bottom = 68.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Floating translucent glassmorphic dock positioned cleanly below the main picture
+                            // Floating translucent dock elevated comfortably above the page bottom
                             Surface(
                                 shape = RoundedCornerShape(22.dp),
-                                color = Color.Black.copy(alpha = 0.35f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
-                                shadowElevation = 0.dp,
+                                color = Color.Black.copy(alpha = 0.65f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
+                                shadowElevation = 4.dp,
                                 modifier = Modifier.testTag("fullscreen_thumbnail_strip")
                             ) {
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                                 ) {
                                     itemsIndexed(displayImages) { idx, url ->
                                         val isSelected = lightboxPagerState.currentPage == idx
@@ -599,10 +599,10 @@ private fun FullScreenImageLightbox(
                                             color = Color.Transparent,
                                             border = BorderStroke(
                                                 width = if (isSelected) 2.dp else 1.dp,
-                                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.35f)
+                                                color = if (isSelected) Color(0xFF4DD8C5) else Color.White.copy(alpha = 0.40f)
                                             ),
                                             modifier = Modifier
-                                                .size(width = 54.dp, height = 38.dp)
+                                                .size(width = 58.dp, height = 40.dp)
                                                 .clip(RoundedCornerShape(10.dp))
                                                 .clickable {
                                                     coroutineScope.launch {
@@ -616,7 +616,7 @@ private fun FullScreenImageLightbox(
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .graphicsLayer(alpha = if (isSelected) 1.0f else 0.55f)
+                                                    .graphicsLayer(alpha = if (isSelected) 1.0f else 0.60f)
                                             )
                                         }
                                     }

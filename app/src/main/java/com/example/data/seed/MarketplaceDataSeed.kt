@@ -436,6 +436,19 @@ object MarketplaceDataSeed {
             emailVerified = true
         ),
         UserEntity(
+            id = "usr_caretaker_mark",
+            fullName = "Kuya Mark",
+            email = "kuya.mark@boholrentals.ph",
+            phone = "0908-555-7890",
+            role = "CARETAKER",
+            relationshipToProperty = "Caretaker",
+            isAuthorizedByOwner = true,
+            verificationLevel = 3,
+            phoneVerified = true,
+            emailVerified = true,
+            identitySubmitted = true
+        ),
+        UserEntity(
             id = "usr_broker_marco",
             fullName = "Marco Villanueva, REB",
             email = "marco.villanueva@visayasrealty.ph",

@@ -15,6 +15,55 @@ import com.example.data.local.entity.ViewingRequestEntity
 object PropertyDataSeed {
 
     val sampleProperties = listOf(
+        // Featured Studio: Dampas, Tagbilaran City, Bohol (Near HNU & ICM) - Kuya Mark
+        PropertyEntity(
+            id = "prop_boh_dampas",
+            title = "Studio Room for Rent in Dampas near HNU & ICM",
+            description = "Studio room for rent in Dampas, Tagbilaran City, Bohol. Near Holy Name University (HNU) and Island City Mall (ICM). Fits 1 to 2 occupants. Furnished with single bed with pull-out, study table, chair, wall fan, and attached private CR. Rent: ₱5,500/month. Terms: 1 month advance, 1 month deposit. Minimum 6 months stay. Cash or GCash accepted. Water is fixed at ₱200 per head per month. Electricity on individual sub-meter based on BOHECO rates. Free shared fiber WiFi in the compound. Light cooking only using electric appliances (rice cooker, kettle). No cooking with gas stove. Motorcycle parking available inside gated yard. Gate is locked at 10 PM for security, but tenants get a gate key if working night shift. No sleepover visitors. Strictly no pets and no smoking inside the rooms. Bring 1 valid ID to view. Contact Kuya Mark at 0908-555-7890 (calls/texts only).",
+            propertyType = "Studio",
+            monthlyRent = 5500.0,
+            countryId = "ctry_ph",
+            regionId = "reg_vii",
+            provinceId = "prov_bohol",
+            cityMunicipalityId = "bohol_tagbilaran",
+            barangayId = "bgy_tag_7", // Dampas
+            neighborhood = "Dampas, Tagbilaran City",
+            nearbyLandmark = "Near Holy Name University (HNU) & Island City Mall (ICM)",
+            streetAddressPrivate = "Dampas District, Tagbilaran City, Bohol",
+            locationPrivacy = "APPROXIMATE",
+            latitude = 9.6608,
+            longitude = 123.8703,
+            bedrooms = 0,
+            bathrooms = 1,
+            floorAreaSqm = 20.0,
+            furnishedStatus = "Furnished",
+            parkingAvailable = true,
+            petPolicy = "No Pets",
+            availabilityDate = "Immediately",
+            leaseDurationMonths = 6,
+            advanceRentMonths = 1,
+            securityDepositMonths = 1,
+            associationDues = 0.0,
+            utilitiesIncluded = false,
+            internetIncluded = true,
+            maintenanceFees = 0.0,
+            parkingFees = 0.0,
+            amenitiesJson = "[\"Single Bed with Pull-out\", \"Study Table & Chair\", \"Wall Fan\", \"Attached Private CR\", \"Free Shared Fiber WiFi\", \"BOHECO Sub-meter\", \"Motorcycle Parking\", \"Gated Compound\", \"Night-shift Gate Key\"]",
+            contactPreferences = "Calls/Texts & In-App Messaging",
+            status = "ACTIVE",
+            ownerId = "usr_owner_1",
+            posterId = "usr_caretaker_mark",
+            posterName = "Kuya Mark",
+            posterRole = "Caretaker (Authorized)",
+            isPosterAuthorized = true,
+            verificationLevel = 3,
+            phoneVerified = true,
+            emailVerified = true,
+            identitySubmitted = true,
+            viewsCount = 312,
+            savesCount = 58
+        ),
+
         // 1. Panglao, Bohol - Tawala
         PropertyEntity(
             id = "prop_boh_01",
@@ -556,6 +605,12 @@ object PropertyDataSeed {
     )
 
     val sampleImages = listOf(
+        // prop_boh_dampas (Dampas Tagbilaran Studio - Kuya Mark - 4 photos)
+        PropertyImageEntity("img_boh_dampas_1", "prop_boh_dampas", "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&auto=format&fit=crop&q=80", true, "Furnished studio with single bed with pull-out", 0),
+        PropertyImageEntity("img_boh_dampas_2", "prop_boh_dampas", "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&auto=format&fit=crop&q=80", false, "Study table, chair, and wall fan setup", 1),
+        PropertyImageEntity("img_boh_dampas_3", "prop_boh_dampas", "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=1200&auto=format&fit=crop&q=80", false, "Attached private CR with shower and bidet", 2),
+        PropertyImageEntity("img_boh_dampas_4", "prop_boh_dampas", "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&auto=format&fit=crop&q=80", false, "Gated yard compound with motorcycle parking", 3),
+
         // prop_bcd_01 (Bacolod Boarding House - 4 photos)
         PropertyImageEntity("img_bcd_01_1", "prop_bcd_01", "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&auto=format&fit=crop&q=80", true, "Clean student boarding room with study desk", 0),
         PropertyImageEntity("img_bcd_01_2", "prop_bcd_01", "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=1200&auto=format&fit=crop&q=80", false, "Tile finished bathroom with water dispenser", 1),

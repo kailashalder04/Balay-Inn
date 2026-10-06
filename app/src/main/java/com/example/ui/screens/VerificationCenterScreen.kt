@@ -64,6 +64,9 @@ import com.example.data.local.entity.VerificationDocumentEntity
 import com.example.ui.theme.BadgeAmber
 import com.example.ui.theme.BadgeBlue
 import com.example.ui.theme.BadgeGreen
+import com.example.ui.theme.SoftGreenBg
+import com.example.ui.theme.SoftGreenDark
+import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.viewmodel.MarketplaceViewModel
 
 data class VerificationLevelItem(
@@ -229,7 +232,7 @@ fun VerificationCenterScreen(
                                 .clip(CircleShape)
                                 .background(
                                     if (item.status == "VERIFIED") {
-                                        if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                        if (isDark) SoftGreenDarkBg else SoftGreenBg
                                     } else {
                                         if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                                     }
@@ -241,7 +244,7 @@ fun VerificationCenterScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
                                 color = if (item.status == "VERIFIED") {
-                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                    if (isDark) SoftGreenDark else BadgeGreen
                                 } else {
                                     if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                 },
@@ -260,7 +263,7 @@ fun VerificationCenterScreen(
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = when (item.status) {
-                                "VERIFIED" -> if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                "VERIFIED" -> if (isDark) SoftGreenDarkBg else SoftGreenBg
                                 "SUBMITTED" -> if (isDark) BadgeBlue.copy(alpha = 0.22f) else Color(0xFFEFF6FF)
                                 else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                             }
@@ -274,7 +277,7 @@ fun VerificationCenterScreen(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = when (item.status) {
-                                    "VERIFIED" -> if (isDark) Color(0xFF34D399) else BadgeGreen
+                                    "VERIFIED" -> if (isDark) SoftGreenDark else BadgeGreen
                                     "SUBMITTED" -> if (isDark) Color(0xFF60A5FA) else BadgeBlue
                                     else -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                 },

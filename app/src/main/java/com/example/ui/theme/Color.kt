@@ -13,9 +13,22 @@ val AmberSecondary = Color(0xFFD97706)
 val AmberContainer = Color(0xFFFEF3C7)
 val OnAmberContainer = Color(0xFF78350F)
 
-val MintTertiary = Color(0xFF059669)
-val MintContainer = Color(0xFFD1FAE5)
-val OnMintContainer = Color(0xFF064E3B)
+// Muted Sage & Soft Forest Green Theme (Replaces bright mint/green highlights to reduce eye strain)
+val ForestSage = Color(0xFF2D5A43)          // Rich muted forest green (soft, grounded, accessible)
+val ForestSageSubtle = Color(0xFF386B52)    // Secondary sage tone
+val SageContainer = Color(0xFFDEE9E2)       // Tranquil, soft muted sage background (no glare)
+val OnSageContainer = Color(0xFF132A1F)     // Deep forest tone for text and icons
+val SageBorder = Color(0xFFB8CEBF)          // Delicate sage outline
+
+val SageDark = Color(0xFF86B59B)            // Soft eucalyptus green (no blue-light strain or neon glare)
+val SageDarkContainer = Color(0xFF1B3326)   // Calming deep forest container
+val OnSageDarkContainer = Color(0xFFD2E5DB) // Soothing sage text and icon highlight
+val SageDarkBorder = Color(0xFF2A4A38)      // Muted dark forest border
+
+// Material3 Tertiary Palette mapped to Muted Sage & Forest Green
+val MintTertiary = ForestSage
+val MintContainer = SageContainer
+val OnMintContainer = OnSageContainer
 
 // Neutral Surfaces & Accents
 val SurfaceBackground = Color(0xFFF8FAFC)
@@ -25,9 +38,15 @@ val TextSecondary = Color(0xFF475569)
 val TextMuted = Color(0xFF94A3B8)
 val DividerBorder = Color(0xFFE2E8F0)
 
-// Verification Badges Colors
-val BadgeGreen = Color(0xFF10B981)
-val BadgeGreenBg = Color(0xFFECFDF5)
+// Verification Badges & Status Colors (Muted Sage / Soft Forest Green Palette)
+val BadgeGreen = ForestSage
+val BadgeGreenBg = SageContainer
+val SoftGreen = ForestSage
+val SoftGreenBg = SageContainer
+val SoftGreenBorder = SageBorder
+val SoftGreenDark = SageDark
+val SoftGreenDarkBg = SageDarkContainer
+val SoftGreenDarkBorder = SageDarkBorder
 val BadgeAmber = Color(0xFFF59E0B)
 val BadgeAmberBg = Color(0xFFFFFBEB)
 val BadgeBlue = Color(0xFF2563EB)

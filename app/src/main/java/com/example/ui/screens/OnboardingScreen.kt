@@ -564,8 +564,8 @@ private fun TenantStepTwoVerification(
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-            border = BorderStroke(1.dp, Color(0xFF86EFAC))
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFEBF5EE)),
+            border = BorderStroke(1.dp, Color(0xFFBDDCC8))
         ) {
             Row(
                 modifier = Modifier.padding(14.dp),
@@ -575,18 +575,18 @@ private fun TenantStepTwoVerification(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF22C55E)),
+                        .background(Color(0xFF2E6F4E)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("Tier 2 Verified Tenant Badge", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF14532D))
+                    Text("Tier 2 Verified Tenant Badge", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1D533A))
                     Text(
                         "Your inquiries display a green security badge showing landlords you have verified PhilSys or Government credentials.",
                         fontSize = 11.sp,
-                        color = Color(0xFF166534),
+                        color = Color(0xFF2E6F4E),
                         lineHeight = 15.sp
                     )
                 }
@@ -979,7 +979,7 @@ private fun TenantStepFourComplete(
             modifier = Modifier
                 .size(76.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF22C55E)),
+                .background(Color(0xFF2E6F4E)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1045,13 +1045,13 @@ private fun TenantStepFourComplete(
                             Spacer(modifier = Modifier.width(6.dp))
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFFDCFCE7)
+                                color = Color(0xFFEBF5EE)
                             ) {
                                 Text(
                                     "Verified Host",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF15803D),
+                                    color = Color(0xFF1D533A),
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                             }
@@ -1640,7 +1640,7 @@ private fun LandlordStepFourComplete(
             modifier = Modifier
                 .size(76.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF22C55E)),
+                .background(Color(0xFF2E6F4E)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1685,13 +1685,13 @@ private fun LandlordStepFourComplete(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFDCFCE7)
+                        color = Color(0xFFEBF5EE)
                     ) {
                         Text(
                             text = "ACTIVE • ₱0 COMMISSION",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF15803D),
+                            color = Color(0xFF1D533A),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }

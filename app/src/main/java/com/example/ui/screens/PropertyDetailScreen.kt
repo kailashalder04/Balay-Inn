@@ -1,7 +1,26 @@
 package com.example.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.ui.platform.LocalContext
+import com.example.data.model.ListingTransformationEngine
+import com.example.data.model.PropertyCostHelper
 import com.example.ui.components.BoardingHouseImagePager
 import com.example.ui.components.NearbyDestinationSection
+import com.example.ui.components.RentCostBreakdownPanel
+import com.example.ui.theme.SoftGreenBg
+import com.example.ui.theme.SoftGreenBorder
+import com.example.ui.theme.SoftGreenDark
+import com.example.ui.theme.SoftGreenDarkBg
+import com.example.ui.theme.SoftGreenDarkBorder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -33,6 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Bathtub
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Bolt
@@ -47,6 +67,8 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
@@ -121,6 +143,7 @@ fun PropertyDetailScreen(
     var showViewingDialog by remember { mutableStateOf(false) }
     var showChatDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
+    var showExportPostDialog by remember { mutableStateOf(false) }
 
     if (property == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -131,6 +154,11 @@ fun PropertyDetailScreen(
 
     val prop = property!!
     val locationDisplay = viewModel.getLocationDisplay(prop)
+
+    val context = LocalContext.current
+    val costBreakdown = remember(prop) { PropertyCostHelper.getRentCostBreakdown(prop) }
+    val hostInfo = remember(prop) { PropertyCostHelper.getHostContactInfo(prop) }
+    var showCostBreakdown by remember { mutableStateOf(false) }
 
     val defaultFallbackImages = listOf(
         "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&auto=format&fit=crop&q=80",
@@ -158,6 +186,12 @@ fun PropertyDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { showExportPostDialog = true },
+                        modifier = Modifier.testTag("detail_share_social_btn")
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = "Export Listing for Social Media")
+                    }
                     IconButton(
                         onClick = { viewModel.toggleSave(prop.id) },
                         modifier = Modifier.testTag("detail_save_btn")
@@ -273,12 +307,58 @@ fun PropertyDetailScreen(
                             )
                         }
 
-                        Text(
-                            text = "$formattedRent / month",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "$formattedRent / month",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                modifier = Modifier
+                                    .clickable { showCostBreakdown = !showCostBreakdown }
+                                    .testTag("detail_rent_breakdown_toggle")
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ReceiptLong,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = if (showCostBreakdown) "Hide Cost Break-up ▲" else "Rent Cost Break-up ▾",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Small Display Panel for Rent cost break-up
+                    AnimatedVisibility(
+                        visible = showCostBreakdown,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            RentCostBreakdownPanel(
+                                breakdown = costBreakdown,
+                                isDark = isSystemInDarkTheme(),
+                                onClose = { showCostBreakdown = false }
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -291,11 +371,13 @@ fun PropertyDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Map Address in a Pin Button
+                    val isDark = isSystemInDarkTheme()
+
+                    // Map Address in a Rectangular Pill (clearer, not too bright)
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f) else Color(0xFFF1F5F9),
+                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f) else Color(0xFFCBD5E1)),
                         modifier = Modifier.testTag("detail_map_pin_btn")
                     ) {
                         Row(
@@ -313,15 +395,14 @@ fun PropertyDetailScreen(
                                 text = locationDisplay,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Utility and Highway Highlights
-                    val isDark = isSystemInDarkTheme()
+                    // Utility and Highway Highlights (clearer, defined, comfortable contrast — not too bright!)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -332,8 +413,8 @@ fun PropertyDetailScreen(
                         // WiFi Available
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) Color(0xFF2563EB).copy(alpha = 0.2f) else Color(0xFFEFF6FF),
-                            border = BorderStroke(0.5.dp, if (isDark) Color(0xFF3B82F6).copy(alpha = 0.45f) else Color(0xFF93C5FD))
+                            color = if (isDark) Color(0xFF1E293B) else Color(0xFFE2EDFE),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFF93C5FD))
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -342,7 +423,7 @@ fun PropertyDetailScreen(
                                 Icon(
                                     Icons.Default.Wifi,
                                     contentDescription = null,
-                                    tint = if (isDark) Color(0xFF93C5FD) else Color(0xFF2563EB),
+                                    tint = if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -350,16 +431,16 @@ fun PropertyDetailScreen(
                                     "WiFi available",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color(0xFFBFDBFE) else Color(0xFF1D4ED8)
+                                    color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E3A8A)
                                 )
                             }
                         }
 
-                        // Electricity / Water
+                        // Electricity / Water (Very soft, eye-friendly green display)
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) Color(0xFF16A34A).copy(alpha = 0.2f) else Color(0xFFF0FDF4),
-                            border = BorderStroke(0.5.dp, if (isDark) Color(0xFF22C55E).copy(alpha = 0.45f) else Color(0xFF86EFAC))
+                            color = if (isDark) SoftGreenDarkBg else SoftGreenBg,
+                            border = BorderStroke(1.dp, if (isDark) SoftGreenDarkBorder else SoftGreenBorder)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -368,7 +449,7 @@ fun PropertyDetailScreen(
                                 Icon(
                                     Icons.Default.Bolt,
                                     contentDescription = null,
-                                    tint = if (isDark) Color(0xFF86EFAC) else Color(0xFF16A34A),
+                                    tint = if (isDark) SoftGreenDark else Color(0xFF2E6F4E),
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -376,7 +457,7 @@ fun PropertyDetailScreen(
                                     text = if (prop.utilitiesIncluded) "Elec/Water in rent" else "Elec submeter / Water",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color(0xFFBBF7D0) else Color(0xFF15803D)
+                                    color = if (isDark) SoftGreenDark else Color(0xFF1D533A)
                                 )
                             }
                         }
@@ -384,8 +465,8 @@ fun PropertyDetailScreen(
                         // Highway Access
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) Color(0xFFD97706).copy(alpha = 0.2f) else Color(0xFFFFFBEB),
-                            border = BorderStroke(0.5.dp, if (isDark) Color(0xFFF59E0B).copy(alpha = 0.45f) else Color(0xFFFDE68A))
+                            color = if (isDark) Color(0xFF2E2013) else Color(0xFFFEF3C7),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF593C1D) else Color(0xFFFCD34D))
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -394,7 +475,7 @@ fun PropertyDetailScreen(
                                 Icon(
                                     Icons.AutoMirrored.Filled.AltRoute,
                                     contentDescription = null,
-                                    tint = if (isDark) Color(0xFFFDE68A) else Color(0xFFD97706),
+                                    tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -402,7 +483,7 @@ fun PropertyDetailScreen(
                                     "Highway access",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color(0xFFFEF08A) else Color(0xFFB45309)
+                                    color = if (isDark) Color(0xFFFDE68A) else Color(0xFF78350F)
                                 )
                             }
                         }
@@ -476,37 +557,156 @@ fun PropertyDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    val isDark = isSystemInDarkTheme()
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("detail_host_name_box"),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         border = CardDefaults.outlinedCardBorder()
                     ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = "Host Avatar",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = hostInfo.hostName,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = if (isDark) SoftGreenDarkBg else SoftGreenBg,
+                                            border = BorderStroke(0.6.dp, if (isDark) SoftGreenDarkBorder else SoftGreenBorder)
+                                        ) {
+                                            Text(
+                                                text = "Verified Host",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (isDark) SoftGreenDark else Color(0xFF1D533A),
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = hostInfo.hostRole,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = prop.posterName,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Host / Caretaker",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+
+                            // Host Contact Details (Phone, calling channel & quick call button)
+                            if (hostInfo.phone.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                                    border = BorderStroke(0.8.dp, if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Phone,
+                                                contentDescription = "Host Phone",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Column {
+                                                Text(
+                                                    text = hostInfo.phone,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = hostInfo.contactChannel,
+                                                    fontSize = 10.5.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = {
+                                                try {
+                                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${hostInfo.phone}"))
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    // graceful fallback
+                                                }
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                            modifier = Modifier.testTag("host_box_call_btn")
+                                        ) {
+                                            Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Call/SMS", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Viewing & Curfew Instructions
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "📋 ${hostInfo.viewingPolicy}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = "🔑 ${hostInfo.gateCurfewPolicy}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Message option placed INSIDE Host Name Box
+                            Button(
+                                onClick = { showChatDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("host_box_message_btn")
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Message ${hostInfo.hostName}", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -724,6 +924,119 @@ fun PropertyDetailScreen(
             dismissButton = {
                 TextButton(onClick = { showReportDialog = false }) {
                     Text("Cancel", maxLines = 1, softWrap = false)
+                }
+            }
+        )
+    }
+
+    // Export to Social Media / Facebook Marketplace Dialog
+    if (showExportPostDialog) {
+        val payload = remember(prop, locationDisplay, hostInfo, costBreakdown) {
+            ListingTransformationEngine.fromProperty(prop, locationDisplay, hostInfo, costBreakdown)
+        }
+        val fbPostText = remember(payload) {
+            ListingTransformationEngine.formatFacebookPost(payload)
+        }
+        val inAppText = remember(payload) {
+            ListingTransformationEngine.formatInAppListing(payload)
+        }
+        var selectedOutputTab by remember { mutableIntStateOf(0) } // 0 = Facebook, 1 = In-App
+
+        AlertDialog(
+            onDismissRequest = { showExportPostDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Listing Transformation Export", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(3.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedOutputTab = 0 },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (selectedOutputTab == 0) MaterialTheme.colorScheme.primary else Color.Transparent
+                        ) {
+                            Text(
+                                text = "Facebook Post",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedOutputTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 6.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedOutputTab = 1 },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (selectedOutputTab == 1) MaterialTheme.colorScheme.primary else Color.Transparent
+                        ) {
+                            Text(
+                                text = "In-App Card Specs",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedOutputTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 6.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val displayText = if (selectedOutputTab == 0) fbPostText else inAppText
+
+                    OutlinedTextField(
+                        value = displayText,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(280.dp),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, lineHeight = 15.sp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val textToCopy = if (selectedOutputTab == 0) fbPostText else inAppText
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Rental Listing", textToCopy)
+                        clipboard.setPrimaryClip(clip)
+                        showExportPostDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Listing copied to clipboard! Ready to paste.")
+                        }
+                    }
+                ) {
+                    Text("Copy to Clipboard", fontSize = 11.5.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        val textToShare = if (selectedOutputTab == 0) fbPostText else inAppText
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            putExtra(Intent.EXTRA_TEXT, textToShare)
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share Listing"))
+                    }
+                ) {
+                    Text("Share...", fontSize = 11.5.sp)
                 }
             }
         )

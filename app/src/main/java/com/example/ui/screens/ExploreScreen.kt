@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -81,6 +82,7 @@ import com.example.ui.viewmodel.MarketplaceViewModel
 fun ExploreScreen(
     viewModel: MarketplaceViewModel,
     onNavigateToPropertyDetail: (String) -> Unit,
+    onNavigateToChat: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val properties by viewModel.properties.collectAsState()
@@ -105,6 +107,8 @@ fun ExploreScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .padding(top = 10.dp)
             .testTag("explore_screen")
     ) {
         val isWideScreen = maxWidth >= 760.dp
@@ -477,7 +481,14 @@ fun ExploreScreen(
                                         onClick = { onNavigateToPropertyDetail(property.id) },
                                         onViewOnMap = {
                                             focusedPropertyId = property.id
-                                        }
+                                        },
+                                        onMessageHost = if (onNavigateToChat != null) {
+                                            {
+                                                viewModel.startConversation(property, "Hi ${property.posterName}! I am interested in '${property.title}'. Is this room available for viewing?") { convId ->
+                                                    onNavigateToChat(convId)
+                                                }
+                                            }
+                                        } else null
                                     )
                                 }
                             }
@@ -600,7 +611,14 @@ fun ExploreScreen(
                                     onViewOnMap = {
                                         focusedPropertyId = property.id
                                         viewModel.setViewMode("MAP")
-                                    }
+                                    },
+                                    onMessageHost = if (onNavigateToChat != null) {
+                                        {
+                                            viewModel.startConversation(property, "Hi ${property.posterName}! I am interested in '${property.title}'. Is this room available for viewing?") { convId ->
+                                                onNavigateToChat(convId)
+                                            }
+                                        }
+                                    } else null
                                 )
                             }
                         }

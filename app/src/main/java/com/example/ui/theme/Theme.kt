@@ -20,7 +20,10 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = Color.Black,
     secondaryContainer = Color(0xFF452600),
     onSecondaryContainer = AmberContainer,
-    tertiary = MintTertiary,
+    tertiary = SageDark,
+    onTertiary = Color(0xFF0F241A),
+    tertiaryContainer = SageDarkContainer,
+    onTertiaryContainer = OnSageDarkContainer,
     background = DarkBackground,
     surface = DarkSurface,
     onBackground = DarkTextPrimary,
@@ -40,10 +43,10 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = Color.White,
     secondaryContainer = AmberContainer,
     onSecondaryContainer = OnAmberContainer,
-    tertiary = MintTertiary,
+    tertiary = ForestSage,
     onTertiary = Color.White,
-    tertiaryContainer = MintContainer,
-    onTertiaryContainer = OnMintContainer,
+    tertiaryContainer = SageContainer,
+    onTertiaryContainer = OnSageContainer,
     background = SurfaceBackground,
     surface = SurfaceCard,
     onBackground = TextPrimary,
@@ -74,3 +77,20 @@ fun MyApplicationTheme(
         content = content
     )
 }
+
+/**
+ * Material3 ColorScheme extensions for Muted Sage and Soft Forest Green highlights.
+ * Reduces eye strain across both Light and Dark modes.
+ */
+val androidx.compose.material3.ColorScheme.sage: Color
+    get() = if (this.surface == DarkSurface) SageDark else ForestSage
+
+val androidx.compose.material3.ColorScheme.sageContainer: Color
+    get() = if (this.surface == DarkSurface) SageDarkContainer else SageContainer
+
+val androidx.compose.material3.ColorScheme.onSageContainer: Color
+    get() = if (this.surface == DarkSurface) OnSageDarkContainer else OnSageContainer
+
+val androidx.compose.material3.ColorScheme.sageBorder: Color
+    get() = if (this.surface == DarkSurface) SageDarkBorder else SageBorder
+

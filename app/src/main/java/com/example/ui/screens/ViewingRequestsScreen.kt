@@ -62,6 +62,8 @@ import com.example.ui.theme.BadgeAmber
 import com.example.ui.theme.BadgeAmberBg
 import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
+import com.example.ui.theme.SoftGreenDark
+import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.viewmodel.MarketplaceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -306,7 +308,7 @@ fun ViewingCard(
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = when (viewing.status) {
-                        "CONFIRMED" -> if (isDark) BadgeGreen.copy(alpha = 0.22f) else BadgeGreenBg
+                        "CONFIRMED" -> if (isDark) SoftGreenDarkBg else BadgeGreenBg
                         "REQUESTED" -> if (isDark) BadgeAmber.copy(alpha = 0.22f) else BadgeAmberBg
                         else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                     }
@@ -316,7 +318,7 @@ fun ViewingCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = when (viewing.status) {
-                            "CONFIRMED" -> if (isDark) Color(0xFF34D399) else BadgeGreen
+                            "CONFIRMED" -> if (isDark) SoftGreenDark else BadgeGreen
                             "REQUESTED" -> if (isDark) Color(0xFFFBBF24) else BadgeAmber
                             else -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                         },

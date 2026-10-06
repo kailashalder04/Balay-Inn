@@ -69,6 +69,9 @@ import com.example.data.local.entity.ReportEntity
 import com.example.data.local.entity.VerificationDocumentEntity
 import com.example.ui.theme.BadgeAmber
 import com.example.ui.theme.BadgeGreen
+import com.example.ui.theme.SoftGreenBg
+import com.example.ui.theme.SoftGreenDark
+import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.viewmodel.MarketplaceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -184,7 +187,7 @@ fun AdminPanelScreen(
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = if (prov.isActive) {
-                                                if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                                if (isDark) SoftGreenDarkBg else SoftGreenBg
                                             } else {
                                                 if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                                             }
@@ -192,7 +195,7 @@ fun AdminPanelScreen(
                                             Text(
                                                 if (prov.isActive) "Active" else "Disabled",
                                                 color = if (prov.isActive) {
-                                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                                    if (isDark) SoftGreenDark else BadgeGreen
                                                 } else {
                                                     if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.Gray
                                                 },
@@ -264,7 +267,7 @@ fun AdminPanelScreen(
                                             color = if (report.status == "PENDING") {
                                                 if (isDark) BadgeAmber.copy(alpha = 0.22f) else Color(0xFFFEF3C7)
                                             } else {
-                                                if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                                if (isDark) SoftGreenDarkBg else SoftGreenBg
                                             }
                                         ) {
                                             Text(
@@ -274,7 +277,7 @@ fun AdminPanelScreen(
                                                 color = if (report.status == "PENDING") {
                                                     if (isDark) Color(0xFFFBBF24) else BadgeAmber
                                                 } else {
-                                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                                    if (isDark) SoftGreenDark else BadgeGreen
                                                 },
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
@@ -329,7 +332,7 @@ fun AdminPanelScreen(
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = if (doc.status == "VERIFIED") {
-                                                if (isDark) BadgeGreen.copy(alpha = 0.22f) else Color(0xFFECFDF5)
+                                                if (isDark) SoftGreenDarkBg else SoftGreenBg
                                             } else {
                                                 if (isDark) Color(0xFF2563EB).copy(alpha = 0.22f) else Color(0xFFEFF6FF)
                                             }
@@ -339,7 +342,7 @@ fun AdminPanelScreen(
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (doc.status == "VERIFIED") {
-                                                    if (isDark) Color(0xFF34D399) else BadgeGreen
+                                                    if (isDark) SoftGreenDark else BadgeGreen
                                                 } else {
                                                     if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
                                                 },

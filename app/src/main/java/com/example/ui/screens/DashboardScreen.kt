@@ -535,13 +535,13 @@ fun DashboardScreen(
                                 )
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = if (prop.status == "ACTIVE") Color(0xFFECFDF5) else Color(0xFFFEF3C7)
+                                    color = if (prop.status == "ACTIVE") Color(0xFFEBF5EE) else Color(0xFFFEF3C7)
                                 ) {
                                     Text(
                                         text = prop.status,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (prop.status == "ACTIVE") Color(0xFF059669) else Color(0xFFD97706),
+                                        color = if (prop.status == "ACTIVE") Color(0xFF2E6F4E) else Color(0xFFD97706),
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }

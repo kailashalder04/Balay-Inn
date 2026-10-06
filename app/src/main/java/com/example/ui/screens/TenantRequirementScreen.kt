@@ -245,7 +245,7 @@ fun MatchPropertyItem(
             ) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (match.scorePercentage >= 80) Color(0xFFECFDF5) else Color(0xFFFFFBEB)
+                    color = if (match.scorePercentage >= 80) Color(0xFFEBF5EE) else Color(0xFFFFFBEB)
                 ) {
                     Text(
                         text = "${match.scorePercentage}% Match",

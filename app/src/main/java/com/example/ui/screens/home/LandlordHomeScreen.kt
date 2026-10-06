@@ -63,6 +63,8 @@ import com.example.ui.theme.BadgeBlue
 import com.example.ui.theme.BadgeBlueBg
 import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
+import com.example.ui.theme.SoftGreenDark
+import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -649,7 +651,7 @@ private fun LandlordPropertyManagementCard(
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = if (isActive) {
-                        if (isDark) BadgeGreen.copy(alpha = 0.22f) else BadgeGreenBg
+                        if (isDark) SoftGreenDarkBg else BadgeGreenBg
                     } else {
                         if (isDark) Color(0xFF2563EB).copy(alpha = 0.22f) else Color(0xFFEFF6FF)
                     }
@@ -659,7 +661,7 @@ private fun LandlordPropertyManagementCard(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isActive) {
-                            if (isDark) Color(0xFF34D399) else BadgeGreen
+                            if (isDark) SoftGreenDark else BadgeGreen
                         } else {
                             if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
                         },
