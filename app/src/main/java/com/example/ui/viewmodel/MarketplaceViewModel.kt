@@ -80,11 +80,13 @@ data class MarketplaceFilterState(
     val parkingRequired: Boolean = false,
     val petFriendly: Boolean = false,
     val verifiedOnly: Boolean = false,
-    val sortBy: String = "NEWEST", // NEWEST, PRICE_ASC, PRICE_DESC
+    val sortBy: String = "NEWEST", // NEWEST, PRICE_ASC, PRICE_DESC, HIGHEST_AVAILABLE, LOWEST_PRICE, RECENTLY_UPDATED
     val bounds: MapBounds? = null,
     val distanceFilter: DistanceFilter? = null,
     val listedBy: String = "All", // All, Direct Owner, Licensed Broker, Property Manager, Caretaker, Family Member, Authorized Representative
-    val authorizedPosterOnly: Boolean = false
+    val authorizedPosterOnly: Boolean = false,
+    val genderRule: String = "all", // all, female_only, male_only
+    val minAvailableBeds: Int = 0
 )
 
 class MarketplaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -326,13 +328,31 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 ) <= filter.distanceFilter.radiusKm
             )
 
+            // Gender Rule
+            val matchesGender = when (filter.genderRule) {
+                "female_only" -> prop.title.contains("Ladies", ignoreCase = true) ||
+                        prop.title.contains("Female", ignoreCase = true) ||
+                        prop.description.contains("Ladies only", ignoreCase = true) ||
+                        prop.description.contains("Female only", ignoreCase = true)
+                "male_only" -> prop.title.contains("Men", ignoreCase = true) ||
+                        prop.title.contains("Male", ignoreCase = true) ||
+                        prop.description.contains("Men only", ignoreCase = true) ||
+                        prop.description.contains("Male only", ignoreCase = true)
+                else -> true
+            }
+
+            // Min Available Beds
+            val matchesMinBeds = filter.minAvailableBeds <= 0 || (prop.bedrooms == 0 || prop.bedrooms >= filter.minAvailableBeds)
+
             matchesKeyword && matchesProvince && matchesCity && matchesBarangay && matchesPrice &&
                 matchesType && matchesBeds && matchesFurnished && matchesParking && matchesPets &&
-                matchesVerified && matchesListedBy && matchesAuthorized && matchesBounds && matchesDistance
+                matchesVerified && matchesListedBy && matchesAuthorized && matchesBounds && matchesDistance &&
+                matchesGender && matchesMinBeds
         }.sortedWith(
             when (filter.sortBy) {
-                "PRICE_ASC" -> compareBy { it.monthlyRent }
+                "PRICE_ASC", "lowest_price" -> compareBy { it.monthlyRent }
                 "PRICE_DESC" -> compareByDescending { it.monthlyRent }
+                "highest_available" -> compareByDescending { if (it.bedrooms == 0) 4 else it.bedrooms * 2 }
                 else -> compareByDescending { it.createdAt }
             }
         )
@@ -415,6 +435,14 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
 
     fun setSortBy(sortBy: String) {
         _filterState.value = _filterState.value.copy(sortBy = sortBy)
+    }
+
+    fun updateGenderRule(genderRule: String) {
+        _filterState.value = _filterState.value.copy(genderRule = genderRule)
+    }
+
+    fun updateMinAvailableBeds(minBeds: Int) {
+        _filterState.value = _filterState.value.copy(minAvailableBeds = minBeds)
     }
 
     fun searchMapArea(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double) {

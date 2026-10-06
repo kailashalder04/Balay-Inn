@@ -11,8 +11,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.ui.platform.LocalContext
+import com.example.data.model.BoardingHouseListing
+import com.example.data.model.GenderRule
+import com.example.data.model.InquiryType
+import com.example.data.model.LivingSpecifications
 import com.example.data.model.ListingTransformationEngine
 import com.example.data.model.PropertyCostHelper
+import com.example.data.model.RoomType
+import com.example.data.model.VerificationChecks
+import com.example.data.model.toBoardingHouseListing
 import com.example.ui.components.BoardingHouseImagePager
 import com.example.ui.components.NearbyDestinationSection
 import com.example.ui.components.RentCostBreakdownPanel
@@ -156,6 +163,7 @@ fun PropertyDetailScreen(
     val locationDisplay = viewModel.getLocationDisplay(prop)
 
     val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
     val costBreakdown = remember(prop) { PropertyCostHelper.getRentCostBreakdown(prop) }
     val hostInfo = remember(prop) { PropertyCostHelper.getHostContactInfo(prop) }
     var showCostBreakdown by remember { mutableStateOf(false) }
@@ -172,6 +180,11 @@ fun PropertyDetailScreen(
         val urls = images.map { it.imageUrl }.filter { it.isNotBlank() }
         if (urls.isNotEmpty()) urls else defaultFallbackImages
     }
+
+    val boardingHouse = remember(prop, hostInfo, displayImages) {
+        prop.toBoardingHouseListing(hostPhone = hostInfo.phone, photosList = displayImages)
+    }
+    var selectedRoomForInquiry by remember { mutableStateOf<RoomType?>(null) }
 
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
@@ -242,27 +255,16 @@ fun PropertyDetailScreen(
                             )
                         }
 
-                        OutlinedButton(
-                            onClick = { showChatDialog = true },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = if (isNarrow) 8.dp else 12.dp, vertical = 8.dp),
-                            modifier = Modifier.testTag("detail_message_btn")
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, modifier = Modifier.size(15.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Message", maxLines = 1, softWrap = false, fontSize = 12.sp)
-                        }
-
                         Button(
                             onClick = { showViewingDialog = true },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = if (isNarrow) 8.dp else 14.dp, vertical = 8.dp),
+                            contentPadding = PaddingValues(horizontal = if (isNarrow) 14.dp else 20.dp, vertical = 10.dp),
                             modifier = Modifier.testTag("detail_request_viewing_btn")
                         ) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(15.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Request Viewing", maxLines = 1, softWrap = false, fontSize = 12.sp)
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Request Viewing", maxLines = 1, softWrap = false, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -371,7 +373,70 @@ fun PropertyDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    val isDark = isSystemInDarkTheme()
+                    // Boarding House Real-time Bed Availability & Capacity & Gender Rule Banner
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (boardingHouse.totalAvailableBeds > 0) {
+                                if (isDark) SoftGreenDarkBg else SoftGreenBg
+                            } else {
+                                if (isDark) Color(0xFF332020) else Color(0xFFFEE2E2)
+                            },
+                            border = BorderStroke(
+                                0.8.dp,
+                                if (boardingHouse.totalAvailableBeds > 0) {
+                                    if (isDark) SoftGreenDarkBorder else SoftGreenBorder
+                                } else {
+                                    if (isDark) Color(0xFF7F1D1D) else Color(0xFFFCA5A5)
+                                }
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .background(
+                                            if (boardingHouse.totalAvailableBeds > 0) Color(0xFF16A34A) else Color(0xFFDC2626),
+                                            CircleShape
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${boardingHouse.totalAvailableBeds} of ${boardingHouse.totalCapacity} beds available • ${boardingHouse.lastAvailabilityUpdate}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (boardingHouse.totalAvailableBeds > 0) {
+                                        if (isDark) SoftGreenDark else Color(0xFF15803D)
+                                    } else {
+                                        if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                                    }
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                            border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                text = boardingHouse.primaryGenderRule.badge,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Map Address in a Rectangular Pill (clearer, not too bright)
                     Surface(
@@ -491,7 +556,7 @@ fun PropertyDetailScreen(
                 }
             }
 
-            // 2. Boarding House Main Description (Simple and Focused)
+            // 2. Boarding House Main Description (Focused strictly on property space, locality, nearby destinations, and transit)
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     Text(
@@ -507,7 +572,7 @@ fun PropertyDetailScreen(
                         border = CardDefaults.outlinedCardBorder()
                     ) {
                         Text(
-                            text = prop.description,
+                            text = boardingHouse.fullDescription,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                             lineHeight = 24.sp,
@@ -517,30 +582,272 @@ fun PropertyDetailScreen(
                 }
             }
 
-            // 3. Room Details
+            // 3. Room & Bedspace Configurations (Boarding House Spec)
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = CardDefaults.outlinedCardBorder()
-                ) {
-                    Row(
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                    // Overview Specs bar
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceAround
+                            .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = CardDefaults.outlinedCardBorder()
                     ) {
-                        SpecColumn(icon = Icons.Default.Bed, label = "Room", value = if (prop.bedrooms == 0) "Bed Space" else "${prop.bedrooms} Bed${if (prop.bedrooms > 1) "s" else ""}")
-                        SpecColumn(icon = Icons.Default.Bathtub, label = "Bathroom", value = "${prop.bathrooms} Bath")
-                        SpecColumn(icon = Icons.Default.Home, label = "Furnished", value = prop.furnishedStatus)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            SpecColumn(icon = Icons.Default.Bed, label = "Capacity", value = "${boardingHouse.totalCapacity} Beds")
+                            SpecColumn(icon = Icons.Default.Bathtub, label = "Bathroom", value = "${prop.bathrooms} Bath/CR")
+                            SpecColumn(icon = Icons.Default.Home, label = "Furnished", value = prop.furnishedStatus)
+                        }
+                    }
+
+                    Text(
+                        text = "Room & Bedspace Types (${boardingHouse.rooms.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    boardingHouse.rooms.forEach { room ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 5.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f) else Color(0xFFF8FAFC)
+                            ),
+                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f) else Color(0xFFE2E8F0))
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = room.name,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (room.genderRule == GenderRule.FEMALE_ONLY) {
+                                            if (isDark) Color(0xFF3B1E2B) else Color(0xFFFCE7F3)
+                                        } else if (room.genderRule == GenderRule.MALE_ONLY) {
+                                            if (isDark) Color(0xFF1E293B) else Color(0xFFE0F2FE)
+                                        } else {
+                                            if (isDark) SoftGreenDarkBg else SoftGreenBg
+                                        },
+                                        border = BorderStroke(
+                                            0.6.dp,
+                                            if (room.genderRule == GenderRule.FEMALE_ONLY) {
+                                                if (isDark) Color(0xFF831843) else Color(0xFFF472B6)
+                                            } else if (room.genderRule == GenderRule.MALE_ONLY) {
+                                                if (isDark) Color(0xFF0369A1) else Color(0xFF38BDF8)
+                                            } else {
+                                                if (isDark) SoftGreenDarkBorder else SoftGreenBorder
+                                            }
+                                        )
+                                    ) {
+                                        Text(
+                                            text = room.genderRule.badge,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (room.genderRule == GenderRule.FEMALE_ONLY) {
+                                                if (isDark) Color(0xFFF472B6) else Color(0xFF9D174D)
+                                            } else if (room.genderRule == GenderRule.MALE_ONLY) {
+                                                if (isDark) Color(0xFF38BDF8) else Color(0xFF075985)
+                                            } else {
+                                                if (isDark) SoftGreenDark else Color(0xFF1D533A)
+                                            },
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                // Occupancy progress & Rent rate
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(if (room.availableBeds > 0) Color(0xFF16A34A) else Color(0xFFDC2626), CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "${room.availableBeds} of ${room.totalBeds} beds available",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (room.availableBeds > 0) MaterialTheme.colorScheme.onSurface else Color(0xFFDC2626)
+                                        )
+                                    }
+
+                                    Text(
+                                        text = "₱${room.monthlyRent.toInt()} / mo",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                // Room tags (Aircon, Private CR, Utilities)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                    ) {
+                                        Text(
+                                            text = if (room.hasAircon) "❄️ Aircon" else "💨 Fan Room",
+                                            fontSize = 10.sp,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                    ) {
+                                        Text(
+                                            text = if (room.hasPrivateBathroom) "🚿 Private CR" else "🚻 Shared CR",
+                                            fontSize = 10.sp,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                    ) {
+                                        Text(
+                                            text = "${room.advanceRentMonths} Mo Adv / ₱${room.securityDeposit.toInt()} Dep",
+                                            fontSize = 10.sp,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "⚡ Utilities: ${room.utilityDetails}",
+                                    fontSize = 10.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                OutlinedButton(
+                                    onClick = {
+                                        selectedRoomForInquiry = room
+                                        showViewingDialog = true
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Text("Apply / Inquire for this Room", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // 4. Nearby Destination (TRANSIT, ESSENTIALS, UTILITY)
+            // 4. Detailed Living Specifications (VECO/BOHECO electricity, water supply, wifi infrastructure, road access)
+            item {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    Text(
+                        text = "Detailed Specifications",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = CardDefaults.outlinedCardBorder()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            boardingHouse.specifications?.let { spec ->
+                                LivingSpecRow(Icons.Default.Bolt, "⚡ Electricity", spec.electricityDetails)
+                                LivingSpecRow(Icons.Default.Bathtub, "💧 Water Supply", spec.waterDetails)
+                                LivingSpecRow(Icons.Default.Wifi, "📶 WiFi & Speed", spec.wifiDetails)
+                                LivingSpecRow(Icons.AutoMirrored.Filled.AltRoute, "🛵 Transit & Road Proximity", spec.roadProximity)
+                                LivingSpecRow(Icons.Default.Home, "🍳 Cooking Facility", spec.cookingRule)
+                                LivingSpecRow(Icons.Default.Bathtub, "🧺 Laundry & Drying Area", spec.laundryRule)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 5. Amenities & House Rules Badges
+            item {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                    Text(
+                        text = "Amenities & Compound Features",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        boardingHouse.amenities.forEach { amenity ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = "✓ $amenity",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "House Rules & Policies",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        boardingHouse.houseRules.forEach { rule ->
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text("• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text(rule, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 6. Nearby Destination (TRANSIT, ESSENTIALS, UTILITY)
             item {
                 NearbyDestinationSection(
                     property = prop,
@@ -557,7 +864,6 @@ fun PropertyDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    val isDark = isSystemInDarkTheme()
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -679,21 +985,7 @@ fun PropertyDetailScreen(
                                 }
                             }
 
-                            // Viewing & Curfew Instructions
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "📋 ${hostInfo.viewingPolicy}",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(
-                                text = "🔑 ${hostInfo.gateCurfewPolicy}",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             // Message option placed INSIDE Host Name Box
                             Button(
@@ -715,59 +1007,139 @@ fun PropertyDetailScreen(
         }
     }
 
-    // Request Viewing Dialog
+    // Inquiry & Viewing / Application Dialog
     if (showViewingDialog) {
+        var inquiryType by remember {
+            mutableStateOf(if (selectedRoomForInquiry != null) InquiryType.APPLY else InquiryType.SCHEDULE_VIEWING)
+        }
+        var targetMoveIn by remember { mutableStateOf("Next week (Flexible)") }
         var prefDate by remember { mutableStateOf("Tomorrow, 2:00 PM") }
         var prefTime by remember { mutableStateOf("2:00 PM - 3:00 PM") }
         var visitorsCount by remember { mutableIntStateOf(1) }
-        var tenantMsg by remember { mutableStateOf("") }
+        var tenantMsg by remember {
+            mutableStateOf(
+                if (selectedRoomForInquiry != null) {
+                    "Hello! I would like to apply for '${selectedRoomForInquiry!!.name}'. Is this bedspace still open?"
+                } else {
+                    ""
+                }
+            )
+        }
         var sendEmailAlert by remember { mutableStateOf(true) }
 
         AlertDialog(
-            onDismissRequest = { showViewingDialog = false },
-            title = { Text("Request Property Viewing") },
+            onDismissRequest = {
+                showViewingDialog = false
+                selectedRoomForInquiry = null
+            },
+            title = {
+                Text(
+                    text = when (inquiryType) {
+                        InquiryType.APPLY -> "Apply for Bedspace / Room"
+                        InquiryType.SCHEDULE_VIEWING -> "Schedule Property Viewing"
+                        InquiryType.INQUIRY -> "Inquire with Landlord"
+                    }
+                )
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Select your preferred date & time to visit '${prop.title}':",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = prefDate,
-                        onValueChange = { prefDate = it },
-                        label = { Text("Preferred Date") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = prefTime,
-                        onValueChange = { prefTime = it },
-                        label = { Text("Preferred Time Window") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
+                    // Inquiry Type Selector Chips
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("Number of Visitors:", fontSize = 12.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(onClick = { if (visitorsCount > 1) visitorsCount-- }) { Text("-") }
-                            Text("$visitorsCount", fontWeight = FontWeight.Bold)
-                            TextButton(onClick = { visitorsCount++ }) { Text("+") }
+                        InquiryType.entries.forEach { type ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (inquiryType == type) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, if (inquiryType == type) MaterialTheme.colorScheme.primary else Color.Transparent),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { inquiryType = type }
+                            ) {
+                                Text(
+                                    text = when (type) {
+                                        InquiryType.SCHEDULE_VIEWING -> "Viewing"
+                                        InquiryType.APPLY -> "Apply"
+                                        InquiryType.INQUIRY -> "Inquire"
+                                    },
+                                    fontSize = 11.sp,
+                                    fontWeight = if (inquiryType == type) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (inquiryType == type) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 6.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    selectedRoomForInquiry?.let { room ->
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isDark) SoftGreenDarkBg else SoftGreenBg,
+                            border = BorderStroke(0.8.dp, if (isDark) SoftGreenDarkBorder else SoftGreenBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "🛏️ Selected Room: ${room.name} (₱${room.monthlyRent.toInt()}/mo)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDark) SoftGreenDark else Color(0xFF166534)
+                                )
+                            }
+                        }
+                    }
+
+                    if (inquiryType == InquiryType.APPLY || inquiryType == InquiryType.INQUIRY) {
+                        OutlinedTextField(
+                            value = targetMoveIn,
+                            onValueChange = { targetMoveIn = it },
+                            label = { Text("Target Move-in Date") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
+                    if (inquiryType == InquiryType.SCHEDULE_VIEWING) {
+                        OutlinedTextField(
+                            value = prefDate,
+                            onValueChange = { prefDate = it },
+                            label = { Text("Preferred Date") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = prefTime,
+                            onValueChange = { prefTime = it },
+                            label = { Text("Preferred Time Window") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Number of Occupants / Visitors:", fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(onClick = { if (visitorsCount > 1) visitorsCount-- }) { Text("-") }
+                                Text("$visitorsCount", fontWeight = FontWeight.Bold)
+                                TextButton(onClick = { visitorsCount++ }) { Text("+") }
+                            }
                         }
                     }
 
                     OutlinedTextField(
                         value = tenantMsg,
                         onValueChange = { tenantMsg = it },
-                        label = { Text("Message to Poster (Optional)") },
-                        placeholder = { Text("e.g. Inquiring about water pressure and WiFi...") },
+                        label = { Text("Message to Landlord / Caretaker") },
+                        placeholder = { Text("e.g. Inquiring about water pressure, curfew keys, and parking...") },
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 3
                     )
@@ -779,7 +1151,7 @@ fun PropertyDetailScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Email Alert via Gmail", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Text("Dispatches instant notification to host", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Dispatches instant alert to host", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(
                             checked = sendEmailAlert,
@@ -791,19 +1163,35 @@ fun PropertyDetailScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        val finalMsg = buildString {
+                            if (selectedRoomForInquiry != null) {
+                                append("[Selected Room: ${selectedRoomForInquiry!!.name} - ₱${selectedRoomForInquiry!!.monthlyRent.toInt()}/mo] ")
+                            }
+                            if (inquiryType == InquiryType.APPLY) {
+                                append("[Target Move-in: $targetMoveIn] ")
+                            }
+                            append(tenantMsg)
+                        }
+
                         viewModel.requestViewing(
                             propertyId = prop.id,
                             posterId = prop.posterId,
                             date = prefDate,
                             time = prefTime,
                             visitors = visitorsCount,
-                            message = tenantMsg,
+                            message = finalMsg,
                             sendEmailAlert = sendEmailAlert,
                             onComplete = {
+                                val actionLabel = when (inquiryType) {
+                                    InquiryType.APPLY -> "Application"
+                                    InquiryType.SCHEDULE_VIEWING -> "Viewing request"
+                                    InquiryType.INQUIRY -> "Inquiry"
+                                }
                                 showViewingDialog = false
+                                selectedRoomForInquiry = null
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
-                                        "Viewing request sent to ${prop.posterName}!" +
+                                        "$actionLabel sent to ${prop.posterName}!" +
                                             (if (sendEmailAlert) " (Email alert dispatched)" else "")
                                     )
                                 }
@@ -811,11 +1199,22 @@ fun PropertyDetailScreen(
                         )
                     }
                 ) {
-                    Text("Submit Request", maxLines = 1, softWrap = false)
+                    Text(
+                        text = when (inquiryType) {
+                            InquiryType.APPLY -> "Submit Application"
+                            InquiryType.SCHEDULE_VIEWING -> "Submit Request"
+                            InquiryType.INQUIRY -> "Send Inquiry"
+                        },
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showViewingDialog = false }) {
+                TextButton(onClick = {
+                    showViewingDialog = false
+                    selectedRoomForInquiry = null
+                }) {
                     Text("Cancel", maxLines = 1, softWrap = false)
                 }
             }
@@ -1052,3 +1451,44 @@ private fun SpecColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, la
         Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
     }
 }
+
+@Composable
+private fun LivingSpecRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String?,
+    modifier: Modifier = Modifier
+) {
+    if (value.isNullOrBlank()) return
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(15.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = value,
+                fontSize = 11.5.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+

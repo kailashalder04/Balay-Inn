@@ -323,6 +323,36 @@ fun ExploreScreen(
                         )
                     }
 
+                    // Gender policy chip
+                    if (filterState.genderRule != "all") {
+                        FilterBadge(
+                            label = if (filterState.genderRule == "female_only") "Female Only" else "Male Only",
+                            onRemove = { viewModel.updateGenderRule("all") }
+                        )
+                    }
+
+                    // Min beds chip
+                    if (filterState.minAvailableBeds > 0) {
+                        FilterBadge(
+                            label = "${filterState.minAvailableBeds}+ Beds",
+                            onRemove = { viewModel.updateMinAvailableBeds(0) }
+                        )
+                    }
+
+                    // Sort By chip
+                    if (filterState.sortBy != "NEWEST") {
+                        val sortLabel = when (filterState.sortBy) {
+                            "highest_available" -> "Most Available Beds"
+                            "PRICE_ASC", "lowest_price" -> "Lowest Price"
+                            "PRICE_DESC" -> "Highest Price"
+                            else -> filterState.sortBy
+                        }
+                        FilterBadge(
+                            label = "Sort: $sortLabel",
+                            onRemove = { viewModel.setSortBy("NEWEST") }
+                        )
+                    }
+
                     // Reset all if any filter is active
                     val hasActiveFilters = filterState.provinceId.isNotEmpty() ||
                         filterState.cityMunicipalityId.isNotEmpty() ||
@@ -331,6 +361,9 @@ fun ExploreScreen(
                         filterState.listedBy != "All" ||
                         filterState.authorizedPosterOnly ||
                         filterState.verifiedOnly ||
+                        filterState.genderRule != "all" ||
+                        filterState.minAvailableBeds > 0 ||
+                        filterState.sortBy != "NEWEST" ||
                         filterState.minRent > 0 ||
                         filterState.maxRent < 100000
 
@@ -850,6 +883,101 @@ fun ExploreScreen(
                         checked = filterState.verifiedOnly,
                         onCheckedChange = { viewModel.toggleVerifiedOnly() }
                     )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 6: Gender Rule Policy
+                Text(
+                    text = "Gender Policy (Boarding House)",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val genderOptions = listOf(
+                        "all" to "All Genders / Mixed",
+                        "female_only" to "Female Only (Ladies)",
+                        "male_only" to "Male Only (Men)"
+                    )
+                    genderOptions.forEach { (key, label) ->
+                        FilterChip(
+                            selected = filterState.genderRule == key,
+                            onClick = { viewModel.updateGenderRule(key) },
+                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 7: Minimum Available Beds
+                Text(
+                    text = "Available Bed Vacancies",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val bedOptions = listOf(
+                        0 to "Any Beds",
+                        1 to "1+ Beds Vacant",
+                        2 to "2+ Beds Vacant",
+                        4 to "4+ Beds Vacant"
+                    )
+                    bedOptions.forEach { (beds, label) ->
+                        FilterChip(
+                            selected = filterState.minAvailableBeds == beds,
+                            onClick = { viewModel.updateMinAvailableBeds(beds) },
+                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 8: Sort Order
+                Text(
+                    text = "Sort By",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val sortOptions = listOf(
+                        "NEWEST" to "Recently Updated",
+                        "highest_available" to "Most Available Beds",
+                        "PRICE_ASC" to "Lowest Price",
+                        "PRICE_DESC" to "Highest Price"
+                    )
+                    sortOptions.forEach { (key, label) ->
+                        FilterChip(
+                            selected = filterState.sortBy == key,
+                            onClick = { viewModel.setSortBy(key) },
+                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

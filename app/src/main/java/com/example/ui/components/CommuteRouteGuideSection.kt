@@ -1,6 +1,7 @@
 package com.example.ui.components
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,9 +16,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AirportShuttle
 import androidx.compose.material.icons.filled.DirectionsBoat
@@ -30,38 +36,40 @@ import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.Swipe
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.model.CommuteDestination
 import com.example.data.model.CommuteGuideProvider
 import com.example.data.model.DestinationGroup
+import kotlinx.coroutines.launch
 
 /**
  * Explore Neighbourhood / Nearby Destination Section
  * Fully dark-mode and light-mode adaptive:
- * - "➔ Explore Neighbourhood" title in dynamic primary teal
- * - 3 Tabs: TRANSIT | ESSENTIALS | UTILITY with active underline indicator
- * - Subcategory headers with icons in theme-adaptive teal and subtle dividers
- * - List of places with onSurface high-contrast text and onSurfaceVariant travel times
+ * - "➔ Explore Neighbourhood" title with smooth sliding left to right and vice versa
+ * - HorizontalPager providing smooth gesture-based sliding and tab navigation
+ * - Wrap hidden texts across multiple lines without truncating
+ * - 3 Tabs: TRANSIT | ESSENTIALS | UTILITY with smooth active underline tracker
+ * - Left/Right navigation chevrons for smooth sliding
  */
 @Composable
 fun CommuteRouteGuideSection(
@@ -87,7 +95,9 @@ fun NearbyDestinationSection(
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
     val dimTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    var selectedGroup by remember { mutableStateOf(DestinationGroup.TRANSIT) }
+    val groups = remember { DestinationGroup.entries.toList() }
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { groups.size })
+    val coroutineScope = rememberCoroutineScope()
 
     Card(
         modifier = modifier
@@ -105,37 +115,51 @@ fun NearbyDestinationSection(
             // 1. Header: "➔ Explore Neighbourhood"
             Row(
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 14.dp)
+                    .padding(bottom = 10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = exploreTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Explore Neighbourhood",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = exploreTeal
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = exploreTeal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Explore Neighbourhood",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = exploreTeal,
+                        softWrap = true
+                    )
+                }
             }
 
-            // 2. Tabs: TRANSIT | ESSENTIALS | UTILITY
+            // 2. Tabs: TRANSIT | ESSENTIALS | UTILITY with smooth clickable sliding
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                DestinationGroup.entries.forEach { group ->
-                    val isSelected = selectedGroup == group
+                groups.forEachIndexed { index, group ->
+                    val isSelected = pagerState.currentPage == index
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { selectedGroup = group }
+                            .clickable {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(
+                                        page = index,
+                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
+                                    )
+                                }
+                            }
                             .padding(top = 4.dp)
                             .testTag("tab_${group.name.lowercase()}")
                     ) {
@@ -144,7 +168,8 @@ fun NearbyDestinationSection(
                             fontSize = 13.5.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) exploreTeal else dimTextColor,
-                            letterSpacing = 0.4.sp
+                            letterSpacing = 0.4.sp,
+                            softWrap = true
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Box(
@@ -161,29 +186,32 @@ fun NearbyDestinationSection(
             HorizontalDivider(
                 color = dividerColor,
                 thickness = 1.dp,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = 14.dp)
             )
 
-            // 3. Tab Content: Subcategories with places list
-            Crossfade(
-                targetState = selectedGroup,
-                label = "neighbourhood_tab_transition"
-            ) { group ->
+            // 3. Tab Content: Smooth HorizontalPager sliding left to right and vice versa
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) { pageIndex ->
+                val group = groups[pageIndex]
                 val subcategoryMap = remember(group, property) {
                     CommuteGuideProvider.getDestinationsBySubcategory(property, group)
                 }
 
                 if (subcategoryMap.isEmpty()) {
                     Text(
-                        text = "No recorded destinations nearby.",
+                        text = "No recorded destinations nearby for ${group.title}.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = dimTextColor,
+                        softWrap = true,
                         modifier = Modifier.padding(vertical = 16.dp)
                     )
                 } else {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         subcategoryMap.forEach { (subcategory, places) ->
                             SubcategoryBlock(
@@ -228,8 +256,11 @@ private fun SubcategoryBlock(
             Text(
                 text = subcategory,
                 fontSize = 15.sp,
+                lineHeight = 20.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = accentColor
+                color = accentColor,
+                softWrap = true,
+                modifier = Modifier.weight(1f)
             )
         }
 
@@ -240,7 +271,7 @@ private fun SubcategoryBlock(
             modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
         )
 
-        // Places rows
+        // Places rows - same text font, weight, and size for Place Name, distance, and time
         places.forEach { place ->
             Row(
                 modifier = Modifier
@@ -250,26 +281,37 @@ private fun SubcategoryBlock(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Place Name with full dark/light theme visibility
+                // Place Name
                 Text(
                     text = place.name,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    softWrap = true,
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 12.dp)
                 )
 
-                // Distance and Time formatted as "7.1 km|20 mins" with full dark/light contrast
-                Text(
-                    text = place.formattedDistanceAndTime,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Distance and Time formatted with matching font style and size (13.sp)
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                ) {
+                    Text(
+                        text = place.formattedDistanceAndTime,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        softWrap = true,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp)
+                    )
+                }
             }
         }
     }

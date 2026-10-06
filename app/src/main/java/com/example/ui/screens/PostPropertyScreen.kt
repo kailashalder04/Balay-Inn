@@ -273,15 +273,61 @@ fun PostPropertyScreen(
                             shape = RoundedCornerShape(10.dp)
                         )
 
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { description = it },
-                            label = { Text("Property Description *") },
-                            placeholder = { Text("Describe living space, surroundings, lease terms...") },
-                            modifier = Modifier.fillMaxWidth().testTag("post_desc_input"),
-                            maxLines = 4,
-                            shape = RoundedCornerShape(10.dp)
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(
+                                value = description,
+                                onValueChange = { description = it },
+                                label = { Text("Property Space, Locality & Transit Details *") },
+                                placeholder = { Text("Describe property space, locality, nearby destinations, and transit access...") },
+                                modifier = Modifier.fillMaxWidth().testTag("post_desc_input"),
+                                maxLines = 4,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            Text(
+                                text = "Describe only property space, locality, nearby landmarks, and transit options. (Room counts, rent, and contacts are automatically organized in their respective sections)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            // Quick Description Helpers / Add Options
+                            Text(
+                                text = "Add quick details:",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                listOf(
+                                    "Walking distance to mall & market",
+                                    "1-ride jeepney to university",
+                                    "Direct access to national highway",
+                                    "Quiet residential gated compound",
+                                    "Near hospital & BPO tech hubs",
+                                    "Paved road with motorcycle transit"
+                                ).forEach { snippet ->
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                        modifier = Modifier.clickable {
+                                            description = if (description.isBlank()) snippet else "$description. $snippet"
+                                        }
+                                    ) {
+                                        Text(
+                                            text = "+ $snippet",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         val types = listOf("Apartment", "Condominium", "House", "Studio", "Room", "Townhouse")
                         SearchableDropdownField(
