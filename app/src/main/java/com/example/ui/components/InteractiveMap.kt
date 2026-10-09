@@ -18,6 +18,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
@@ -111,6 +112,9 @@ import com.example.data.local.entity.BarangayEntity
 import com.example.data.local.entity.CityMunicipalityEntity
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.local.entity.ProvinceEntity
+import com.example.ui.theme.SteelBlue
+import com.example.ui.theme.SteelBlueDarkBg
+import com.example.ui.theme.SteelBlueLightBg
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -616,7 +620,7 @@ fun InteractiveRentalMap(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isSelected) Color(0xFF0F172A) else Color(0xFF006A60),
+                            color = if (isSelected) Color(0xFF0F172A) else SteelBlue,
                             shadowElevation = if (isSelected) 8.dp else 4.dp,
                             modifier = Modifier
                                 .border(
@@ -827,7 +831,7 @@ fun InteractiveRentalMap(
                                             },
                                             contentDescription = null,
                                             tint = when (loc.type) {
-                                                "PROPERTY" -> Color(0xFF006A60)
+                                                "PROPERTY" -> SteelBlue
                                                 "LANDMARK" -> Color(0xFFD97706)
                                                 "WORLD", "COUNTRY" -> Color(0xFF2563EB)
                                                 else -> MaterialTheme.colorScheme.primary
@@ -1121,12 +1125,13 @@ fun InteractiveRentalMap(
                 val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
                 val isSaved = savedPropertyIds.contains(prop.id)
 
+                val isDark = isSystemInDarkTheme()
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("map_property_preview_card"),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    colors = CardDefaults.cardColors(containerColor = if (isDark) SteelBlueDarkBg else SteelBlueLightBg),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {

@@ -65,6 +65,8 @@ import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
 import com.example.ui.theme.SoftGreenDark
 import com.example.ui.theme.SoftGreenDarkBg
+import com.example.ui.theme.SteelBlueDarkBg
+import com.example.ui.theme.SteelBlueLightBg
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -639,8 +641,8 @@ private fun LandlordPropertyManagementCard(
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
+        colors = CardDefaults.cardColors(containerColor = if (isDark) SteelBlueDarkBg else SteelBlueLightBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(

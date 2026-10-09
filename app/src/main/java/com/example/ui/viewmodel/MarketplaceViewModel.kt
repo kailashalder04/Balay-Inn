@@ -23,6 +23,7 @@ import com.example.data.local.entity.TenantRequirementEntity
 import com.example.data.local.entity.UserEntity
 import com.example.data.local.entity.VerificationDocumentEntity
 import com.example.data.local.entity.ViewingRequestEntity
+import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.data.model.UserRole
 import com.example.data.repository.BalayInnRepository
 import com.example.data.repository.PropertyMatchResult
@@ -86,7 +87,9 @@ data class MarketplaceFilterState(
     val listedBy: String = "All", // All, Direct Owner, Licensed Broker, Property Manager, Caretaker, Family Member, Authorized Representative
     val authorizedPosterOnly: Boolean = false,
     val genderRule: String = "all", // all, female_only, male_only
-    val minAvailableBeds: Int = 0
+    val minAvailableBeds: Int = 0,
+    val targetMarket: String = "All",
+    val utilityRuleFilter: String = "All"
 )
 
 class MarketplaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -250,12 +253,18 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         _filterState
     ) { allProps, filter ->
         allProps.filter { prop ->
+            val propCategory = PhilippineRentalPropertyCategory.fromPropertyType(prop.propertyType)
+
             // Keyword
             val matchesKeyword = filter.keyword.isBlank() ||
                 prop.title.contains(filter.keyword, ignoreCase = true) ||
                 prop.description.contains(filter.keyword, ignoreCase = true) ||
                 prop.neighborhood.contains(filter.keyword, ignoreCase = true) ||
-                prop.nearbyLandmark.contains(filter.keyword, ignoreCase = true)
+                prop.nearbyLandmark.contains(filter.keyword, ignoreCase = true) ||
+                propCategory.displayName.contains(filter.keyword, ignoreCase = true) ||
+                propCategory.targetMarket.contains(filter.keyword, ignoreCase = true) ||
+                propCategory.expectedAmenities.any { it.contains(filter.keyword, ignoreCase = true) } ||
+                prop.amenitiesJson.contains(filter.keyword, ignoreCase = true)
 
             // Province
             val matchesProvince = filter.provinceId.isBlank() || prop.provinceId == filter.provinceId
@@ -270,7 +279,98 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             val matchesPrice = prop.monthlyRent in filter.minRent..filter.maxRent
 
             // Property Type
-            val matchesType = filter.propertyType == "All" || prop.propertyType.equals(filter.propertyType, ignoreCase = true)
+            val matchesType = when {
+                filter.propertyType == "All" -> true
+                prop.propertyType.equals(filter.propertyType, ignoreCase = true) -> true
+                else -> {
+                    val filterCat = PhilippineRentalPropertyCategory.fromPropertyType(filter.propertyType)
+                    filterCat == propCategory
+                }
+            }
+
+            // Target Market
+            val matchesTargetMarket = when {
+                filter.targetMarket == "All" -> true
+                filter.targetMarket.contains("Student", ignoreCase = true) || filter.targetMarket.contains("BPO", ignoreCase = true) -> {
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE ||
+                    prop.description.contains("student", ignoreCase = true) ||
+                    prop.description.contains("bpo", ignoreCase = true)
+                }
+                filter.targetMarket.contains("Solo", ignoreCase = true) || filter.targetMarket.contains("Couple", ignoreCase = true) -> {
+                    propCategory == PhilippineRentalPropertyCategory.STUDIO_UNIT ||
+                    prop.description.contains("solo", ignoreCase = true) ||
+                    prop.description.contains("couple", ignoreCase = true)
+                }
+                filter.targetMarket.contains("Famil", ignoreCase = true) || filter.targetMarket.contains("Sharer", ignoreCase = true) -> {
+                    propCategory == PhilippineRentalPropertyCategory.APARTMENT_FLAT ||
+                    propCategory == PhilippineRentalPropertyCategory.HOUSE_TOWNHOUSE ||
+                    prop.description.contains("famil", ignoreCase = true)
+                }
+                filter.targetMarket.contains("Expat", ignoreCase = true) || filter.targetMarket.contains("Professional", ignoreCase = true) -> {
+                    propCategory == PhilippineRentalPropertyCategory.CONDOMINIUM ||
+                    prop.description.contains("expat", ignoreCase = true) ||
+                    prop.description.contains("professional", ignoreCase = true)
+                }
+                else -> true
+            }
+
+            // Utilities & Rules Filter
+            val matchesUtilityRule = when {
+                filter.utilityRuleFilter == "All" -> true
+                filter.utilityRuleFilter.contains("Sub-meter", ignoreCase = true) -> {
+                    prop.description.contains("sub-meter", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.STUDIO_UNIT ||
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("Flat Rate", ignoreCase = true) || filter.utilityRuleFilter.contains("Water (per head)", ignoreCase = true) -> {
+                    prop.description.contains("head", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("WiFi", ignoreCase = true) -> {
+                    prop.internetIncluded ||
+                    prop.description.contains("wifi", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("24/7", ignoreCase = true) || filter.utilityRuleFilter.contains("No Curfew", ignoreCase = true) -> {
+                    prop.description.contains("no curfew", ignoreCase = true) ||
+                    prop.description.contains("24/7", ignoreCase = true) ||
+                    propCategory != PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("Curfew Hours", ignoreCase = true) -> {
+                    prop.description.contains("curfew", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("Caretaker", ignoreCase = true) -> {
+                    prop.description.contains("caretaker", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("Guard", ignoreCase = true) || filter.utilityRuleFilter.contains("Permit", ignoreCase = true) -> {
+                    prop.description.contains("guard", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.CONDOMINIUM
+                }
+                filter.utilityRuleFilter.contains("LPG Allowed", ignoreCase = true) -> {
+                    prop.description.contains("lpg", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.APARTMENT_FLAT ||
+                    propCategory == PhilippineRentalPropertyCategory.HOUSE_TOWNHOUSE
+                }
+                filter.utilityRuleFilter.contains("Induction", ignoreCase = true) || filter.utilityRuleFilter.contains("No LPG", ignoreCase = true) -> {
+                    prop.description.contains("induction", ignoreCase = true) ||
+                    prop.description.contains("no lpg", ignoreCase = true) ||
+                    propCategory == PhilippineRentalPropertyCategory.CONDOMINIUM ||
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("Visitors Allowed", ignoreCase = true) -> {
+                    propCategory != PhilippineRentalPropertyCategory.BED_SPACE
+                }
+                filter.utilityRuleFilter.contains("No Visitors", ignoreCase = true) -> {
+                    propCategory == PhilippineRentalPropertyCategory.BED_SPACE ||
+                    prop.description.contains("no visitor", ignoreCase = true)
+                }
+                filter.utilityRuleFilter.contains("Garage", ignoreCase = true) || filter.utilityRuleFilter.contains("Parking", ignoreCase = true) -> {
+                    prop.parkingAvailable || propCategory == PhilippineRentalPropertyCategory.APARTMENT_FLAT
+                }
+                else -> true
+            }
 
             // Bedrooms
             val matchesBeds = filter.bedrooms == null || prop.bedrooms == filter.bedrooms
@@ -345,7 +445,8 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             val matchesMinBeds = filter.minAvailableBeds <= 0 || (prop.bedrooms == 0 || prop.bedrooms >= filter.minAvailableBeds)
 
             matchesKeyword && matchesProvince && matchesCity && matchesBarangay && matchesPrice &&
-                matchesType && matchesBeds && matchesFurnished && matchesParking && matchesPets &&
+                matchesType && matchesTargetMarket && matchesUtilityRule &&
+                matchesBeds && matchesFurnished && matchesParking && matchesPets &&
                 matchesVerified && matchesListedBy && matchesAuthorized && matchesBounds && matchesDistance &&
                 matchesGender && matchesMinBeds
         }.sortedWith(
@@ -403,6 +504,14 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
 
     fun updatePropertyType(type: String) {
         _filterState.value = _filterState.value.copy(propertyType = type)
+    }
+
+    fun updateTargetMarket(target: String) {
+        _filterState.value = _filterState.value.copy(targetMarket = target)
+    }
+
+    fun updateUtilityRuleFilter(rule: String) {
+        _filterState.value = _filterState.value.copy(utilityRuleFilter = rule)
     }
 
     fun updateBedrooms(beds: Int?) {

@@ -28,6 +28,11 @@ import com.example.ui.theme.SoftGreenBorder
 import com.example.ui.theme.SoftGreenDark
 import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.theme.SoftGreenDarkBorder
+import com.example.ui.theme.SteelBlue
+import com.example.ui.theme.SteelBlueBorder
+import com.example.ui.theme.SteelBlueDarkBg
+import com.example.ui.theme.SteelBlueDarkBorder
+import com.example.ui.theme.SteelBlueLightBg
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -75,6 +80,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
@@ -124,6 +130,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.entity.PropertyEntity
+import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.ui.viewmodel.MarketplaceViewModel
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -184,7 +191,33 @@ fun PropertyDetailScreen(
     val boardingHouse = remember(prop, hostInfo, displayImages) {
         prop.toBoardingHouseListing(hostPhone = hostInfo.phone, photosList = displayImages)
     }
+    val standardCategory = remember(prop.propertyType) {
+        PhilippineRentalPropertyCategory.fromPropertyType(prop.propertyType)
+    }
+    val localElectricProvider = remember(prop.provinceId) {
+        PhilippineRentalPropertyCategory.getLocalElectricProvider(prop.provinceId)
+    }
     var selectedRoomForInquiry by remember { mutableStateOf<RoomType?>(null) }
+
+    // Clean property title without landmark
+    val cleanTitle = remember(prop.title) {
+        if (prop.title.contains(Regex("(?i)\\s+near\\s+"))) {
+            prop.title.split(Regex("(?i)\\s+near\\s+")).first().trim()
+        } else {
+            prop.title
+        }
+    }
+
+    // Nearby landmark text placed below images
+    val landmarkText = remember(prop.title, prop.nearbyLandmark) {
+        if (prop.nearbyLandmark.isNotBlank()) {
+            prop.nearbyLandmark
+        } else if (prop.title.contains(Regex("(?i)\\s+near\\s+"))) {
+            prop.title.split(Regex("(?i)\\s+near\\s+")).getOrNull(1)?.trim() ?: ""
+        } else {
+            ""
+        }
+    }
 
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
@@ -192,31 +225,18 @@ fun PropertyDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(prop.title, maxLines = 1, fontSize = 16.sp) },
+                title = {
+                    Text(
+                        text = cleanTitle,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { showExportPostDialog = true },
-                        modifier = Modifier.testTag("detail_share_social_btn")
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = "Export Listing for Social Media")
-                    }
-                    IconButton(
-                        onClick = { viewModel.toggleSave(prop.id) },
-                        modifier = Modifier.testTag("detail_save_btn")
-                    ) {
-                        Icon(
-                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Save",
-                            tint = if (isSaved) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(onClick = { showReportDialog = true }) {
-                        Icon(Icons.Default.Flag, contentDescription = "Report Listing", tint = MaterialTheme.colorScheme.error)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -283,97 +303,25 @@ fun PropertyDetailScreen(
             item {
                 BoardingHouseImagePager(
                     images = displayImages,
-                    propertyTitle = prop.title,
+                    propertyTitle = cleanTitle,
+                    roomType = prop.propertyType,
+                    onShare = { showExportPostDialog = true },
+                    isSaved = isSaved,
+                    onToggleSave = { viewModel.toggleSave(prop.id) },
+                    onReport = { showReportDialog = true },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            // 1. Title, Type, Rent, Location Pin, and Utility Badges
+            // 1. Bed Availability & Gender Rule, followed by Location & Landmark
             item {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                text = prop.propertyType,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "$formattedRent / month",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                                modifier = Modifier
-                                    .clickable { showCostBreakdown = !showCostBreakdown }
-                                    .testTag("detail_rent_breakdown_toggle")
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ReceiptLong,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = if (showCostBreakdown) "Hide Cost Break-up ▲" else "Rent Cost Break-up ▾",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Small Display Panel for Rent cost break-up
-                    AnimatedVisibility(
-                        visible = showCostBreakdown,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Column {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            RentCostBreakdownPanel(
-                                breakdown = costBreakdown,
-                                isDark = isSystemInDarkTheme(),
-                                onClose = { showCostBreakdown = false }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = prop.title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Boarding House Real-time Bed Availability & Capacity & Gender Rule Banner
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Boarding House Real-time Bed Availability & Gender Rule
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -381,17 +329,13 @@ fun PropertyDetailScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (boardingHouse.totalAvailableBeds > 0) {
-                                if (isDark) SoftGreenDarkBg else SoftGreenBg
-                            } else {
-                                if (isDark) Color(0xFF332020) else Color(0xFFFEE2E2)
-                            },
+                            color = Color.Transparent,
                             border = BorderStroke(
-                                0.8.dp,
+                                1.dp,
                                 if (boardingHouse.totalAvailableBeds > 0) {
                                     if (isDark) SoftGreenDarkBorder else SoftGreenBorder
                                 } else {
-                                    if (isDark) Color(0xFF7F1D1D) else Color(0xFFFCA5A5)
+                                    Color(0xFFDC2626)
                                 }
                             )
                         ) {
@@ -415,7 +359,7 @@ fun PropertyDetailScreen(
                                     color = if (boardingHouse.totalAvailableBeds > 0) {
                                         if (isDark) SoftGreenDark else Color(0xFF15803D)
                                     } else {
-                                        if (isDark) Color(0xFFF87171) else Color(0xFFB91C1C)
+                                        Color(0xFFDC2626)
                                     }
                                 )
                             }
@@ -423,140 +367,51 @@ fun PropertyDetailScreen(
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
-                            border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            color = Color.Transparent,
+                            border = BorderStroke(1.dp, SteelBlue)
                         ) {
                             Text(
                                 text = boardingHouse.primaryGenderRule.badge,
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp)
+                                color = SteelBlue,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Map Address in a Rectangular Pill (clearer, not too bright)
+                    // Combined Location and Landmark in a single clean border-only box below images
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f) else Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f) else Color(0xFFCBD5E1)),
-                        modifier = Modifier.testTag("detail_map_pin_btn")
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(1.dp, SteelBlue),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("detail_map_pin_btn")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 Icons.Default.LocationOn,
                                 contentDescription = "Map Pin",
-                                modifier = Modifier.size(15.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                modifier = Modifier.size(16.dp),
+                                tint = SteelBlue
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = locationDisplay,
+                                text = if (landmarkText.isNotBlank()) "$locationDisplay • Near $landmarkText" else locationDisplay,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Utility and Highway Highlights (clearer, defined, comfortable contrast — not too bright!)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // WiFi Available
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) Color(0xFF1E293B) else Color(0xFFE2EDFE),
-                            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFF93C5FD))
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Wifi,
-                                    contentDescription = null,
-                                    tint = if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "WiFi available",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E3A8A)
-                                )
-                            }
-                        }
-
-                        // Electricity / Water (Very soft, eye-friendly green display)
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) SoftGreenDarkBg else SoftGreenBg,
-                            border = BorderStroke(1.dp, if (isDark) SoftGreenDarkBorder else SoftGreenBorder)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Bolt,
-                                    contentDescription = null,
-                                    tint = if (isDark) SoftGreenDark else Color(0xFF2E6F4E),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (prop.utilitiesIncluded) "Elec/Water in rent" else "Elec submeter / Water",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) SoftGreenDark else Color(0xFF1D533A)
-                                )
-                            }
-                        }
-
-                        // Highway Access
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) Color(0xFF2E2013) else Color(0xFFFEF3C7),
-                            border = BorderStroke(1.dp, if (isDark) Color(0xFF593C1D) else Color(0xFFFCD34D))
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.AltRoute,
-                                    contentDescription = null,
-                                    tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "Highway access",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color(0xFFFDE68A) else Color(0xFF78350F)
-                                )
-                            }
-                        }
-                    }
                 }
             }
 
-            // 2. Boarding House Main Description (Focused strictly on property space, locality, nearby destinations, and transit)
+            // 2. Boarding House Main Description
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     Text(
@@ -568,8 +423,10 @@ fun PropertyDetailScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                        border = CardDefaults.outlinedCardBorder()
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Transparent
+                        ),
+                        border = BorderStroke(1.dp, SteelBlue)
                     ) {
                         Text(
                             text = boardingHouse.fullDescription,
@@ -582,7 +439,212 @@ fun PropertyDetailScreen(
                 }
             }
 
-            // 3. Room & Bedspace Configurations (Boarding House Spec)
+            // 🇵🇭 Philippine Rental Market Standards & Classification Section
+            item {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                    Text(
+                        text = "Philippine Rental Standards & Classification",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) Color(0xFF162536) else Color(0xFFEAF2F8)
+                        ),
+                        border = BorderStroke(1.dp, SteelBlue)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Header: Category Emoji & Display Name
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(standardCategory.targetEmoji, fontSize = 20.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = standardCategory.displayName,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Official Classification",
+                                            fontSize = 10.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = standardCategory.shortLabel,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+
+                            // 👤 Ideal For (Target Market)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("👤", fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = "Ideal For / Target Market:",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = standardCategory.targetMarket,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+
+                            // 🏠 Unit Setup & Expected Amenities
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "🏠 Unit Setup & Expected Amenities:",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    standardCategory.expectedAmenities.forEach { amenity ->
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.surface,
+                                            border = BorderStroke(0.7.dp, SteelBlue.copy(alpha = 0.6f))
+                                        ) {
+                                            Text(
+                                                text = "✓ $amenity",
+                                                fontSize = 10.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ⚡ Utilities Setup
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "⚡ Utilities Setup:",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "💧 Water: ${standardCategory.waterDefault}",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "⚡ Electricity: ${standardCategory.electricityDefault.replace("VECO/MERALCO/CENECO/BOHECO", localElectricProvider)}",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "📶 Internet / WiFi: ${standardCategory.internetDefault}",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            // 📋 House Rules & Security
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "📋 House Rules & Security Setup:",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("🔒 Curfew & Access: ${standardCategory.curfewDefault}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("🛡️ Security: ${standardCategory.securityDefault}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("👥 Visitors: ${standardCategory.visitorsDefault}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("🍳 Cooking Policy: ${standardCategory.cookingDefault}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("🐾 Pet Policy: ${standardCategory.petPolicyDefault}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("🛵 Parking Provision: ${standardCategory.parkingDefault}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+
+                            // 📍 Locality Notes
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Locality Note: ${standardCategory.localityNotes} (Electric distribution: $localElectricProvider).",
+                                        fontSize = 10.5.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Room & Bedspace Configurations
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
                     // Overview Specs bar
@@ -591,8 +653,10 @@ fun PropertyDetailScreen(
                             .fillMaxWidth()
                             .padding(bottom = 12.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = CardDefaults.outlinedCardBorder()
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Transparent
+                        ),
+                        border = BorderStroke(1.dp, SteelBlue)
                     ) {
                         Row(
                             modifier = Modifier
@@ -600,7 +664,7 @@ fun PropertyDetailScreen(
                                 .padding(14.dp),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            SpecColumn(icon = Icons.Default.Bed, label = "Capacity", value = "${boardingHouse.totalCapacity} Beds")
+                            SpecColumn(icon = Icons.Default.Bed, label = "Rooms", value = "${boardingHouse.rooms.size} Types")
                             SpecColumn(icon = Icons.Default.Bathtub, label = "Bathroom", value = "${prop.bathrooms} Bath/CR")
                             SpecColumn(icon = Icons.Default.Home, label = "Furnished", value = prop.furnishedStatus)
                         }
@@ -620,9 +684,9 @@ fun PropertyDetailScreen(
                                 .padding(vertical = 5.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f) else Color(0xFFF8FAFC)
+                                containerColor = Color.Transparent
                             ),
-                            border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f) else Color(0xFFE2E8F0))
+                            border = BorderStroke(1.dp, SteelBlue)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
@@ -714,32 +778,35 @@ fun PropertyDetailScreen(
                                 ) {
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                        color = Color.Transparent,
+                                        border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
                                     ) {
                                         Text(
                                             text = if (room.hasAircon) "❄️ Aircon" else "💨 Fan Room",
                                             fontSize = 10.sp,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
                                         )
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                        color = Color.Transparent,
+                                        border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
                                     ) {
                                         Text(
                                             text = if (room.hasPrivateBathroom) "🚿 Private CR" else "🚻 Shared CR",
                                             fontSize = 10.sp,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
                                         )
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                        color = Color.Transparent,
+                                        border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
                                     ) {
                                         Text(
                                             text = "${room.advanceRentMonths} Mo Adv / ₱${room.securityDeposit.toInt()} Dep",
                                             fontSize = 10.sp,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
                                         )
                                     }
                                 }
@@ -770,7 +837,7 @@ fun PropertyDetailScreen(
                 }
             }
 
-            // 4. Detailed Living Specifications (VECO/BOHECO electricity, water supply, wifi infrastructure, road access)
+            // 4. Detailed Living Specifications (Focused strictly on living environment, no duplicate fees)
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                     Text(
@@ -782,8 +849,10 @@ fun PropertyDetailScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = CardDefaults.outlinedCardBorder()
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Transparent
+                        ),
+                        border = BorderStroke(1.dp, SteelBlue)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             boardingHouse.specifications?.let { spec ->
@@ -808,21 +877,28 @@ fun PropertyDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    val cleanAmenities = remember(boardingHouse.amenities) {
+                        boardingHouse.amenities.filter { amenity ->
+                            !amenity.contains("Sub-meter", ignoreCase = true) &&
+                            !amenity.contains("Fiber WiFi", ignoreCase = true)
+                        }
+                    }
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        boardingHouse.amenities.forEach { amenity ->
+                        cleanAmenities.forEach { amenity ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                color = Color.Transparent,
+                                border = BorderStroke(1.dp, SteelBlue)
                             ) {
                                 Text(
                                     text = "✓ $amenity",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
@@ -869,8 +945,10 @@ fun PropertyDetailScreen(
                             .fillMaxWidth()
                             .testTag("detail_host_name_box"),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = CardDefaults.outlinedCardBorder()
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Transparent
+                        ),
+                        border = BorderStroke(1.dp, SteelBlue)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
@@ -902,8 +980,8 @@ fun PropertyDetailScreen(
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
                                             shape = RoundedCornerShape(4.dp),
-                                            color = if (isDark) SoftGreenDarkBg else SoftGreenBg,
-                                            border = BorderStroke(0.6.dp, if (isDark) SoftGreenDarkBorder else SoftGreenBorder)
+                                            color = Color.Transparent,
+                                            border = BorderStroke(1.dp, if (isDark) SoftGreenDarkBorder else Color(0xFF16A34A))
                                         ) {
                                             Text(
                                                 text = "Verified Host",
@@ -927,8 +1005,8 @@ fun PropertyDetailScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
-                                    border = BorderStroke(0.8.dp, if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)),
+                                    color = Color.Transparent,
+                                    border = BorderStroke(1.dp, SteelBlue),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -1002,6 +1080,17 @@ fun PropertyDetailScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // 7. Rent & Utility Cost Break-up (Positioned at the bottom)
+            item {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    RentCostBreakdownPanel(
+                        breakdown = costBreakdown,
+                        isDark = isDark,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -1333,13 +1422,16 @@ fun PropertyDetailScreen(
         val payload = remember(prop, locationDisplay, hostInfo, costBreakdown) {
             ListingTransformationEngine.fromProperty(prop, locationDisplay, hostInfo, costBreakdown)
         }
+        val marketStandardText = remember(prop, locationDisplay, hostInfo) {
+            ListingTransformationEngine.formatMarketplaceListing(prop, locationDisplay, hostInfo)
+        }
         val fbPostText = remember(payload) {
             ListingTransformationEngine.formatFacebookPost(payload)
         }
         val inAppText = remember(payload) {
             ListingTransformationEngine.formatInAppListing(payload)
         }
-        var selectedOutputTab by remember { mutableIntStateOf(0) } // 0 = Facebook, 1 = In-App
+        var selectedOutputTab by remember { mutableIntStateOf(0) } // 0 = Market Standard, 1 = Facebook, 2 = In-App Specs
 
         AlertDialog(
             onDismissRequest = { showExportPostDialog = false },
@@ -1361,14 +1453,14 @@ fun PropertyDetailScreen(
                     ) {
                         Surface(
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(1.1f)
                                 .clickable { selectedOutputTab = 0 },
                             shape = RoundedCornerShape(6.dp),
                             color = if (selectedOutputTab == 0) MaterialTheme.colorScheme.primary else Color.Transparent
                         ) {
                             Text(
-                                text = "Facebook Post",
-                                fontSize = 11.5.sp,
+                                text = "Standard (4 Types)",
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedOutputTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 6.dp),
@@ -1383,10 +1475,26 @@ fun PropertyDetailScreen(
                             color = if (selectedOutputTab == 1) MaterialTheme.colorScheme.primary else Color.Transparent
                         ) {
                             Text(
-                                text = "In-App Card Specs",
-                                fontSize = 11.5.sp,
+                                text = "Facebook Post",
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedOutputTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 6.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedOutputTab = 2 },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (selectedOutputTab == 2) MaterialTheme.colorScheme.primary else Color.Transparent
+                        ) {
+                            Text(
+                                text = "In-App Specs",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedOutputTab == 2) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 6.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
@@ -1395,7 +1503,11 @@ fun PropertyDetailScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    val displayText = if (selectedOutputTab == 0) fbPostText else inAppText
+                    val displayText = when (selectedOutputTab) {
+                        0 -> marketStandardText
+                        1 -> fbPostText
+                        else -> inAppText
+                    }
 
                     OutlinedTextField(
                         value = displayText,
@@ -1411,7 +1523,11 @@ fun PropertyDetailScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val textToCopy = if (selectedOutputTab == 0) fbPostText else inAppText
+                        val textToCopy = when (selectedOutputTab) {
+                            0 -> marketStandardText
+                            1 -> fbPostText
+                            else -> inAppText
+                        }
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("Rental Listing", textToCopy)
                         clipboard.setPrimaryClip(clip)

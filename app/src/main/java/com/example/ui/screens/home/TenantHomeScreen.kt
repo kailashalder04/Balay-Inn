@@ -3,6 +3,7 @@ package com.example.ui.screens.home
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +64,9 @@ import com.example.ui.theme.BadgeAmber
 import com.example.ui.theme.BadgeAmberBg
 import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
+import com.example.ui.theme.SteelBlue
+import com.example.ui.theme.SteelBlueDarkBg
+import com.example.ui.theme.SteelBlueLightBg
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -378,19 +382,21 @@ private fun RecentPropertyMiniCard(
             .width(220.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, SteelBlue),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, SteelBlue)
             ) {
                 Text(
                     text = property.propertyType,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = SteelBlue,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     maxLines = 1,
                     softWrap = false
@@ -401,13 +407,16 @@ private fun RecentPropertyMiniCard(
                 text = property.title,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(6.dp),
+                color = Color.Transparent,
+                border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.5f)),
                 modifier = Modifier.padding(vertical = 2.dp)
             ) {
                 Row(
@@ -418,14 +427,14 @@ private fun RecentPropertyMiniCard(
                         Icons.Default.LocationOn,
                         contentDescription = null,
                         modifier = Modifier.size(11.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = SteelBlue
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = locationDisplay,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis
@@ -437,7 +446,7 @@ private fun RecentPropertyMiniCard(
                 text = "${currencyFormat.format(property.monthlyRent).replace("PHP", "₱")} / mo",
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.primary,
+                color = SteelBlue,
                 maxLines = 1,
                 softWrap = false
             )

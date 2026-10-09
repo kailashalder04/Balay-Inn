@@ -504,34 +504,38 @@ fun PropertyEntity.toBoardingHouseListing(
     val minRent = roomTypes.minOfOrNull { it.monthlyRent } ?: this.monthlyRent
     val maxRent = roomTypes.maxOfOrNull { it.monthlyRent } ?: this.monthlyRent
 
+    val cat = PhilippineRentalPropertyCategory.fromPropertyType(this.propertyType)
+    val localDU = PhilippineRentalPropertyCategory.getLocalElectricProvider(this.provinceId)
+
     val livingSpecs = LivingSpecifications(
         roomDescription = if (isDampas) {
             "Single bed with pull-out mattress, study table with chair, wall fan, screen windows, and attached private CR."
         } else {
             "Comfortable bedframe with foam mattress, personal cabinet with padlock loop, study desk, and good ventilation."
         },
-        wifiDetails = if (this.internetIncluded) "Free Shared High-Speed Fiber WiFi (200 Mbps) compound-wide" else "WiFi ready (₱200/mo optional fiber access)",
-        waterDetails = if (isDampas) "Fixed ₱200 per head/month (continuous deep-well supply + overhead tank)" else "Fixed ₱150-250/head/month or sub-metered MCWD",
-        electricityDetails = if (this.utilitiesIncluded) "Electricity included in monthly rent (fair use policy)" else "Digital individual sub-meter per room based on actual utility provider rates",
-        roadProximity = if (this.nearbyLandmark.isNotBlank()) "Walking distance to ${this.nearbyLandmark}, 1-ride jeep to central district" else "Along accessible paved barangay road, 2 mins to highway",
-        curfewRule = if (isDampas) "Gate locked at 10 PM. Tenants receive personal gate key for night shifts / BPO" else "No strict curfew / 24/7 gate access with RFID/key",
-        visitorsRule = "Daytime visitors permitted in receiving area until 8:00 PM. Strictly no overnight guests",
-        cookingRule = if (isDampas) "Light electric cooking allowed (rice cooker, electric kettle). No gas/LPG stoves" else "Light cooking permitted in kitchenette area",
+        wifiDetails = if (this.internetIncluded) "Free Shared High-Speed Fiber WiFi (200 Mbps) compound-wide" else cat.internetDefault,
+        waterDetails = if (isDampas) "Fixed ₱200 per head/month (continuous deep-well supply + overhead tank)" else cat.waterDefault,
+        electricityDetails = if (this.utilitiesIncluded) "Electricity included in monthly rent (fair use policy)" else cat.electricityDefault.replace("VECO/MERALCO/CENECO/BOHECO", localDU),
+        roadProximity = if (this.nearbyLandmark.isNotBlank()) "Walking distance to ${this.nearbyLandmark}, 1-ride transit to central district" else "Along accessible paved road, 2 mins to highway",
+        curfewRule = if (isDampas) "Gate locked at 10 PM. Tenants receive personal gate key for night shifts / BPO" else cat.curfewDefault,
+        visitorsRule = cat.visitorsDefault,
+        cookingRule = if (isDampas) "Light electric cooking allowed (rice cooker, electric kettle). No gas/LPG stoves" else cat.cookingDefault,
         laundryRule = "Designated handwash laundry sink & roof deck drying lines. Laundromat within 2-min walk",
         smokingRule = "Strictly non-smoking inside all rooms, bathrooms, and interior corridors",
-        petsRule = if (this.petPolicy.contains("No", ignoreCase = true)) "Strictly no pets allowed" else "Small pets / caged pets permitted upon approval",
+        petsRule = cat.petPolicyDefault,
         quietHoursRule = "Quiet study & rest hours strictly observed between 10:00 PM and 6:00 AM"
     )
 
     val houseRulesList = listOfNotNull(
-        if (isDampas) "Night-shift gate key provided" else "24/7 Compound Access",
-        "Daytime visitors only (until 8 PM)",
-        if (isDampas) "Light electric cooking only (no LPG)" else "Designated cooking area only",
-        "Strictly Non-Smoking inside rooms",
-        if (this.petPolicy.contains("No", ignoreCase = true)) "No pets allowed" else "Pets allowed upon registration",
+        cat.curfewDefault,
+        cat.securityDefault,
+        cat.visitorsDefault,
+        cat.cookingDefault,
+        cat.petPolicyDefault,
+        cat.parkingDefault,
         "Quiet hours: 10:00 PM - 6:00 AM",
         "Bring 1 valid Philippine Government / School ID upon move-in"
-    )
+    ).distinct()
 
     val amenitiesList = listOf(
         if (this.bathrooms > 0) "Attached Private CR" else "Shared Common CR",

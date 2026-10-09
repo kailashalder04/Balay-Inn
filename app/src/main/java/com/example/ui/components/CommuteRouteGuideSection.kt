@@ -58,6 +58,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.model.CommuteDestination
+import com.example.ui.theme.SteelBlue
+import com.example.ui.theme.SteelBlueBorder
+import com.example.ui.theme.SteelBlueDarkBg
+import com.example.ui.theme.SteelBlueDarkBorder
+import com.example.ui.theme.SteelBlueLightBg
 import com.example.data.model.CommuteGuideProvider
 import com.example.data.model.DestinationGroup
 import kotlinx.coroutines.launch
@@ -91,7 +96,7 @@ fun NearbyDestinationSection(
     if (allDestinations.isEmpty()) return
 
     val isDark = isSystemInDarkTheme()
-    val exploreTeal = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF00796B)
+    val exploreTeal = if (isDark) MaterialTheme.colorScheme.primary else SteelBlue
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
     val dimTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -104,8 +109,10 @@ fun NearbyDestinationSection(
             .fillMaxWidth()
             .testTag("explore_neighbourhood_section"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, dividerColor)
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        border = BorderStroke(1.dp, SteelBlue)
     ) {
         Column(
             modifier = Modifier

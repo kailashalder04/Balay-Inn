@@ -72,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.ui.components.CascadingLocationSelector
 import com.example.ui.components.InteractiveRentalMap
 import com.example.ui.components.PropertyCard
@@ -256,6 +257,99 @@ fun ExploreScreen(
                     }
                 }
 
+                // Philippine Rental Categories Bar (Visible to tenants/renters)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isAllActive = filterState.propertyType == "All"
+                    FilterChip(
+                        selected = isAllActive,
+                        onClick = { viewModel.updatePropertyType("All") },
+                        label = { Text("🏠 All Types", fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                    )
+
+                    PhilippineRentalPropertyCategory.ALL_CATEGORIES.forEach { cat ->
+                        val isCatActive = filterState.propertyType == cat.displayName ||
+                                filterState.propertyType == cat.shortLabel
+                        FilterChip(
+                            selected = isCatActive,
+                            onClick = {
+                                viewModel.updatePropertyType(if (isCatActive) "All" else cat.displayName)
+                            },
+                            label = {
+                                Text(
+                                    text = "${cat.targetEmoji} ${cat.shortLabel}",
+                                    fontSize = 11.5.sp,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        )
+                    }
+                }
+
+                // Active Category Market Standard Info Card for Renters
+                if (filterState.propertyType != "All") {
+                    val activeCat = PhilippineRentalPropertyCategory.fromPropertyType(filterState.propertyType)
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${activeCat.targetEmoji} ${activeCat.displayName}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Philippine Standard",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                text = "👤 Ideal for: ${activeCat.targetMarket}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "🏠 Amenities: ${activeCat.expectedAmenities.take(4).joinToString(", ")}",
+                                fontSize = 10.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "⚡ Utilities: ${activeCat.waterDefault} • ${activeCat.electricityDefault}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "📋 Rules: ${activeCat.curfewDefault} • ${activeCat.cookingDefault} • ${activeCat.securityDefault}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
                 // Active Filter Chips Row
                 Row(
                     modifier = Modifier
@@ -296,6 +390,22 @@ fun ExploreScreen(
                         FilterBadge(
                             label = filterState.propertyType,
                             onRemove = { viewModel.updatePropertyType("All") }
+                        )
+                    }
+
+                    // Target market filter chip
+                    if (filterState.targetMarket != "All") {
+                        FilterBadge(
+                            label = "Target: ${filterState.targetMarket}",
+                            onRemove = { viewModel.updateTargetMarket("All") }
+                        )
+                    }
+
+                    // Utility and rules filter chip
+                    if (filterState.utilityRuleFilter != "All") {
+                        FilterBadge(
+                            label = "Rule: ${filterState.utilityRuleFilter}",
+                            onRemove = { viewModel.updateUtilityRuleFilter("All") }
                         )
                     }
 
@@ -720,27 +830,150 @@ fun ExploreScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Section 2: Property Type
+                // Section 2: Property Type (Philippine Rental Market Standards)
                 Text(
-                    text = "Property Type",
+                    text = "Property Type (Philippine Standards)",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
+                Text(
+                    text = "Select from the 4 primary Philippine rental categories or locality residential houses",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                val types = listOf("All", "Studio", "Condominium", "Apartment", "House", "Room", "Townhouse")
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    types.forEach { type ->
+                    FilterChip(
+                        selected = filterState.propertyType == "All",
+                        onClick = { viewModel.updatePropertyType("All") },
+                        label = { Text("All", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                    )
+                    PhilippineRentalPropertyCategory.ALL_CATEGORIES.forEach { cat ->
+                        val isSelected = filterState.propertyType == cat.displayName || filterState.propertyType == cat.shortLabel
                         FilterChip(
-                            selected = filterState.propertyType == type,
-                            onClick = { viewModel.updatePropertyType(type) },
-                            label = { Text(type, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                            selected = isSelected,
+                            onClick = { viewModel.updatePropertyType(cat.displayName) },
+                            label = { Text("${cat.targetEmoji} ${cat.shortLabel}", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+
+                // If a property type is selected, show its Philippine Rental Market Standard profile card
+                if (filterState.propertyType != "All") {
+                    val activeTypeCat = PhilippineRentalPropertyCategory.fromPropertyType(filterState.propertyType)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "${activeTypeCat.targetEmoji} ${activeTypeCat.displayName} Specifications",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "👤 Target: ${activeTypeCat.targetMarket}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "🏠 Expected Amenities: ${activeTypeCat.expectedAmenities.joinToString(", ")}",
+                                fontSize = 10.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "⚡ Utilities: ${activeTypeCat.waterDefault} • ${activeTypeCat.electricityDefault} • ${activeTypeCat.internetDefault}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "📋 House Rules: ${activeTypeCat.curfewDefault} • ${activeTypeCat.securityDefault} • ${activeTypeCat.visitorsDefault} • ${activeTypeCat.cookingDefault} • ${activeTypeCat.petPolicyDefault} • ${activeTypeCat.parkingDefault}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 2B: Target Market / Demographics
+                Text(
+                    text = "Target Market / Demographics",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val targetOptions = listOf(
+                        "All",
+                        "Students & Budget BPO",
+                        "Solo Renters & Couples",
+                        "Small Families & Sharers",
+                        "High-earning Professionals & Expats"
+                    )
+                    targetOptions.forEach { opt ->
+                        FilterChip(
+                            selected = filterState.targetMarket == opt,
+                            onClick = { viewModel.updateTargetMarket(opt) },
+                            label = { Text(opt, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 2C: Utilities & House Rules Setup
+                Text(
+                    text = "Utilities & House Rules Standards",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val utilityRuleOptions = listOf(
+                        "All",
+                        "Sub-metered Electricity",
+                        "Flat Rate Water",
+                        "Shared WiFi",
+                        "24/7 Gate Key (No Curfew)",
+                        "Curfew Hours",
+                        "Caretaker On-Site",
+                        "24/7 Roaming Guards",
+                        "Strictly Induction (No LPG)",
+                        "LPG Allowed",
+                        "Daytime Visitors Allowed",
+                        "Strictly No Visitors"
+                    )
+                    utilityRuleOptions.forEach { opt ->
+                        FilterChip(
+                            selected = filterState.utilityRuleFilter == opt,
+                            onClick = { viewModel.updateUtilityRuleFilter(opt) },
+                            label = { Text(opt, fontSize = 12.sp, maxLines = 1, softWrap = false) }
                         )
                     }
                 }

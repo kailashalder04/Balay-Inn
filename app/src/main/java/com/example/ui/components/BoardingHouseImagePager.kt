@@ -35,11 +35,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
+import com.example.ui.theme.SteelBlue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -84,7 +89,12 @@ fun BoardingHouseImagePager(
     propertyTitle: String,
     modifier: Modifier = Modifier,
     height: Dp = 280.dp,
-    initialPage: Int = 0
+    initialPage: Int = 0,
+    roomType: String = "",
+    onShare: (() -> Unit)? = null,
+    isSaved: Boolean = false,
+    onToggleSave: (() -> Unit)? = null,
+    onReport: (() -> Unit)? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
     val fallbackImages = remember {
@@ -198,35 +208,114 @@ fun BoardingHouseImagePager(
             }
         }
 
-        // Full Screen Button Overlay (top-left)
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = Color.Black.copy(alpha = 0.55f),
+        // Type of Room Badge (top-left, replacing fullscreen)
+        if (roomType.isNotBlank()) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color.Black.copy(alpha = 0.65f),
+                border = BorderStroke(1.dp, SteelBlue),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+                    .testTag("image_pager_room_type_badge")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Bed,
+                        contentDescription = null,
+                        tint = SteelBlue,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = roomType,
+                        color = Color.White,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Action Buttons Overlay: Share, Heart, Report, Fullscreen (top-right of image)
+        Row(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(12.dp)
-                .clickable {
+                .align(Alignment.TopEnd)
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onShare != null) {
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .testTag("detail_share_social_btn")
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = "Share Listing",
+                        tint = Color.White,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+            if (onToggleSave != null) {
+                IconButton(
+                    onClick = onToggleSave,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .testTag("detail_save_btn")
+                ) {
+                    Icon(
+                        imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Save",
+                        tint = if (isSaved) Color(0xFFEF4444) else Color.White,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+            if (onReport != null) {
+                IconButton(
+                    onClick = onReport,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .testTag("detail_report_btn")
+                ) {
+                    Icon(
+                        Icons.Default.Flag,
+                        contentDescription = "Report Listing",
+                        tint = Color(0xFFFCA5A5),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+            // Fullscreen icon button (NO text as requested: "Remove the fullscreen text")
+            IconButton(
+                onClick = {
                     fullScreenInitialPage = pagerState.currentPage
                     showFullScreenDialog = true
-                }
-                .testTag("image_pager_fullscreen_btn")
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                },
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .testTag("image_pager_fullscreen_btn")
             ) {
                 Icon(
                     Icons.Default.Fullscreen,
                     contentDescription = "View Full Screen",
                     tint = Color.White,
-                    modifier = Modifier.size(15.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Full Screen",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
+                    modifier = Modifier.size(19.dp)
                 )
             }
         }
@@ -599,7 +688,7 @@ fun FullScreenImageLightbox(
                                             color = Color.Transparent,
                                             border = BorderStroke(
                                                 width = if (isSelected) 2.dp else 1.dp,
-                                                color = if (isSelected) Color(0xFF4DD8C5) else Color.White.copy(alpha = 0.40f)
+                                                color = if (isSelected) SteelBlue else Color.White.copy(alpha = 0.40f)
                                             ),
                                             modifier = Modifier
                                                 .size(width = 58.dp, height = 40.dp)

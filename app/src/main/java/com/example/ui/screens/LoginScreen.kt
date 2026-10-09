@@ -143,7 +143,7 @@ fun LoginScreen(
                                 Brush.linearGradient(
                                     listOf(
                                         MaterialTheme.colorScheme.primary,
-                                        Color(0xFF0D9488)
+                                        Color(0xFF2E618B)
                                     )
                                 )
                             ),

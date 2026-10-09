@@ -12,10 +12,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = TealDarkPrimary,
-    onPrimary = TealPrimaryDark,
-    primaryContainer = TealPrimary,
-    onPrimaryContainer = Color.White,
+    primary = SteelBlueDarkPrimary,
+    onPrimary = Color(0xFF0B1E30),
+    primaryContainer = Color(0xFF204568),
+    onPrimaryContainer = Color(0xFFDCE8F5),
     secondary = AmberSecondary,
     onSecondary = Color.Black,
     secondaryContainer = Color(0xFF452600),
@@ -35,10 +35,10 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = TealPrimary,
+    primary = SteelBlue, // #4682B4
     onPrimary = Color.White,
-    primaryContainer = TealContainer,
-    onPrimaryContainer = OnTealContainer,
+    primaryContainer = SteelBlueContainer,
+    onPrimaryContainer = OnSteelBlueContainer,
     secondary = AmberSecondary,
     onSecondary = Color.White,
     secondaryContainer = AmberContainer,
@@ -51,7 +51,7 @@ private val LightColorScheme = lightColorScheme(
     surface = SurfaceCard,
     onBackground = TextPrimary,
     onSurface = TextPrimary,
-    surfaceVariant = Color(0xFFEBF2F1),
+    surfaceVariant = Color(0xFFE9F1F7),
     onSurfaceVariant = TextSecondary,
     outline = DividerBorder
 )

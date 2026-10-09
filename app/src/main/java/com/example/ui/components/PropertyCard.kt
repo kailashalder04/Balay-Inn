@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
@@ -96,6 +95,7 @@ import kotlinx.coroutines.launch
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.model.HostContactInfo
 import com.example.data.model.ListingTransformationEngine
+import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.data.model.PropertyCostHelper
 import com.example.data.model.RentCostBreakdown
 import com.example.data.model.getCleanLocalityDescription
@@ -104,6 +104,10 @@ import com.example.ui.theme.SoftGreenBorder
 import com.example.ui.theme.SoftGreenDark
 import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.theme.SoftGreenDarkBorder
+import com.example.ui.theme.SteelBlue
+import com.example.ui.theme.SteelBlueBorder
+import com.example.ui.theme.SteelBlueDarkBg
+import com.example.ui.theme.SteelBlueLightBg
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -119,6 +123,7 @@ fun PropertyCard(
     onClick: () -> Unit,
     onViewOnMap: (() -> Unit)? = null,
     onMessageHost: (() -> Unit)? = null,
+    containerColor: Color? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -132,11 +137,6 @@ fun PropertyCard(
     // Estimated monthly cost (Rent + Dues + Parking + Internet + Maintenance)
     val totalEstimatedMonthly = property.monthlyRent + property.associationDues + property.parkingFees + property.maintenanceFees
     val formattedTotalCost = currencyFormat.format(totalEstimatedMonthly).replace("PHP", "₱")
-
-    // Cost Breakdown & Host Contact helpers
-    val hostInfo = remember(property) { PropertyCostHelper.getHostContactInfo(property) }
-
-    var showDirectMessageDialog by remember { mutableStateOf(false) }
 
     // Realistic default images if none are supplied for the listing
     val defaultFallbackImages = listOf(
@@ -156,8 +156,12 @@ fun PropertyCard(
 
     val pagerState = rememberPagerState(pageCount = { displayImages.size })
     val coroutineScope = rememberCoroutineScope()
-    var showFullScreenDialog by remember { mutableStateOf(false) }
-    var fullScreenInitialPage by remember { mutableStateOf(0) }
+
+    val standardCategory = remember(property.propertyType) {
+        PhilippineRentalPropertyCategory.fromPropertyType(property.propertyType)
+    }
+
+    val cardBackground = containerColor ?: if (isDark) SteelBlueDarkBg else SteelBlueLightBg
 
     Card(
         modifier = modifier
@@ -165,7 +169,7 @@ fun PropertyCard(
             .clickable { onClick() }
             .testTag("property_card_${property.id}"),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = cardBackground),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
@@ -270,7 +274,7 @@ fun PropertyCard(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
                     ) {
                         Text(
-                            text = property.propertyType,
+                            text = "${standardCategory.targetEmoji} ${standardCategory.shortLabel}",
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -318,13 +322,12 @@ fun PropertyCard(
                     }
                 }
 
-                // Bottom-Left Image Info: Monthly Rent & Fullscreen button
+                // Bottom-Left Image Info: Monthly Rent
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomStart)
                         .padding(10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -335,66 +338,29 @@ fun PropertyCard(
                         maxLines = 1,
                         softWrap = false
                     )
-
-                    IconButton(
-                        onClick = {
-                            fullScreenInitialPage = pagerState.currentPage
-                            showFullScreenDialog = true
-                        },
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .testTag("fullscreen_btn_${property.id}")
-                    ) {
-                        Icon(
-                            Icons.Default.Fullscreen,
-                            contentDescription = "View Fullscreen Photo",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
-            }
-
-            // Full-screen Image Viewer Lightbox Modal
-            if (showFullScreenDialog) {
-                FullScreenImageLightbox(
-                    displayImages = displayImages,
-                    initialPage = fullScreenInitialPage,
-                    propertyTitle = property.title,
-                    onDismiss = {
-                        coroutineScope.launch {
-                            pagerState.scrollToPage(fullScreenInitialPage)
-                        }
-                        showFullScreenDialog = false
-                    },
-                    onPageChange = { page ->
-                        fullScreenInitialPage = page
-                    }
-                )
             }
 
             // Body Content (Using smaller text fonts to adjust all text, and showing full without hiding)
             Column(modifier = Modifier.padding(14.dp)) {
 
-                // Full Title (smaller font, adjust all text, show full without hiding)
+                // Full Title (clear, high contrast on light Steel Blue background)
                 Text(
                     text = property.title,
-                    fontSize = 13.5.sp,
-                    lineHeight = 18.sp,
+                    fontSize = 14.sp,
+                    lineHeight = 19.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F263B),
                     softWrap = true
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Map Address in a Rectangular Pill (smaller font, show full text)
+                // Map Address in a Rectangular Pill (clean contrast, sharp text)
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f) else Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f) else Color(0xFFCBD5E1)),
+                    color = if (isDark) Color(0xFF1E2E40) else Color.White.copy(alpha = 0.92f),
+                    border = BorderStroke(0.8.dp, if (isDark) Color(0xFF2E4660) else SteelBlueBorder.copy(alpha = 0.7f)),
                     modifier = Modifier
                         .clickable { onViewOnMap?.invoke() ?: onClick() }
                         .testTag("property_map_pin_btn_${property.id}")
@@ -407,106 +373,17 @@ fun PropertyCard(
                             Icons.Default.LocationOn,
                             contentDescription = "Map Pin",
                             modifier = Modifier.size(13.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = SteelBlue
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = locationDisplay,
-                            fontSize = 11.sp,
+                            fontSize = 11.5.sp,
                             lineHeight = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF16324F),
                             softWrap = true
                         )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Boarding house amenities highlights: WiFi available, Electricity, Water, Highway access
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // WiFi Available
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isDark) Color(0xFF1E293B) else Color(0xFFE2EDFE),
-                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFF93C5FD))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Wifi,
-                                contentDescription = null,
-                                tint = if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.5.dp))
-                            Text(
-                                "WiFi available",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E3A8A)
-                            )
-                        }
-                    }
-
-                    // Electricity / Water (Very soft, soothing green display for eyes)
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isDark) SoftGreenDarkBg else SoftGreenBg,
-                        border = BorderStroke(1.dp, if (isDark) SoftGreenDarkBorder else SoftGreenBorder)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Bolt,
-                                contentDescription = null,
-                                tint = if (isDark) SoftGreenDark else Color(0xFF2E6F4E),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.5.dp))
-                            Text(
-                                text = if (property.utilitiesIncluded) "Elec/Water in rent" else "Elec submeter / Water",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) SoftGreenDark else Color(0xFF1D533A)
-                            )
-                        }
-                    }
-
-                    // Highway Access
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isDark) Color(0xFF2E2013) else Color(0xFFFEF3C7),
-                        border = BorderStroke(1.dp, if (isDark) Color(0xFF593C1D) else Color(0xFFFCD34D))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.AltRoute,
-                                contentDescription = null,
-                                tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.5.dp))
-                            Text(
-                                "Highway access",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) Color(0xFFFDE68A) else Color(0xFF78350F)
-                            )
-                        }
                     }
                 }
 
@@ -517,162 +394,12 @@ fun PropertyCard(
                     text = property.getCleanLocalityDescription(),
                     fontSize = 11.5.sp,
                     lineHeight = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f),
+                    color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF2C435A),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Compact Key Specs & Host bar
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Host summary pill
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = "Host",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = hostInfo.hostName,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(3.dp),
-                                    color = if (isDark) SoftGreenDarkBg else SoftGreenBg
-                                ) {
-                                    Text(
-                                        text = "Verified",
-                                        fontSize = 8.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isDark) SoftGreenDark else Color(0xFF1D533A),
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = hostInfo.hostRole,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Quick Action: Message host
-                    OutlinedButton(
-                        onClick = {
-                            if (onMessageHost != null) {
-                                onMessageHost()
-                            } else {
-                                showDirectMessageDialog = true
-                            }
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.testTag("host_box_message_btn_${property.id}")
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Message,
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Inquire",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
             }
         }
-    }
-
-    // Direct Message Dialog right from card
-    if (showDirectMessageDialog) {
-        var messageText by remember {
-            mutableStateOf("Hi ${hostInfo.hostName}! I am interested in '${property.title}'. Is this room still available for viewing?")
-        }
-        var messageSent by remember { mutableStateOf(false) }
-
-        AlertDialog(
-            onDismissRequest = { showDirectMessageDialog = false },
-            title = {
-                Text(
-                    text = "Message ${hostInfo.hostName}",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!messageSent) {
-                        Text(
-                            text = "Send an inquiry directly to ${hostInfo.hostName} (${hostInfo.hostRole}). You can also call or text at ${hostInfo.phone}.",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        OutlinedTextField(
-                            value = messageText,
-                            onValueChange = { messageText = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            maxLines = 4,
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.5.sp)
-                        )
-                    } else {
-                        Text(
-                            text = "✅ Inquiry sent to ${hostInfo.hostName}! They will respond shortly. You may also contact them directly at ${hostInfo.phone}.",
-                            fontSize = 11.5.sp,
-                            color = if (isDark) SoftGreenDark else Color(0xFF1D533A)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                if (!messageSent) {
-                    Button(
-                        onClick = { messageSent = true }
-                    ) {
-                        Text("Send Message", fontSize = 11.5.sp)
-                    }
-                } else {
-                    Button(onClick = { showDirectMessageDialog = false }) {
-                        Text("Done", fontSize = 11.5.sp)
-                    }
-                }
-            },
-            dismissButton = {
-                if (!messageSent) {
-                    TextButton(onClick = { showDirectMessageDialog = false }) {
-                        Text("Cancel", fontSize = 11.5.sp)
-                    }
-                }
-            }
-        )
     }
 }
 
@@ -689,13 +416,14 @@ fun RentCostBreakdownPanel(
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply {
         maximumFractionDigits = 0
     }
+    // Boxes below property details only have border color #4682B4 and not a fill
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC),
-        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, SteelBlue),
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -705,13 +433,13 @@ fun RentCostBreakdownPanel(
                     Icon(
                         Icons.AutoMirrored.Filled.ReceiptLong,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(15.dp)
+                        tint = SteelBlue,
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Rent & Utility Cost Break-up",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -719,38 +447,93 @@ fun RentCostBreakdownPanel(
                 if (onClose != null) {
                     IconButton(
                         onClick = onClose,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Close",
-                            modifier = Modifier.size(13.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFF64748B)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Cost line items in smaller compact fonts
-            CostBreakdownItemRow("Monthly Base Rent", "${currencyFormat.format(breakdown.monthlyRent).replace("PHP", "₱")} / month", isHighlight = true)
-            CostBreakdownItemRow("Water Billing", breakdown.waterBilling)
-            CostBreakdownItemRow("Electricity Billing", breakdown.electricityBilling)
-            CostBreakdownItemRow("Fiber WiFi Internet", breakdown.internetBilling)
-            CostBreakdownItemRow("Parking Provisions", breakdown.parkingBilling)
-            CostBreakdownItemRow("Maintenance / Dues", breakdown.maintenanceDues)
+            // Cost line items in crisp readable fonts - only applicable details shown
+            CostBreakdownItemRow(
+                label = "Monthly Base Rent",
+                value = "${currencyFormat.format(breakdown.monthlyRent).replace("PHP", "₱")} / month",
+                isHighlight = true
+            )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            // Only show details which are applicable and not zero or free; omit fixed rate descriptions
+            val isWaterApplicable = breakdown.waterBilling.isNotBlank() &&
+                !breakdown.waterBilling.contains("not applicable", ignoreCase = true) &&
+                !breakdown.waterBilling.contains("n/a", ignoreCase = true) &&
+                !breakdown.waterBilling.contains("₱0", ignoreCase = true) &&
+                !breakdown.waterBilling.contains("free", ignoreCase = true) &&
+                !breakdown.waterBilling.contains("included", ignoreCase = true)
+            if (isWaterApplicable) {
+                val cleanWater = breakdown.waterBilling
+                    .replace("(fixed rate)", "", ignoreCase = true)
+                    .replace("fixed rate", "", ignoreCase = true)
+                    .trim()
+                CostBreakdownItemRow("Water Billing", cleanWater)
+            }
 
-            // Move-in upfront total container
+            val isElecApplicable = breakdown.electricityBilling.isNotBlank() &&
+                !breakdown.electricityBilling.contains("not applicable", ignoreCase = true) &&
+                !breakdown.electricityBilling.contains("n/a", ignoreCase = true) &&
+                !breakdown.electricityBilling.contains("₱0", ignoreCase = true) &&
+                !breakdown.electricityBilling.contains("free", ignoreCase = true) &&
+                !breakdown.electricityBilling.contains("included", ignoreCase = true)
+            if (isElecApplicable) {
+                CostBreakdownItemRow("Electricity Billing", breakdown.electricityBilling)
+            }
+
+            val isInternetApplicable = breakdown.internetBilling.isNotBlank() &&
+                !breakdown.internetBilling.contains("not applicable", ignoreCase = true) &&
+                !breakdown.internetBilling.contains("n/a", ignoreCase = true) &&
+                !breakdown.internetBilling.contains("₱0", ignoreCase = true) &&
+                !breakdown.internetBilling.contains("free", ignoreCase = true) &&
+                !breakdown.internetBilling.contains("included", ignoreCase = true)
+            if (isInternetApplicable) {
+                CostBreakdownItemRow("WiFi Internet", breakdown.internetBilling)
+            }
+
+            val isParkingApplicable = breakdown.parkingBilling.isNotBlank() &&
+                !breakdown.parkingBilling.contains("no dedicated", ignoreCase = true) &&
+                !breakdown.parkingBilling.contains("not applicable", ignoreCase = true) &&
+                !breakdown.parkingBilling.contains("n/a", ignoreCase = true) &&
+                !breakdown.parkingBilling.contains("₱0", ignoreCase = true) &&
+                !breakdown.parkingBilling.contains("free", ignoreCase = true) &&
+                !breakdown.parkingBilling.contains("included", ignoreCase = true)
+            if (isParkingApplicable) {
+                CostBreakdownItemRow("Parking Provisions", breakdown.parkingBilling)
+            }
+
+            val isMaintenanceApplicable = breakdown.maintenanceDues.isNotBlank() &&
+                !breakdown.maintenanceDues.contains("no maintenance", ignoreCase = true) &&
+                !breakdown.maintenanceDues.contains("₱0", ignoreCase = true) &&
+                !breakdown.maintenanceDues.contains("free", ignoreCase = true) &&
+                !breakdown.maintenanceDues.contains("not applicable", ignoreCase = true) &&
+                !breakdown.maintenanceDues.contains("n/a", ignoreCase = true)
+            if (isMaintenanceApplicable) {
+                CostBreakdownItemRow("Maintenance / Dues", breakdown.maintenanceDues)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Move-in upfront total container (no fill, steel blue border)
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (isDark) Color(0xFF1E2D25) else Color(0xFFE8F5E9),
-                border = BorderStroke(1.dp, if (isDark) Color(0xFF2E4D3A) else Color(0xFFA5D6A7)),
+                shape = RoundedCornerShape(10.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, SteelBlue),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(9.dp)) {
+                Column(modifier = Modifier.padding(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -758,47 +541,42 @@ fun RentCostBreakdownPanel(
                     ) {
                         Text(
                             text = "Initial Move-in Cash Required",
-                            fontSize = 11.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFF86EFAC) else Color(0xFF1B5E20)
+                            color = SteelBlue
                         )
                         Text(
                             text = currencyFormat.format(breakdown.totalUpfrontMoveIn).replace("PHP", "₱"),
-                            fontSize = 12.sp,
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFF86EFAC) else Color(0xFF1B5E20)
+                            color = SteelBlue
                         )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = "• ${breakdown.advanceMonths}-Mo Advance (${currencyFormat.format(breakdown.advanceRentAmount).replace("PHP", "₱")}) + ${breakdown.depositMonths}-Mo Deposit (${currencyFormat.format(breakdown.securityDepositAmount).replace("PHP", "₱")})",
-                        fontSize = 10.5.sp,
-                        lineHeight = 14.sp,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isDark) Color(0xFFD1FAE5) else Color(0xFF2E7D32)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(7.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "💳 ${breakdown.acceptedPayments}",
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "⏱️ ${breakdown.minLeaseDuration}",
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            if (breakdown.minLeaseDuration.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "⏱️ ${breakdown.minLeaseDuration}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SteelBlue
+                    )
+                }
             }
         }
     }
@@ -819,15 +597,15 @@ private fun CostBreakdownItemRow(
     ) {
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
-            fontSize = 11.sp,
+            fontSize = 11.5.sp,
             fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.SemiBold,
-            color = if (isHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            color = if (isHighlight) SteelBlue else MaterialTheme.colorScheme.onSurface
         )
     }
 }

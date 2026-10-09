@@ -246,4 +246,51 @@ object ListingTransformationEngine {
             appendLine("👉 Units in this location fill quickly! Send a direct message or call/text ${payload.contact.personName} at ${payload.contact.phoneViber} to schedule a site viewing today!")
         }
     }
+
+    /**
+     * OUTPUT 3: Philippine Rental Market Standard Clean Listing Format
+     * Matches the authoritative Philippine Rental Standards specifications.
+     */
+    fun formatMarketplaceListing(
+        property: PropertyEntity,
+        locationDisplay: String,
+        hostInfo: HostContactInfo
+    ): String {
+        val category = PhilippineRentalPropertyCategory.fromPropertyType(property.propertyType)
+        val rentInt = property.monthlyRent.toInt()
+        val localProvider = PhilippineRentalPropertyCategory.getLocalElectricProvider(property.provinceId)
+
+        val amenities = category.expectedAmenities.take(4).joinToString("\n- ")
+
+        val electricityText = if (category == PhilippineRentalPropertyCategory.STUDIO_UNIT) {
+            "Own sub-meter for electricity ($localProvider)"
+        } else {
+            category.electricityDefault
+        }
+
+        return """
+📍 ${category.displayName} in $locationDisplay
+💰 Rent: ₱$rentInt / month
+👤 Ideal for: ${category.targetMarket}
+
+🏠 UNIT SETUP & AMENITIES
+- $amenities
+
+⚡ UTILITIES
+- Water: ${category.waterDefault}
+- Electricity: $electricityText
+- Internet: ${category.internetDefault}
+
+📋 HOUSE RULES
+- Curfew & Access: ${category.curfewDefault}
+- Cooking Policy: ${category.cookingDefault}
+- Pet Policy: ${category.petPolicyDefault}
+- Security: ${category.securityDefault}
+
+📞 CONTACT
+- Host/Landlord: ${hostInfo.hostName} (${hostInfo.hostRole})
+- Mobile / Viber: ${hostInfo.phone}
+- Viewing: ${hostInfo.viewingPolicy}
+        """.trimIndent()
+    }
 }

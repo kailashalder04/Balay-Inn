@@ -82,7 +82,9 @@ import java.io.File
 import java.util.UUID
 import com.example.ui.components.CascadingLocationSelector
 import com.example.ui.components.LocationMapPicker
+import com.example.ui.components.PropertyTypeSpecificationSelector
 import com.example.ui.components.SearchableDropdownField
+import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.ui.viewmodel.MarketplaceViewModel
 import kotlinx.coroutines.launch
 
@@ -104,9 +106,23 @@ fun PostPropertyScreen(
     // Form Fields
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var propertyType by remember { mutableStateOf("Apartment") }
+    var propertyType by remember { mutableStateOf("Bed Space / Boarding House") }
     var monthlyRentStr by remember { mutableStateOf("") }
     var associationDuesStr by remember { mutableStateOf("") }
+
+    val selectedCategory = remember(propertyType) {
+        PhilippineRentalPropertyCategory.fromPropertyType(propertyType)
+    }
+
+    var selectedWaterOption by remember(selectedCategory) { mutableStateOf(selectedCategory.waterDefault) }
+    var selectedElectricityOption by remember(selectedCategory) { mutableStateOf(selectedCategory.electricityDefault) }
+    var selectedInternetOption by remember(selectedCategory) { mutableStateOf(selectedCategory.internetDefault) }
+    var selectedCurfewOption by remember(selectedCategory) { mutableStateOf(selectedCategory.curfewDefault) }
+    var selectedSecurityOption by remember(selectedCategory) { mutableStateOf(selectedCategory.securityDefault) }
+    var selectedCookingOption by remember(selectedCategory) { mutableStateOf(selectedCategory.cookingDefault) }
+    var selectedVisitorsOption by remember(selectedCategory) { mutableStateOf(selectedCategory.visitorsDefault) }
+    var selectedPetOption by remember(selectedCategory) { mutableStateOf(selectedCategory.petPolicyDefault) }
+    var selectedParkingOption by remember(selectedCategory) { mutableStateOf(selectedCategory.parkingDefault) }
 
     // Poster & Owner Relationship (Crucial Marketplace Rules 1 & 4)
     var posterRelationship by remember { mutableStateOf("Property owner") }
@@ -329,12 +345,62 @@ fun PostPropertyScreen(
                             }
                         }
 
-                        val types = listOf("Apartment", "Condominium", "House", "Studio", "Room", "Townhouse")
-                        SearchableDropdownField(
-                            label = "Property Type",
-                            selectedText = propertyType,
-                            items = types,
-                            onItemSelected = { propertyType = it }
+                        // Dynamic Property Type Specification Selector Component
+                        // Displays dynamic amenities, utilities, and house rules based on selected property type
+                        PropertyTypeSpecificationSelector(
+                            selectedCategory = selectedCategory,
+                            onCategorySelected = { cat ->
+                                propertyType = cat.displayName
+                                selectedWaterOption = cat.waterDefault
+                                selectedElectricityOption = cat.electricityDefault
+                                selectedInternetOption = cat.internetDefault
+                                selectedCurfewOption = cat.curfewDefault
+                                selectedSecurityOption = cat.securityDefault
+                                selectedCookingOption = cat.cookingDefault
+                                selectedVisitorsOption = cat.visitorsDefault
+                                selectedPetOption = cat.petPolicyDefault
+                                selectedParkingOption = cat.parkingDefault
+                                petPolicy = cat.petPolicyDefault
+                                internetIncluded = cat.internetDefault.contains("Free", ignoreCase = true) || cat.internetDefault.contains("Shared", ignoreCase = true)
+                                selectedAmenities.clear()
+                                selectedAmenities.addAll(cat.expectedAmenities)
+                            },
+                            selectedAmenities = selectedAmenities,
+                            onAmenityToggled = { amenity ->
+                                if (selectedAmenities.contains(amenity)) {
+                                    selectedAmenities.remove(amenity)
+                                } else {
+                                    selectedAmenities.add(amenity)
+                                }
+                            },
+                            selectedWaterOption = selectedWaterOption,
+                            onWaterOptionSelected = { selectedWaterOption = it },
+                            selectedElectricityOption = selectedElectricityOption,
+                            onElectricityOptionSelected = { selectedElectricityOption = it },
+                            selectedInternetOption = selectedInternetOption,
+                            onInternetOptionSelected = { opt ->
+                                selectedInternetOption = opt
+                                internetIncluded = opt.contains("Free", ignoreCase = true) || opt.contains("Shared", ignoreCase = true)
+                            },
+                            selectedCurfewOption = selectedCurfewOption,
+                            onCurfewOptionSelected = { selectedCurfewOption = it },
+                            selectedSecurityOption = selectedSecurityOption,
+                            onSecurityOptionSelected = { selectedSecurityOption = it },
+                            selectedCookingOption = selectedCookingOption,
+                            onCookingOptionSelected = { selectedCookingOption = it },
+                            selectedVisitorsOption = selectedVisitorsOption,
+                            onVisitorsOptionSelected = { selectedVisitorsOption = it },
+                            selectedPetOption = selectedPetOption,
+                            onPetOptionSelected = { opt ->
+                                selectedPetOption = opt
+                                petPolicy = opt
+                            },
+                            selectedParkingOption = selectedParkingOption,
+                            onParkingOptionSelected = { opt ->
+                                selectedParkingOption = opt
+                                parkingAvailable = !opt.contains("Street", ignoreCase = true)
+                            },
+                            provinceId = selectedProvinceId
                         )
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -832,9 +898,25 @@ fun PostPropertyScreen(
                             listOf("https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop")
                         }
 
+                        val finalDesc = buildString {
+                            val base = description.ifBlank { "Clean, comfortable ${selectedCategory.displayName} located in ${neighborhood.ifBlank { "accessible residential locality" }}." }
+                            append(base)
+                            if (!base.contains("Ideal for", ignoreCase = true)) {
+                                append("\n\n📍 Type: ${selectedCategory.displayName}")
+                                append("\n👤 Ideal for: ${selectedCategory.targetMarket}")
+                                append("\n⚡ Utilities: Water: $selectedWaterOption | Electricity: $selectedElectricityOption | Internet: $selectedInternetOption")
+                                append("\n📋 House Rules & Security: $selectedCurfewOption | $selectedCookingOption | $selectedSecurityOption | $selectedVisitorsOption | $selectedPetOption | $selectedParkingOption")
+                            }
+                        }
+
+                        val filteredAmenities = PhilippineRentalPropertyCategory.filterIllogicalAmenities(
+                            selectedCategory,
+                            selectedAmenities.toList()
+                        )
+
                         viewModel.postProperty(
                             title = title,
-                            description = description.ifBlank { "Modern comfortable rental property located in ${neighborhood.ifBlank { "peaceful area" }}." },
+                            description = finalDesc,
                             type = propertyType,
                             rent = rent,
                             provinceId = selectedProvinceId,
@@ -856,7 +938,7 @@ fun PostPropertyScreen(
                             internetIncluded = internetIncluded,
                             relationship = posterRelationship,
                             isAuthorized = isAuthorized == "Yes",
-                            amenities = selectedAmenities.toList(),
+                            amenities = filteredAmenities,
                             imageUrls = finalImages,
                             onSuccess = {
                                 scope.launch {
