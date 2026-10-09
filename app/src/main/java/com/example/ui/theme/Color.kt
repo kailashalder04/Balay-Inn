@@ -72,9 +72,11 @@ val DarkTextPrimary = Color(0xFFF1F5F9)
 val DarkTextSecondary = Color(0xFF94A3B8)
 
 // Light Blue & Steel Blue Palette for Property Post Containers / Boxes & Cards
-val LightBlueCardBg = Color(0xFFE3F2FD) // Fresh, clean Light Blue background for property cards
+val LightBlueCardBg = Color(0xFF90CAF9) // Fresh, clean Light Blue background for property cards
 val SteelBlueLightBg = LightBlueCardBg
 val SteelBlueBorder = Color(0xFFB0C8DD)
 val SteelBlueDarkBg = Color(0xFF162536)
 val SteelBlueDarkBorder = Color(0xFF2A435C)
 val SteelBlueText = Color(0xFF244A6B)
+val PropertyBoxBg = Color(0xFFC8E5FC) // #c8e5fc background for bars and boxes inside property card
+

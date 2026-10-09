@@ -108,6 +108,8 @@ import com.example.ui.theme.SteelBlue
 import com.example.ui.theme.SteelBlueBorder
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.theme.SteelBlueText
+import com.example.ui.theme.PropertyBoxBg
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -271,11 +273,12 @@ fun PropertyCard(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
+                        color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
+                        border = BorderStroke(0.8.dp, if (isDark) Color(0xFF2E4660) else SteelBlueBorder.copy(alpha = 0.7f))
                     ) {
                         Text(
                             text = "${standardCategory.targetEmoji} ${standardCategory.shortLabel}",
-                            color = Color.White,
+                            color = if (isDark) Color.White else Color(0xFF0F263B),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -322,7 +325,7 @@ fun PropertyCard(
                     }
                 }
 
-                // Bottom-Left Image Info: Monthly Rent
+                // Bottom-Left Image Info: Monthly Rent Pill / Box
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -330,14 +333,21 @@ fun PropertyCard(
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "$formattedRent / month",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
+                        border = BorderStroke(0.8.dp, if (isDark) Color(0xFF2E4660) else SteelBlueBorder.copy(alpha = 0.7f))
+                    ) {
+                        Text(
+                            text = "$formattedRent / month",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F263B),
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.5.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
 
@@ -359,7 +369,7 @@ fun PropertyCard(
                 // Map Address in a Rectangular Pill (clean contrast, sharp text)
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isDark) Color(0xFF1E2E40) else Color.White.copy(alpha = 0.92f),
+                    color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
                     border = BorderStroke(0.8.dp, if (isDark) Color(0xFF2E4660) else SteelBlueBorder.copy(alpha = 0.7f)),
                     modifier = Modifier
                         .clickable { onViewOnMap?.invoke() ?: onClick() }
@@ -416,10 +426,10 @@ fun RentCostBreakdownPanel(
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply {
         maximumFractionDigits = 0
     }
-    // Boxes below property details only have border color #4682B4 and not a fill
+    // Boxes below property details with #c8e5fc background
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = Color.Transparent,
+        color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
         border = BorderStroke(1.dp, SteelBlue),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -526,10 +536,10 @@ fun RentCostBreakdownPanel(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Move-in upfront total container (no fill, steel blue border)
+            // Move-in upfront total container
             Surface(
                 shape = RoundedCornerShape(10.dp),
-                color = Color.Transparent,
+                color = if (isDark) Color(0xFF162536) else Color.White.copy(alpha = 0.85f),
                 border = BorderStroke(1.dp, SteelBlue),
                 modifier = Modifier.fillMaxWidth()
             ) {

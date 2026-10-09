@@ -67,6 +67,8 @@ import com.example.ui.theme.BadgeGreenBg
 import com.example.ui.theme.SteelBlue
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.theme.SteelBlueText
+import com.example.ui.theme.PropertyBoxBg
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -389,14 +391,14 @@ private fun RecentPropertyMiniCard(
         Column(modifier = Modifier.padding(12.dp)) {
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = Color.Transparent,
-                border = BorderStroke(1.dp, SteelBlue)
+                color = PropertyBoxBg,
+                border = BorderStroke(1.dp, SteelBlue.copy(alpha = 0.6f))
             ) {
                 Text(
                     text = property.propertyType,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = SteelBlue,
+                    color = SteelBlueText,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     maxLines = 1,
                     softWrap = false
@@ -415,7 +417,7 @@ private fun RecentPropertyMiniCard(
             Spacer(modifier = Modifier.height(4.dp))
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = Color.Transparent,
+                color = PropertyBoxBg,
                 border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.5f)),
                 modifier = Modifier.padding(vertical = 2.dp)
             ) {
