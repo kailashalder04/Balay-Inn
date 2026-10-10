@@ -69,6 +69,9 @@ import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueLightBg
 import com.example.ui.theme.SteelBlueText
 import com.example.ui.theme.PropertyBoxBg
+import com.example.ui.components.VerifiedIcon
+import com.example.ui.components.VerifiedPillBadge
+import com.example.ui.components.isPlatformVerified
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -389,31 +392,50 @@ private fun RecentPropertyMiniCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = PropertyBoxBg,
-                border = BorderStroke(1.dp, SteelBlue.copy(alpha = 0.6f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = property.propertyType,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SteelBlueText,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    maxLines = 1,
-                    softWrap = false
-                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = PropertyBoxBg,
+                    border = BorderStroke(1.dp, SteelBlue.copy(alpha = 0.6f))
+                ) {
+                    Text(
+                        text = property.propertyType,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SteelBlueText,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                if (property.isPlatformVerified()) {
+                    VerifiedPillBadge(isDark = false)
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = property.title,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = property.title,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (property.isPlatformVerified()) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    VerifiedIcon(size = 14.dp)
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Surface(
                 shape = RoundedCornerShape(6.dp),

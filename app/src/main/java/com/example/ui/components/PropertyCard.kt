@@ -263,7 +263,7 @@ fun PropertyCard(
                     }
                 }
 
-                // Top Chips (Property Type & Favorite Heart)
+                // Top Chips (Property Type, Verified Badge, & Favorite Heart)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -271,20 +271,29 @@ fun PropertyCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
-                        border = BorderStroke(0.8.dp, if (isDark) Color(0xFF2E4660) else SteelBlueBorder.copy(alpha = 0.7f))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "${standardCategory.targetEmoji} ${standardCategory.shortLabel}",
-                            color = if (isDark) Color.White else Color(0xFF0F263B),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            maxLines = 1,
-                            softWrap = false
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
+                            border = BorderStroke(0.8.dp, if (isDark) Color(0xFF2E4660) else SteelBlueBorder.copy(alpha = 0.7f))
+                        ) {
+                            Text(
+                                text = "${standardCategory.targetEmoji} ${standardCategory.shortLabel}",
+                                color = if (isDark) Color.White else Color(0xFF0F263B),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+
+                        if (property.isPlatformVerified()) {
+                            VerifiedPillBadge(isDark = isDark)
+                        }
                     }
 
                     IconButton(
@@ -354,15 +363,25 @@ fun PropertyCard(
             // Body Content (Using smaller text fonts to adjust all text, and showing full without hiding)
             Column(modifier = Modifier.padding(14.dp)) {
 
-                // Full Title (clear, high contrast on light Steel Blue background)
-                Text(
-                    text = property.title,
-                    fontSize = 14.sp,
-                    lineHeight = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F263B),
-                    softWrap = true
-                )
+                // Full Title (clear, high contrast on light Steel Blue background) with Verified indicator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = property.title,
+                        fontSize = 14.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F263B),
+                        softWrap = true,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (property.isPlatformVerified()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        VerifiedIcon(size = 17.dp)
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -426,7 +445,7 @@ fun RentCostBreakdownPanel(
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply {
         maximumFractionDigits = 0
     }
-    // Boxes below property details with #c8e5fc background
+    // Boxes below property details with PropertyBoxBg (#EDF7FC) background
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,

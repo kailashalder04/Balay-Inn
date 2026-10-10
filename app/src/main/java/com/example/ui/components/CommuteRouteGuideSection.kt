@@ -42,6 +42,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -63,6 +64,7 @@ import com.example.ui.theme.SteelBlueBorder
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueDarkBorder
 import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.theme.PropertyBoxBg
 import com.example.data.model.CommuteGuideProvider
 import com.example.data.model.DestinationGroup
 import kotlinx.coroutines.launch
@@ -96,9 +98,9 @@ fun NearbyDestinationSection(
     if (allDestinations.isEmpty()) return
 
     val isDark = isSystemInDarkTheme()
-    val exploreTeal = if (isDark) MaterialTheme.colorScheme.primary else SteelBlue
-    val dividerColor = MaterialTheme.colorScheme.outlineVariant
-    val dimTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val exploreTeal = if (isDark) MaterialTheme.colorScheme.primary else Color.White
+    val dividerColor = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color.White.copy(alpha = 0.35f)
+    val dimTextColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.White.copy(alpha = 0.85f)
 
     val groups = remember { DestinationGroup.entries.toList() }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { groups.size })
@@ -110,7 +112,8 @@ fun NearbyDestinationSection(
             .testTag("explore_neighbourhood_section"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
+            containerColor = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
+            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.White
         ),
         border = BorderStroke(1.dp, SteelBlue)
     ) {
@@ -295,7 +298,7 @@ private fun SubcategoryBlock(
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = LocalContentColor.current,
                     softWrap = true,
                     modifier = Modifier
                         .weight(1f)

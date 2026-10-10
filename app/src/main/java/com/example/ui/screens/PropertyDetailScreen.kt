@@ -23,6 +23,8 @@ import com.example.data.model.toBoardingHouseListing
 import com.example.ui.components.BoardingHouseImagePager
 import com.example.ui.components.NearbyDestinationSection
 import com.example.ui.components.RentCostBreakdownPanel
+import com.example.ui.components.VerifiedIcon
+import com.example.ui.components.isPlatformVerified
 import com.example.ui.theme.SoftGreenBg
 import com.example.ui.theme.SoftGreenBorder
 import com.example.ui.theme.SoftGreenDark
@@ -33,6 +35,7 @@ import com.example.ui.theme.SteelBlueBorder
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueDarkBorder
 import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.theme.PropertyBoxBg
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -226,13 +229,23 @@ fun PropertyDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = cleanTitle,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = cleanTitle,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (prop.isPlatformVerified()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            VerifiedIcon(size = 18.dp)
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -329,7 +342,7 @@ fun PropertyDetailScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color.Transparent,
+                            color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
                             border = BorderStroke(
                                 1.dp,
                                 if (boardingHouse.totalAvailableBeds > 0) {
@@ -348,7 +361,7 @@ fun PropertyDetailScreen(
                                         .size(7.dp)
                                         .background(
                                             if (boardingHouse.totalAvailableBeds > 0) Color(0xFF16A34A) else Color(0xFFDC2626),
-                                            CircleShape
+                                             CircleShape
                                         )
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -357,9 +370,9 @@ fun PropertyDetailScreen(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (boardingHouse.totalAvailableBeds > 0) {
-                                        if (isDark) SoftGreenDark else Color(0xFF15803D)
+                                        if (isDark) SoftGreenDark else Color.White
                                     } else {
-                                        Color(0xFFDC2626)
+                                        Color(0xFFFFD2D2)
                                     }
                                 )
                             }
@@ -367,23 +380,23 @@ fun PropertyDetailScreen(
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color.Transparent,
+                            color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
                             border = BorderStroke(1.dp, SteelBlue)
                         ) {
                             Text(
                                 text = boardingHouse.primaryGenderRule.badge,
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = SteelBlue,
+                                color = if (isDark) Color(0xFF90CAF9) else Color.White,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
 
-                    // Combined Location and Landmark in a single clean border-only box below images
+                    // Combined Location and Landmark in a single clean box below images with PropertyBoxBg (#EDF7FC) background
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color.Transparent,
+                        color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
                         border = BorderStroke(1.dp, SteelBlue),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -397,14 +410,14 @@ fun PropertyDetailScreen(
                                 Icons.Default.LocationOn,
                                 contentDescription = "Map Pin",
                                 modifier = Modifier.size(16.dp),
-                                tint = SteelBlue
+                                tint = if (isDark) SteelBlue else Color.White
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = if (landmarkText.isNotBlank()) "$locationDisplay • Near $landmarkText" else locationDisplay,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White
                             )
                         }
                     }
@@ -424,14 +437,14 @@ fun PropertyDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.Transparent
+                            containerColor = if (isDark) Color(0xFF5C8DC4) else PropertyBoxBg
                         ),
                         border = BorderStroke(1.dp, SteelBlue)
                     ) {
                         Text(
                             text = boardingHouse.fullDescription,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (isDark) Color(0xFFF8FAFC) else Color.White,
                             lineHeight = 24.sp,
                             modifier = Modifier.padding(16.dp)
                         )
@@ -449,7 +462,8 @@ fun PropertyDetailScreen(
                             .padding(bottom = 12.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.Transparent
+                            containerColor = if (isDark) Color(0xFFD5E3F2) else PropertyBoxBg,
+                            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.Black
                         ),
                         border = BorderStroke(1.dp, SteelBlue)
                     ) {
@@ -479,7 +493,7 @@ fun PropertyDetailScreen(
                                 .padding(vertical = 5.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = Color.Transparent
+                                containerColor = if (isDark) Color(0xFFD5E3F2) else PropertyBoxBg
                             ),
                             border = BorderStroke(1.dp, SteelBlue)
                         ) {
@@ -493,7 +507,7 @@ fun PropertyDetailScreen(
                                         text = room.name,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White,
                                         modifier = Modifier.weight(1f)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -573,34 +587,40 @@ fun PropertyDetailScreen(
                                 ) {
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = Color.Transparent,
+                                        color = if (isDark) Color(0xFF162536) else Color.White.copy(alpha = 0.85f),
                                         border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
                                     ) {
                                         Text(
                                             text = if (room.hasAircon) "❄️ Aircon" else "💨 Fan Room",
                                             fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F263B),
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
                                         )
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = Color.Transparent,
+                                        color = if (isDark) Color(0xFF162536) else Color.White.copy(alpha = 0.85f),
                                         border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
                                     ) {
                                         Text(
                                             text = if (room.hasPrivateBathroom) "🚿 Private CR" else "🚻 Shared CR",
                                             fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F263B),
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
                                         )
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = Color.Transparent,
+                                        color = if (isDark) Color(0xFF162536) else Color.White.copy(alpha = 0.85f),
                                         border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
                                     ) {
                                         Text(
                                             text = "${room.advanceRentMonths} Mo Adv / ₱${room.securityDeposit.toInt()} Dep",
                                             fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F263B),
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
                                         )
                                     }
@@ -645,7 +665,8 @@ fun PropertyDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.Transparent
+                            containerColor = if (isDark) Color(0xFFDFE7F0) else PropertyBoxBg,
+                            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.White
                         ),
                         border = BorderStroke(1.dp, SteelBlue)
                     ) {
@@ -686,14 +707,14 @@ fun PropertyDetailScreen(
                         cleanAmenities.forEach { amenity ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color.Transparent,
+                                color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
                                 border = BorderStroke(1.dp, SteelBlue)
                             ) {
                                 Text(
                                     text = "✓ $amenity",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = if (isDark) Color(0xFFF8FAFC) else Color.White,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
@@ -741,7 +762,8 @@ fun PropertyDetailScreen(
                             .testTag("detail_host_name_box"),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.Transparent
+                            containerColor = if (isDark) Color(0xFFDfE7F0) else PropertyBoxBg,
+                            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.White
                         ),
                         border = BorderStroke(1.dp, SteelBlue)
                     ) {
@@ -770,12 +792,13 @@ fun PropertyDetailScreen(
                                         Text(
                                             text = hostInfo.hostName,
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
                                             shape = RoundedCornerShape(4.dp),
-                                            color = Color.Transparent,
+                                            color = if (isDark) SoftGreenDarkBg else SoftGreenBg,
                                             border = BorderStroke(1.dp, if (isDark) SoftGreenDarkBorder else Color(0xFF16A34A))
                                         ) {
                                             Text(
@@ -790,7 +813,7 @@ fun PropertyDetailScreen(
                                     Text(
                                         text = hostInfo.hostRole,
                                         fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.White.copy(alpha = 0.85f)
                                     )
                                 }
                             }
@@ -800,7 +823,7 @@ fun PropertyDetailScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = Color.Transparent,
+                                    color = if (isDark) Color(0xFFDFE7F0) else PropertyBoxBg,
                                     border = BorderStroke(1.dp, SteelBlue),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -818,7 +841,7 @@ fun PropertyDetailScreen(
                                             Icon(
                                                 Icons.Default.Phone,
                                                 contentDescription = "Host Phone",
-                                                tint = MaterialTheme.colorScheme.primary,
+                                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color.White,
                                                 modifier = Modifier.size(15.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
@@ -827,12 +850,12 @@ fun PropertyDetailScreen(
                                                     text = hostInfo.phone,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface
+                                                    color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White
                                                 )
                                                 Text(
                                                     text = hostInfo.contactChannel,
                                                     fontSize = 10.5.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.White.copy(alpha = 0.85f)
                                                 )
                                             }
                                         }
@@ -1355,11 +1378,13 @@ fun PropertyDetailScreen(
 
 @Composable
 private fun SpecColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
+    val contentColor = androidx.compose.material3.LocalContentColor.current
+    val isWhite = contentColor == Color.White
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = if (isWhite) Color.White else MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.height(4.dp))
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, softWrap = false)
-        Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+        Text(value, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = contentColor, maxLines = 1, softWrap = false)
+        Text(label, fontSize = 10.sp, color = if (isWhite) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
     }
 }
 
@@ -1371,6 +1396,8 @@ private fun LivingSpecRow(
     modifier: Modifier = Modifier
 ) {
     if (value.isNullOrBlank()) return
+    val contentColor = androidx.compose.material3.LocalContentColor.current
+    val isWhite = contentColor == Color.White
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1380,7 +1407,7 @@ private fun LivingSpecRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = if (isWhite) Color.White else MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .padding(top = 2.dp)
                 .size(15.dp)
@@ -1391,13 +1418,13 @@ private fun LivingSpecRow(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (isWhite) Color.White else MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = value,
                 fontSize = 11.5.sp,
                 lineHeight = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isWhite) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

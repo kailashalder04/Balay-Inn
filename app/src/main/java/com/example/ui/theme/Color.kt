@@ -75,8 +75,8 @@ val DarkTextSecondary = Color(0xFF94A3B8)
 val LightBlueCardBg = Color(0xFF90CAF9) // Fresh, clean Light Blue background for property cards
 val SteelBlueLightBg = LightBlueCardBg
 val SteelBlueBorder = Color(0xFFB0C8DD)
-val SteelBlueDarkBg = Color(0xFF162536)
+val SteelBlueDarkBg = Color(0xFF4682B4)
 val SteelBlueDarkBorder = Color(0xFF2A435C)
 val SteelBlueText = Color(0xFF244A6B)
-val PropertyBoxBg = Color(0xFFC8E5FC) // #c8e5fc background for bars and boxes inside property card
+val PropertyBoxBg = Color(0xFF3783BD) // #3783BD background for bars and boxes inside property card
 

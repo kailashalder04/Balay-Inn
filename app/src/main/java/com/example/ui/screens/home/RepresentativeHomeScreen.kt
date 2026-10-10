@@ -63,6 +63,9 @@ import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.components.VerifiedIcon
+import com.example.ui.components.VerifiedPillBadge
+import com.example.ui.components.isPlatformVerified
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -500,14 +503,24 @@ private fun RepresentativePropertyCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = property.title,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = property.title,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (property.isPlatformVerified()) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    VerifiedIcon(size = 15.dp)
+                }
+            }
 
             Text(
                 text = locationDisplay,
