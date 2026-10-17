@@ -144,30 +144,39 @@ fun LoginScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Brand Hero Header (Enlarged Logo & Name)
+            // Brand Hero Header (Matching image.png)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp, bottom = 24.dp),
+                    .padding(top = 10.dp, bottom = 20.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     BahayKuboShieldLogo(
-                        size = 108.dp,
-                        badgeCornerRadius = 28.dp
+                        size = 130.dp,
+                        badgeCornerRadius = 36.dp,
+                        showGradientBackground = false
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
                         text = "Balay-Inn",
-                        fontSize = 38.sp,
+                        fontSize = 40.sp,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary,
                         letterSpacing = (-1).sp
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Welcome Home",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF59E0B),
+                        letterSpacing = 0.5.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -182,17 +191,11 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Philippine Verified Rental Marketplace",
-                            fontSize = 13.5.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-
-                    Text(
-                        text = "Cebu, Bohol & Bacolod City Housing Platform",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
 

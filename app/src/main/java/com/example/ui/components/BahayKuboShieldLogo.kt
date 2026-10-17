@@ -13,7 +13,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -21,21 +20,21 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Modern Bahay Kubo (Nipa Hut) & Security Shield Logo for Balay-Inn.
- * Blends traditional Filipino housing heritage with modern trust & verification security.
+ * Precision 3D Bahay Kubo & Security Shield Emblem matching Balay-Inn brand graphics.
+ * Features dual-tone Steel Blue and Warm Amber metallic shield with multi-tiered nipa hut & ladder steps.
  */
 @Composable
 fun BahayKuboShieldLogo(
     modifier: Modifier = Modifier,
-    size: Dp = 100.dp,
-    badgeCornerRadius: Dp = 28.dp,
+    size: Dp = 120.dp,
+    badgeCornerRadius: Dp = 32.dp,
     showGradientBackground: Boolean = true
 ) {
     val backgroundBrush = if (showGradientBackground) {
         Brush.linearGradient(
             colors = listOf(
-                Color(0xFF4579AC), // Steel Blue
-                Color(0xFF2E618B), // Deep Slate Blue
+                Color(0xFF2E618B), // Steel Blue
+                Color(0xFF1E3A5F), // Deep Dark Slate Blue
                 Color(0xFFF59E0B)  // Warm Amber
             )
         )
@@ -46,140 +45,196 @@ fun BahayKuboShieldLogo(
     Box(
         modifier = modifier
             .size(size)
-            .shadow(if (showGradientBackground) 8.dp else 0.dp, RoundedCornerShape(badgeCornerRadius))
+            .shadow(if (showGradientBackground) 10.dp else 0.dp, RoundedCornerShape(badgeCornerRadius))
             .clip(RoundedCornerShape(badgeCornerRadius))
             .background(backgroundBrush),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.size(size * 0.72f)) {
+        Canvas(modifier = Modifier.size(size * 0.82f)) {
             val w = this.size.width
             val h = this.size.height
 
-            // 1. Sleek Security Shield Frame (Outer Frame)
-            val shieldPath = Path().apply {
-                moveTo(w * 0.5f, h * 0.05f) // Top center tip
-                lineTo(w * 0.92f, h * 0.20f) // Top right corner
-                lineTo(w * 0.92f, h * 0.52f) // Right vertical edge
+            // Shield Geometry
+            val outerShieldPath = Path().apply {
+                moveTo(w * 0.50f, h * 0.02f)
+                lineTo(w * 0.94f, h * 0.18f)
+                lineTo(w * 0.94f, h * 0.54f)
                 cubicTo(
-                    w * 0.92f, h * 0.80f,
-                    w * 0.68f, h * 0.95f,
-                    w * 0.50f, h * 1.00f  // Bottom shield point
+                    w * 0.94f, h * 0.82f,
+                    w * 0.68f, h * 0.96f,
+                    w * 0.50f, h * 1.00f
                 )
                 cubicTo(
-                    w * 0.32f, h * 0.95f,
-                    w * 0.08f, h * 0.80f,
-                    w * 0.08f, h * 0.52f  // Left vertical edge
+                    w * 0.32f, h * 0.96f,
+                    w * 0.06f, h * 0.82f,
+                    w * 0.06f, h * 0.54f
                 )
-                lineTo(w * 0.08f, h * 0.20f) // Top left corner
+                lineTo(w * 0.06f, h * 0.18f)
                 close()
             }
 
-            // Draw Shield Fill Overlay
+            val innerShieldPath = Path().apply {
+                moveTo(w * 0.50f, h * 0.07f)
+                lineTo(w * 0.88f, h * 0.21f)
+                lineTo(w * 0.88f, h * 0.52f)
+                cubicTo(
+                    w * 0.88f, h * 0.78f,
+                    w * 0.65f, h * 0.91f,
+                    w * 0.50f, h * 0.95f
+                )
+                cubicTo(
+                    w * 0.35f, h * 0.91f,
+                    w * 0.12f, h * 0.78f,
+                    w * 0.12f, h * 0.52f
+                )
+                lineTo(w * 0.12f, h * 0.21f)
+                close()
+            }
+
+            // 1. Draw Inner Shield Background with Golden Amber Radial Gradient
             drawPath(
-                path = shieldPath,
-                color = Color.White.copy(alpha = 0.18f)
+                path = innerShieldPath,
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFFFFD166), // Golden Amber Center Glow
+                        Color(0xFFF59E0B), // Warm Amber
+                        Color(0xFFB45309)  // Deep Amber Bronze Edge
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(w * 0.5f, h * 0.4f),
+                    radius = w * 0.7f
+                )
             )
 
-            // Draw Shield Border Stroke
+            // 2. Outer Steel Blue Shield Border
             drawPath(
-                path = shieldPath,
-                color = Color.White,
+                path = outerShieldPath,
+                color = Color(0xFF2E618B),
                 style = Stroke(
-                    width = w * 0.055f,
+                    width = w * 0.08f,
                     cap = StrokeCap.Round,
                     join = StrokeJoin.Round
                 )
             )
 
-            // 2. Bahay Kubo (Nipa Hut) Roof & Structure Inside Shield
-            val roofPath = Path().apply {
-                // High-peaked steep thatched roof
-                moveTo(w * 0.5f, h * 0.22f) // Peak
-                lineTo(w * 0.82f, h * 0.48f) // Right overhang eave
-                lineTo(w * 0.74f, h * 0.48f) // Eave return right
-                lineTo(w * 0.5f, h * 0.28f) // Inner peak
-                lineTo(w * 0.26f, h * 0.48f) // Eave return left
-                lineTo(w * 0.18f, h * 0.48f) // Left overhang eave
-                close()
-            }
-
-            // Draw Roof (Warm Amber Gold)
+            // 3. Inner Golden Trim Border
             drawPath(
-                path = roofPath,
-                color = Color(0xFFFFD166)
-            )
-
-            // Roof Ridge Crest
-            drawPath(
-                path = Path().apply {
-                    moveTo(w * 0.5f, h * 0.22f)
-                    lineTo(w * 0.82f, h * 0.48f)
-                    moveTo(w * 0.5f, h * 0.22f)
-                    lineTo(w * 0.18f, h * 0.48f)
-                },
-                color = Color.White,
-                style = Stroke(width = w * 0.035f, cap = StrokeCap.Round)
-            )
-
-            // 3. Woven Bamboo Wall Body (Sawali / Bamboo Walls)
-            val wallPath = Path().apply {
-                moveTo(w * 0.28f, h * 0.48f)
-                lineTo(w * 0.72f, h * 0.48f)
-                lineTo(w * 0.70f, h * 0.72f)
-                lineTo(w * 0.30f, h * 0.72f)
-                close()
-            }
-
-            drawPath(
-                path = wallPath,
-                color = Color.White.copy(alpha = 0.90f)
-            )
-
-            // 4. Central Doorway / Arched Entrance
-            val doorPath = Path().apply {
-                moveTo(w * 0.43f, h * 0.72f)
-                lineTo(w * 0.43f, h * 0.57f)
-                cubicTo(
-                    w * 0.43f, h * 0.53f,
-                    w * 0.57f, h * 0.53f,
-                    w * 0.57f, h * 0.57f
+                path = innerShieldPath,
+                color = Color(0xFFFFE39F),
+                style = Stroke(
+                    width = w * 0.035f,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
                 )
-                lineTo(w * 0.57f, h * 0.72f)
+            )
+
+            // 4. Bahay Kubo Multi-tiered Gabled Roof (Steel Blue with Gold Trim)
+            // Upper Roof Tier
+            val topRoofPath = Path().apply {
+                moveTo(w * 0.50f, h * 0.18f)
+                lineTo(w * 0.72f, h * 0.32f)
+                lineTo(w * 0.28f, h * 0.32f)
                 close()
             }
+            drawPath(path = topRoofPath, color = Color(0xFF1E3A5F))
+            drawPath(path = topRoofPath, color = Color(0xFFFFD166), style = Stroke(width = w * 0.025f))
 
-            drawPath(
-                path = doorPath,
-                color = Color(0xFF2E618B)
-            )
+            // Main Roof Tier
+            val mainRoofPath = Path().apply {
+                moveTo(w * 0.50f, h * 0.26f)
+                lineTo(w * 0.82f, h * 0.44f)
+                lineTo(w * 0.18f, h * 0.44f)
+                close()
+            }
+            drawPath(path = mainRoofPath, color = Color(0xFF2E618B))
+            drawPath(path = mainRoofPath, color = Color(0xFFFFD166), style = Stroke(width = w * 0.035f))
 
-            // 5. Stilted Wooden Posts (Haligi / House Stilts)
-            // Left Stilt Post
+            // Center Roof Divider Line
             drawLine(
                 color = Color(0xFFFFD166),
-                start = androidx.compose.ui.geometry.Offset(w * 0.33f, h * 0.72f),
-                end = androidx.compose.ui.geometry.Offset(w * 0.33f, h * 0.83f),
-                strokeWidth = w * 0.045f,
-                cap = StrokeCap.Round
+                start = androidx.compose.ui.geometry.Offset(w * 0.50f, h * 0.18f),
+                end = androidx.compose.ui.geometry.Offset(w * 0.50f, h * 0.44f),
+                strokeWidth = w * 0.025f
             )
 
-            // Right Stilt Post
-            drawLine(
+            // 5. Wooden House Body
+            val houseBodyPath = Path().apply {
+                moveTo(w * 0.25f, h * 0.44f)
+                lineTo(w * 0.75f, h * 0.44f)
+                lineTo(w * 0.72f, h * 0.65f)
+                lineTo(w * 0.28f, h * 0.65f)
+                close()
+            }
+            drawPath(path = houseBodyPath, color = Color(0xFFFFD166))
+            drawPath(path = houseBodyPath, color = Color(0xFF1E3A5F), style = Stroke(width = w * 0.028f))
+
+            // Doorway
+            val doorPath = Path().apply {
+                moveTo(w * 0.44f, h * 0.65f)
+                lineTo(w * 0.44f, h * 0.51f)
+                lineTo(w * 0.56f, h * 0.51f)
+                lineTo(w * 0.56f, h * 0.65f)
+                close()
+            }
+            drawPath(path = doorPath, color = Color(0xFF1E3A5F))
+            drawCircle(
                 color = Color(0xFFFFD166),
-                start = androidx.compose.ui.geometry.Offset(w * 0.67f, h * 0.72f),
-                end = androidx.compose.ui.geometry.Offset(w * 0.67f, h * 0.83f),
-                strokeWidth = w * 0.045f,
-                cap = StrokeCap.Round
+                radius = w * 0.015f,
+                center = androidx.compose.ui.geometry.Offset(w * 0.53f, h * 0.58f)
             )
 
-            // Center Stilt Post
-            drawLine(
-                color = Color(0xFFFFD166),
-                start = androidx.compose.ui.geometry.Offset(w * 0.50f, h * 0.72f),
-                end = androidx.compose.ui.geometry.Offset(w * 0.50f, h * 0.85f),
-                strokeWidth = w * 0.045f,
-                cap = StrokeCap.Round
+            // Side Windows
+            drawRect(
+                color = Color(0xFF1E3A5F),
+                topLeft = androidx.compose.ui.geometry.Offset(w * 0.31f, h * 0.48f),
+                size = androidx.compose.ui.geometry.Size(w * 0.08f, h * 0.08f)
             )
+            drawRect(
+                color = Color(0xFF1E3A5F),
+                topLeft = androidx.compose.ui.geometry.Offset(w * 0.61f, h * 0.48f),
+                size = androidx.compose.ui.geometry.Size(w * 0.08f, h * 0.08f)
+            )
+
+            // 6. Porch Railing & Horizontal Stilt/Ladder Steps
+            // Porch Base Deck
+            drawLine(
+                color = Color(0xFF1E3A5F),
+                start = androidx.compose.ui.geometry.Offset(w * 0.22f, h * 0.65f),
+                end = androidx.compose.ui.geometry.Offset(w * 0.78f, h * 0.65f),
+                strokeWidth = w * 0.045f,
+                cap = StrokeCap.Square
+            )
+
+            // Vertical Stilt Pillars
+            val stiltXPositions = listOf(0.26f, 0.38f, 0.50f, 0.62f, 0.74f)
+            stiltXPositions.forEach { xFrac ->
+                drawLine(
+                    color = Color(0xFF1E3A5F),
+                    start = androidx.compose.ui.geometry.Offset(w * xFrac, h * 0.65f),
+                    end = androidx.compose.ui.geometry.Offset(w * xFrac, h * 0.88f),
+                    strokeWidth = w * 0.028f
+                )
+            }
+
+            // Horizontal Ladder Steps / Wooden Rungs (3 steps inside lower shield)
+            val stepYPositions = listOf(0.71f, 0.77f, 0.83f)
+            stepYPositions.forEachIndexed { idx, yFrac ->
+                val inset = idx * 0.035f
+                drawLine(
+                    color = Color(0xFFFFD166),
+                    start = androidx.compose.ui.geometry.Offset(w * (0.28f + inset), h * yFrac),
+                    end = androidx.compose.ui.geometry.Offset(w * (0.72f - inset), h * yFrac),
+                    strokeWidth = w * 0.032f,
+                    cap = StrokeCap.Round
+                )
+                // Black/Navy Outline on Step
+                drawLine(
+                    color = Color(0xFF1E3A5F),
+                    start = androidx.compose.ui.geometry.Offset(w * (0.28f + inset), h * yFrac),
+                    end = androidx.compose.ui.geometry.Offset(w * (0.72f - inset), h * yFrac),
+                    strokeWidth = w * 0.012f,
+                    cap = StrokeCap.Round
+                )
+            }
         }
     }
 }
