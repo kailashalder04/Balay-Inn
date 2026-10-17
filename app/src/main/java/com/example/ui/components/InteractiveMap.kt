@@ -673,7 +673,7 @@ fun InteractiveRentalMap(
             }
         }
 
-        // --- TOP FLOATING SEARCH BAR & LOCATION PRESETS ---
+        // --- TOP REGION PRESETS OVER MAP ---
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -681,190 +681,6 @@ fun InteractiveRentalMap(
                 .padding(horizontal = 12.dp, vertical = 10.dp)
                 .zIndex(20f)
         ) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 6.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "Search Worldwide Locations",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(36.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (searchQuery.isEmpty()) {
-                                Text(
-                                    "Search city, municipality, barangay, landmark...",
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            BasicTextField(
-                                value = searchQuery,
-                                onValueChange = {
-                                    searchQuery = it
-                                    isSearchExpanded = true
-
-                                    val clean = it.trim().lowercase()
-                                    if (clean == "cebu") {
-                                        flyTo(10.3157, 123.8854, 12.5f)
-                                    } else if (clean == "bohol") {
-                                        flyTo(9.8500, 124.1500, 10.0f)
-                                    } else if (clean == "panglao") {
-                                        flyTo(9.5800, 123.7700, 13.5f)
-                                    }
-                                },
-                                singleLine = true,
-                                textStyle = TextStyle(
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                ),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("map_search_input")
-                            )
-                        }
-
-                        if (searchQuery.isNotBlank() || isSearchExpanded) {
-                            IconButton(
-                                onClick = {
-                                    searchQuery = ""
-                                    isSearchExpanded = false
-                                },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear search", modifier = Modifier.size(16.dp))
-                            }
-                        }
-
-                        if (onOpenFilters != null) {
-                            IconButton(
-                                onClick = onOpenFilters,
-                                modifier = Modifier
-                                    .padding(start = 2.dp)
-                                    .size(34.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                            ) {
-                                Icon(
-                                    Icons.Default.FilterList,
-                                    contentDescription = "Filters",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        if (onToggleViewMode != null) {
-                            IconButton(
-                                onClick = onToggleViewMode,
-                                modifier = Modifier
-                                    .padding(start = 4.dp)
-                                    .size(34.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Icon(
-                                    Icons.Default.ViewList,
-                                    contentDescription = "Toggle List View",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Available Locations Dropdown
-                    if (isSearchExpanded) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 260.dp)
-                        ) {
-                            LazyColumn {
-                                items(searchResults, key = { it.id }) { loc ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                searchQuery = loc.name
-                                                isSearchExpanded = false
-                                                flyTo(loc.latitude, loc.longitude, loc.targetZoom)
-                                                if (loc.propertyId != null) {
-                                                    val matched = properties.find { it.id == loc.propertyId }
-                                                    if (matched != null) {
-                                                        activeProperty = matched
-                                                    }
-                                                }
-                                            }
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = when (loc.type) {
-                                                "WORLD" -> Icons.Default.Public
-                                                "COUNTRY" -> Icons.Default.Explore
-                                                "CITY" -> Icons.Default.LocationCity
-                                                "BARANGAY" -> Icons.Default.Place
-                                                "PROVINCE" -> Icons.Default.Map
-                                                "PROPERTY" -> Icons.Default.Home
-                                                else -> Icons.Default.Star
-                                            },
-                                            contentDescription = null,
-                                            tint = when (loc.type) {
-                                                "PROPERTY" -> SteelBlue
-                                                "LANDMARK" -> Color(0xFFD97706)
-                                                "WORLD", "COUNTRY" -> Color(0xFF2563EB)
-                                                else -> MaterialTheme.colorScheme.primary
-                                            },
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = loc.name,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = loc.subtitle,
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             // Quick Location Presets Row with Smooth 1.2s FlyTo
             Row(
                 modifier = Modifier
@@ -881,17 +697,13 @@ fun InteractiveRentalMap(
                 RegionChip(label = "🏢 Mandaue", onClick = { flyTo(10.3340, 123.9400, 13.0f) })
                 RegionChip(label = "✈️ Lapu-Lapu", onClick = { flyTo(10.3120, 123.9780, 13.0f) })
                 RegionChip(label = "🇵🇭 Philippines", onClick = { flyTo(12.8797, 121.7740, 6.0f) })
-                RegionChip(label = "🌍 Worldwide", onClick = { flyTo(15.0, 120.0, 3.0f) })
-                RegionChip(
-                    label = "🎯 Fit All (${properties.size})",
-                    onClick = {
-                        if (properties.isNotEmpty()) {
-                            val avgLat = properties.map { it.latitude }.average()
-                            val avgLng = properties.map { it.longitude }.average()
-                            flyTo(avgLat, avgLng, 11.0f)
-                        }
+                RegionChip(label = "🎯 Fit All (${properties.size})", onClick = {
+                    if (properties.isNotEmpty()) {
+                        val avgLat = properties.map { it.latitude }.average()
+                        val avgLng = properties.map { it.longitude }.average()
+                        flyTo(avgLat, avgLng, 11.0f)
                     }
-                )
+                })
             }
         }
 
@@ -902,7 +714,7 @@ fun InteractiveRentalMap(
             exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 115.dp)
+                .padding(top = 52.dp)
                 .zIndex(20f)
         ) {
             Surface(

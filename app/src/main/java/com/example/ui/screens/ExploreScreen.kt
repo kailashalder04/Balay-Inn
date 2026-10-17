@@ -126,7 +126,7 @@ fun ExploreScreen(
             .testTag("explore_screen")
     ) {
         val isWideScreen = maxWidth >= 760.dp
-        val showSearchHeader = isWideScreen || viewMode == "LIST"
+        val showSearchHeader = true
         val focusedProp = remember(focusedPropertyId, properties) {
             properties.find { it.id == focusedPropertyId }
         }
