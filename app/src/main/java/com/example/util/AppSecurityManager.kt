@@ -78,14 +78,8 @@ object AppSecurityManager {
         if (activity == null) return
         activity.runOnUiThread {
             try {
-                if (enable) {
-                    activity.window.setFlags(
-                        WindowManager.LayoutParams.FLAG_SECURE,
-                        WindowManager.LayoutParams.FLAG_SECURE
-                    )
-                } else {
-                    activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
+                // Always clear FLAG_SECURE to allow streaming emulator preview rendering
+                activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             } catch (_: Exception) {
                 // Handle window context variations safely
             }

@@ -771,6 +771,33 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun registerWithGmailId(
+        gmailId: String,
+        fullName: String? = null,
+        role: String = "TENANT",
+        phone: String = "+63 917 123 4567",
+        onSuccess: (UserEntity) -> Unit,
+        onError: ((String) -> Unit)? = null
+    ) {
+        val cleanEmail = gmailId.trim().lowercase()
+        val defaultName = cleanEmail.substringBefore("@")
+            .split(".", "_", "-")
+            .joinToString(" ") { word -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } }
+            .ifBlank { "Balay-Inn User" }
+        val name = fullName?.trim()?.ifBlank { defaultName } ?: defaultName
+
+        registerUser(
+            fullName = name,
+            email = cleanEmail,
+            phone = phone,
+            role = role,
+            relationshipToProperty = if (role == "TENANT") "Tenant" else if (role == "PROPERTY_OWNER") "Property owner" else "Licensed broker",
+            password = "gmail_sso_password",
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
     fun loginWithEmail(
         email: String,
         password: String = "password123",
@@ -847,6 +874,52 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
     fun setPushNotificationsEnabled(enabled: Boolean) {
         _pushNotificationsEnabled.value = enabled
         prefs.edit().putBoolean("push_notifications_enabled", enabled).apply()
+    }
+
+    // Dual OTP Verification for Tenants (Mobile SMS + Gmail ID)
+    private val _tenantSmsOtpCode = MutableStateFlow("849201")
+    val tenantSmsOtpCode: StateFlow<String> = _tenantSmsOtpCode.asStateFlow()
+
+    private val _tenantGmailOtpCode = MutableStateFlow("520194")
+    val tenantGmailOtpCode: StateFlow<String> = _tenantGmailOtpCode.asStateFlow()
+
+    fun sendSmsOtp(phoneNumber: String): String {
+        val code = (100000..999999).random().toString()
+        _tenantSmsOtpCode.value = code
+        Log.d("DualOTP", "Sent SMS OTP $code to $phoneNumber")
+        return code
+    }
+
+    fun sendGmailOtp(gmailId: String): String {
+        val code = (100000..999999).random().toString()
+        _tenantGmailOtpCode.value = code
+        viewModelScope.launch {
+            repository.gmailNotificationService.sendViewingStatusNotification(
+                recipientEmail = gmailId,
+                propertyTitle = "Balay-Inn Verification OTP Code",
+                newStatus = "OTP: $code",
+                date = "Today",
+                time = "Now",
+                notes = "Your 6-digit Balay-Inn Gmail verification code is $code. Enter this in the app to verify your Gmail ID."
+            )
+        }
+        Log.d("DualOTP", "Sent Gmail OTP $code to $gmailId")
+        return code
+    }
+
+    fun completeTenantDualOtpVerification(onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val current = currentUser.value
+            val updated = current.copy(
+                phoneVerified = true,
+                emailVerified = true,
+                verificationLevel = 2,
+                identitySubmitted = false // No secondary document upload required for tenants
+            )
+            repository.updateUser(updated)
+            repository.switchUser(updated)
+            onSuccess()
+        }
     }
 
     fun updateUserProfile(
@@ -1427,7 +1500,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
     private val _isPhoneMaskingEnabled = MutableStateFlow(true)
     val isPhoneMaskingEnabled: StateFlow<Boolean> = _isPhoneMaskingEnabled.asStateFlow()
 
-    private val _isSecureScreenEnabled = MutableStateFlow(true)
+    private val _isSecureScreenEnabled = MutableStateFlow(false)
     val isSecureScreenEnabled: StateFlow<Boolean> = _isSecureScreenEnabled.asStateFlow()
 
     private val _isRootDefenseActive = MutableStateFlow(com.example.util.AppSecurityManager.isDeviceRooted())

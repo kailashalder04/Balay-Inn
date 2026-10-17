@@ -4,16 +4,35 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Roof and House body -->
+
+    <!-- Outer Security Shield -->
     <path
-        android:fillColor="#38BDF8"
-        android:pathData="M54,28 L30,48 L36,48 L36,78 L72,78 L72,48 L78,48 Z" />
-    <!-- Doorway with warm ambient glow -->
+        android:fillColor="#22FFFFFF"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,26 L78,34 V52 C78,68 64,78 54,82 C44,78 30,68 30,52 V34 Z" />
+
+    <!-- Bahay Kubo Steep Thatched Roof (Golden Amber) -->
     <path
-        android:fillColor="#FBBF24"
-        android:pathData="M48,58 L60,58 L60,78 L48,78 Z" />
-    <!-- Window with cozy light -->
+        android:fillColor="#FFD166"
+        android:pathData="M54,36 L72,50 H67 L54,40 L41,50 H36 Z" />
+
+    <!-- Bamboo Wall Structure -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M50,42 L58,42 L58,50 L50,50 Z" />
+        android:pathData="M42,50 H66 V64 H42 Z" />
+
+    <!-- Entrance Doorway -->
+    <path
+        android:fillColor="#2E618B"
+        android:pathData="M50,64 V56 H58 V64 Z" />
+
+    <!-- Stilted Posts (Haligi) -->
+    <path
+        android:strokeColor="#FFD166"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M45,64 V72 M54,64 V73 M63,64 V72" />
 </vector>

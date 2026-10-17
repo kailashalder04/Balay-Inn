@@ -46,45 +46,11 @@ fun BalayInnLogoHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.testTag("balay_inn_brand_header")
             ) {
-                // Balay-Inn Custom App Logo Badge
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = NavyPrimary,
-                    shadowElevation = 2.dp,
-                    modifier = Modifier.size(42.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Balay-Inn Logo",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        // Small key overlay badge on top-right of house
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFF16A34A), // Emerald green badge
-                            modifier = Modifier
-                                .size(14.dp)
-                                .align(Alignment.BottomEnd)
-                                .offset(x = (-2).dp, y = (-2).dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Key,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(9.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+                // Balay-Inn Custom App Logo Badge (Bahay Kubo & Shield)
+                BahayKuboShieldLogo(
+                    size = 42.dp,
+                    badgeCornerRadius = 12.dp
+                )
 
                 Spacer(modifier = Modifier.width(10.dp))
 

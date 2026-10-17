@@ -518,6 +518,21 @@ class BalayInnRepository(context: Context) {
     suspend fun registerUser(user: UserEntity) = withContext(Dispatchers.IO) {
         userDao.insertUser(user)
         _currentUser.value = user
+        try {
+            platDao.insertNotification(
+                NotificationEntity(
+                    id = UUID.randomUUID().toString(),
+                    userId = user.id,
+                    title = "Welcome to Balay-Inn! 🎉",
+                    message = "Your Gmail account (${user.email}) is registered & linked with local database & cloud server for notifications.",
+                    category = "ACCOUNT",
+                    relatedPropertyId = null,
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("BalayInnRepo", "Failed to insert welcome notification: ${e.message}")
+        }
     }
 
     suspend fun updateUser(user: UserEntity) = withContext(Dispatchers.IO) {

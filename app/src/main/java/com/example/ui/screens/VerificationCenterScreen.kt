@@ -104,17 +104,26 @@ fun VerificationCenterScreen(
 
     var showUploadDialog by remember { mutableStateOf(false) }
 
-    val levels = listOf(
-        VerificationLevelItem(0, "Account Created", "Basic account profile registered", "VERIFIED"),
-        VerificationLevelItem(1, "Phone Verified", "Philippine mobile number verified via OTP", if (currentUser.phoneVerified) "VERIFIED" else "NOT_STARTED"),
-        VerificationLevelItem(2, "Email Verified", "Email confirmation link authenticated", if (currentUser.emailVerified) "VERIFIED" else "NOT_STARTED"),
-        VerificationLevelItem(3, "Identity Document", "Government ID (Passport, UMID, Driver's License)", if (currentUser.identitySubmitted) "VERIFIED" else "NOT_STARTED"),
-        VerificationLevelItem(4, "Professional Information", "Broker / Salesperson / Representative profile", if (currentUser.role.contains("BROKER") || currentUser.role.contains("SALESPERSON") || currentUser.role.contains("CARETAKER")) "VERIFIED" else "NOT_STARTED"),
-        VerificationLevelItem(5, "PRC Information Verified", "PRC Board Exam License authenticated", if (currentUser.professionalVerified) "VERIFIED" else "NOT_STARTED"),
-        VerificationLevelItem(6, "Property Authorization", "Notarized authorization letter or SPA from owner", if (currentUser.isAuthorizedByOwner) "VERIFIED" else "NOT_STARTED"),
-        VerificationLevelItem(7, "Property Physically Visited", "On-site visit by Balay-Inn local staff", "NOT_STARTED"),
-        VerificationLevelItem(8, "Property Documents Reviewed", "Title / Tax Declaration verification review", "NOT_STARTED")
-    )
+    val isTenant = currentUser.canonicalRole == com.example.data.model.UserRole.TENANT
+
+    val levels = if (isTenant) {
+        listOf(
+            VerificationLevelItem(1, "Mobile Number Verified", "Philippine mobile number verified via SMS OTP", if (currentUser.phoneVerified) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(2, "Gmail ID Verified", "Gmail account authenticated via Email OTP", if (currentUser.emailVerified) "VERIFIED" else "NOT_STARTED")
+        )
+    } else {
+        listOf(
+            VerificationLevelItem(0, "Account Created", "Basic account profile registered", "VERIFIED"),
+            VerificationLevelItem(1, "Phone Verified", "Philippine mobile number verified via OTP", if (currentUser.phoneVerified) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(2, "Email Verified", "Email confirmation link authenticated", if (currentUser.emailVerified) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(3, "Identity Document", "Government ID (Passport, UMID, Driver's License)", if (currentUser.identitySubmitted) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(4, "Professional Information", "Broker / Salesperson / Representative profile", if (currentUser.role.contains("BROKER") || currentUser.role.contains("SALESPERSON") || currentUser.role.contains("CARETAKER")) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(5, "PRC Information Verified", "PRC Board Exam License authenticated", if (currentUser.professionalVerified) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(6, "Property Authorization", "Notarized authorization letter or SPA from owner", if (currentUser.isAuthorizedByOwner) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(7, "Property Physically Visited", "On-site visit by Balay-Inn local staff", "NOT_STARTED"),
+            VerificationLevelItem(8, "Property Documents Reviewed", "Title / Tax Declaration verification review", "NOT_STARTED")
+        )
+    }
 
     val verifiedCount = levels.count { it.status == "VERIFIED" }
     val progress = verifiedCount.toFloat() / levels.size.toFloat()
@@ -122,7 +131,7 @@ fun VerificationCenterScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Layered Verification Center") },
+                title = { Text(if (isTenant) "Tenant Dual OTP Verification" else "Layered Verification Center") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -162,12 +171,12 @@ fun VerificationCenterScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Your Profile: Level ${currentUser.verificationLevel} Verification",
+                                    text = if (isTenant) "Tenant Dual OTP Status: ${if (verifiedCount == 2) "100% Verified" else "In Progress"}" else "Your Profile: Level ${currentUser.verificationLevel} Verification",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp
                                 )
                                 Text(
-                                    text = "$verifiedCount of ${levels.size} levels completed",
+                                    text = "$verifiedCount of ${levels.size} verification steps completed",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -184,7 +193,7 @@ fun VerificationCenterScreen(
                 }
             }
 
-            // Section 8: Document Privacy Guarantee
+            // Section 8: Document Privacy Guarantee / Exclusive Policy Banner
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -196,10 +205,15 @@ fun VerificationCenterScreen(
                         Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text("Strict Privacy & Data Minimization", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(
+                                if (isTenant) "Exclusive Dual OTP Policy for Tenants" else "Strict Privacy & Data Minimization",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                "Your submitted government IDs, PRC licenses, and authorization letters are strictly private and encrypted. They are never published or made visible to tenants or other users. You can choose to verify later at any time.",
+                                if (isTenant) "Tenant accounts on Balay-Inn are exclusively verified through your Mobile Phone Number (SMS OTP) and Gmail ID (Email OTP). All secondary document uploads and government ID requirements are completely removed for tenant profiles."
+                                else "Your submitted government IDs, PRC licenses, and authorization letters are strictly private and encrypted. They are never published or made visible to tenants or other users.",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 16.sp
@@ -209,22 +223,28 @@ fun VerificationCenterScreen(
                 }
             }
 
-            // Action: Upload Document button
+            // Action: Upload Document button (Only shown for non-tenants)
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Verification Steps (Level 0 - 8)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Button(
-                        onClick = { showUploadDialog = true },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Upload Document", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                    Text(
+                        if (isTenant) "Tenant Authentication Steps" else "Verification Steps (Level 0 - 8)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (!isTenant) {
+                        Button(
+                            onClick = { showUploadDialog = true },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Upload Document", fontSize = 11.sp, maxLines = 1, softWrap = false)
+                        }
                     }
                 }
             }

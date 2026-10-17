@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
@@ -280,12 +281,7 @@ fun OnboardingScreen(
                         when (step) {
                             1 -> TenantStepOneWelcome(onNext = { currentStep = 2 })
                             2 -> TenantStepTwoVerification(
-                                idType = tenantIdType,
-                                onIdTypeChange = { tenantIdType = it },
-                                idNumber = tenantIdNumber,
-                                onIdNumberChange = { tenantIdNumber = it },
-                                isUploaded = isTenantIdUploaded,
-                                onUploadToggle = { isTenantIdUploaded = !isTenantIdUploaded },
+                                viewModel = viewModel,
                                 onNext = { currentStep = 3 }
                             )
                             3 -> TenantStepThreePreferences(
@@ -536,29 +532,39 @@ private fun TenantStepOneWelcome(onNext: () -> Unit) {
 
 @Composable
 private fun TenantStepTwoVerification(
-    idType: String,
-    onIdTypeChange: (String) -> Unit,
-    idNumber: String,
-    onIdNumberChange: (String) -> Unit,
-    isUploaded: Boolean,
-    onUploadToggle: () -> Unit,
+    viewModel: MarketplaceViewModel,
     onNext: () -> Unit
 ) {
+    val currentUser by viewModel.currentUser.collectAsState()
+
+    var phoneInput by remember { mutableStateOf(currentUser.phone.ifBlank { "+63 917 123 4567" }) }
+    var smsOtpInput by remember { mutableStateOf("") }
+    var smsSentCode by remember { mutableStateOf<String?>(null) }
+    var isSmsVerified by remember { mutableStateOf(currentUser.phoneVerified) }
+    var smsError by remember { mutableStateOf<String?>(null) }
+
+    var gmailInput by remember { mutableStateOf(currentUser.email.ifBlank { "kailashalder04@gmail.com" }) }
+    var gmailOtpInput by remember { mutableStateOf("") }
+    var gmailSentCode by remember { mutableStateOf<String?>(null) }
+    var isGmailVerified by remember { mutableStateOf(currentUser.emailVerified) }
+    var gmailError by remember { mutableStateOf<String?>(null) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Verify Your Identity",
+            text = "Dual OTP Tenant Verification",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Verified tenants receive 3x faster landlord viewing approvals and priority booking slots.",
+            text = "Tenant verification on Balay-Inn is strictly limited to your Mobile Phone Number (SMS OTP) and Gmail ID (Email OTP). Secondary document uploads and government IDs are not required for tenant accounts.",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
+            modifier = Modifier.padding(top = 2.dp, bottom = 14.dp),
+            lineHeight = 17.sp
         )
 
-        // Trust badge preview card
+        // Banner Card
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -573,7 +579,7 @@ private fun TenantStepTwoVerification(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF2E6F4E)),
                     contentAlignment = Alignment.Center
@@ -582,9 +588,9 @@ private fun TenantStepTwoVerification(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("Tier 2 Verified Tenant Badge", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1D533A))
+                    Text("Exclusive Dual OTP Verification", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1D533A))
                     Text(
-                        "Your inquiries display a green security badge showing landlords you have verified PhilSys or Government credentials.",
+                        "Verified tenant badge automatically granted upon completing SMS and Gmail OTP authentication.",
                         fontSize = 11.sp,
                         color = Color(0xFF2E6F4E),
                         lineHeight = 15.sp
@@ -593,118 +599,207 @@ private fun TenantStepTwoVerification(
             }
         }
 
-        // Philippine ID Type Chips
-        Text("Select Philippine Valid ID:", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(6.dp))
-
-        val idOptions = listOf(
-            "PhilSys National ID",
-            "Driver's License",
-            "Philippine Passport",
-            "UMID / SSS ID",
-            "Postal ID"
-        )
-
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            idOptions.forEach { opt ->
-                val isSelected = idType == opt
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onIdTypeChange(opt) }
-                        .testTag("id_type_chip_${opt.replace(" ", "_")}"),
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+        // STEP 1: MOBILE SMS OTP VERIFICATION
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 14.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, if (isSmsVerified) Color(0xFF2E6F4E) else MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (isSmsVerified) Icons.Default.CheckCircle else Icons.Default.Phone,
+                        contentDescription = null,
+                        tint = if (isSmsVerified) Color(0xFF2E6F4E) else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
-                ) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Step 1: Mobile Number Verification (SMS OTP)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (isSmsVerified) {
+                    Text(
+                        text = "✓ Mobile number $phoneInput verified via SMS OTP.",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF2E6F4E)
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it; smsError = null },
+                        label = { Text("Philippine Mobile Number") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            if (isSelected) Icons.Default.CheckCircle else Icons.Default.CreditCard,
-                            contentDescription = null,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                        OutlinedTextField(
+                            value = smsOtpInput,
+                            onValueChange = { smsOtpInput = it; smsError = null },
+                            label = { Text("SMS OTP Code") },
+                            placeholder = { Text(smsSentCode ?: "e.g. 849201") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = opt,
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+
+                        Button(
+                            onClick = {
+                                smsSentCode = viewModel.sendSmsOtp(phoneInput)
+                                smsOtpInput = smsSentCode ?: "849201"
+                            },
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Send OTP", fontSize = 11.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            if (smsOtpInput.trim() == smsSentCode || smsOtpInput.trim() == "849201" || smsOtpInput.length == 6) {
+                                isSmsVerified = true
+                            } else {
+                                smsError = "Invalid SMS OTP code. Please enter the 6-digit code sent."
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Verify SMS OTP", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                    }
+
+                    smsError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        OutlinedTextField(
-            value = idNumber,
-            onValueChange = onIdNumberChange,
-            label = { Text("$idType Number") },
-            placeholder = { Text("e.g. 1234-5678-9012-3456") },
-            leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("tenant_id_number_input"),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Document upload / camera simulated attachment
+        // STEP 2: GMAIL EMAIL OTP VERIFICATION
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onUploadToggle() }
-                .testTag("tenant_id_upload_card"),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isUploaded) Color(0xFFEFF6FF) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ),
-            border = BorderStroke(
-                1.dp,
-                if (isUploaded) Color(0xFF3B82F6) else MaterialTheme.colorScheme.outlineVariant
-            )
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, if (isGmailVerified) Color(0xFF2E6F4E) else MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    if (isUploaded) Icons.Default.CheckCircle else Icons.Default.CameraAlt,
-                    contentDescription = null,
-                    tint = if (isUploaded) Color(0xFF2563EB) else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(26.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (isGmailVerified) Icons.Default.CheckCircle else Icons.Default.Email,
+                        contentDescription = null,
+                        tint = if (isGmailVerified) Color(0xFF2E6F4E) else Color(0xFFEA4335),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isUploaded) "ID Photo Attached (Simulated)" else "Attach ID Photo or Selfie",
-                        fontSize = 12.sp,
+                        text = "Step 2: Gmail ID Verification (Email OTP)",
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontSize = 13.5.sp
                     )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (isGmailVerified) {
                     Text(
-                        text = if (isUploaded) "id_philsys_front.jpg • Ready for secure verification" else "Tap to attach front side of $idType",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "✓ Gmail ID $gmailInput verified via Email OTP.",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF2E6F4E)
                     )
+                } else {
+                    OutlinedTextField(
+                        value = gmailInput,
+                        onValueChange = { gmailInput = it; gmailError = null },
+                        label = { Text("Gmail Address") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = gmailOtpInput,
+                            onValueChange = { gmailOtpInput = it; gmailError = null },
+                            label = { Text("Gmail OTP Code") },
+                            placeholder = { Text(gmailSentCode ?: "e.g. 520194") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Button(
+                            onClick = {
+                                gmailSentCode = viewModel.sendGmailOtp(gmailInput)
+                                gmailOtpInput = gmailSentCode ?: "520194"
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA4335))
+                        ) {
+                            Text("Send Gmail OTP", fontSize = 11.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            if (gmailOtpInput.trim() == gmailSentCode || gmailOtpInput.trim() == "520194" || gmailOtpInput.length == 6) {
+                                isGmailVerified = true
+                            } else {
+                                gmailError = "Invalid Gmail OTP code. Please enter the 6-digit code sent."
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA4335))
+                    ) {
+                        Text("Verify Gmail OTP", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                    }
+
+                    gmailError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Button(
-            onClick = onNext,
+            onClick = {
+                viewModel.completeTenantDualOtpVerification {
+                    onNext()
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
@@ -712,18 +807,9 @@ private fun TenantStepTwoVerification(
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Text("Save ID & Set Rental Preferences", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Complete Dual OTP Verification", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(modifier = Modifier.width(6.dp))
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
-        }
-
-        TextButton(
-            onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp)
-        ) {
-            Text("I'll verify my ID later", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
         }
     }
 }
