@@ -1,0 +1,6 @@
+{
+  "name": "Balay-Inn",
+  "description": "Philippine Rental Housing Marketplace & Property Transparency Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

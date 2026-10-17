@@ -25,6 +25,7 @@ import com.example.ui.components.NearbyDestinationSection
 import com.example.ui.components.RentCostBreakdownPanel
 import com.example.ui.components.VerifiedIcon
 import com.example.ui.components.isPlatformVerified
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.ui.theme.SoftGreenBg
 import com.example.ui.theme.SoftGreenBorder
 import com.example.ui.theme.SoftGreenDark
@@ -35,7 +36,14 @@ import com.example.ui.theme.SteelBlueBorder
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueDarkBorder
 import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.theme.SteelBlueText
+import com.example.ui.theme.SteelBlueTextDark
 import com.example.ui.theme.PropertyBoxBg
+import com.example.ui.theme.PropertyBoxBgDark
+import com.example.ui.theme.PropertyBoxBorder
+import com.example.ui.theme.PropertyBoxBorderDark
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -72,12 +80,13 @@ import androidx.compose.material.icons.filled.Bathtub
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -93,6 +102,8 @@ import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -102,11 +113,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.example.ui.components.ComparisonMatrixSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -146,12 +160,14 @@ fun PropertyDetailScreen(
     viewModel: MarketplaceViewModel,
     onBack: () -> Unit,
     onNavigateToChat: (String) -> Unit,
+    onNavigateToProperty: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val propertyFlow = remember(propertyId) { viewModel.repository.getPropertyById(propertyId) }
     val property by propertyFlow.collectAsState(initial = null)
     val isSaved by viewModel.isPropertySaved(propertyId).collectAsState(initial = false)
     val images by remember(propertyId) { viewModel.getImagesForProperty(propertyId) }.collectAsState(initial = emptyList())
+    val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -161,6 +177,7 @@ fun PropertyDetailScreen(
     var showChatDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
     var showExportPostDialog by remember { mutableStateOf(false) }
+    var showComparisonMatrix by remember { mutableStateOf(false) }
 
     if (property == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -173,7 +190,7 @@ fun PropertyDetailScreen(
     val locationDisplay = viewModel.getLocationDisplay(prop)
 
     val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
+    val isDark by viewModel.isDarkMode.collectAsState()
     val costBreakdown = remember(prop) { PropertyCostHelper.getRentCostBreakdown(prop) }
     val hostInfo = remember(prop) { PropertyCostHelper.getHostContactInfo(prop) }
     var showCostBreakdown by remember { mutableStateOf(false) }
@@ -225,6 +242,9 @@ fun PropertyDetailScreen(
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
 
+    val comparedProperties by viewModel.comparedProperties.collectAsState()
+    val isCompared = comparedProperties.any { it.id == prop.id }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -252,6 +272,48 @@ fun PropertyDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    if (comparedProperties.size >= 2) {
+                        IconButton(
+                            onClick = { showComparisonMatrix = true }
+                        ) {
+                            BadgedBox(
+                                badge = {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = Color.White
+                                    ) {
+                                        Text("${comparedProperties.size}", fontSize = 10.sp)
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CompareArrows,
+                                    contentDescription = "Open Comparison Matrix",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                    IconButton(
+                        onClick = { viewModel.toggleCompare(prop) }
+                    ) {
+                        Icon(
+                            imageVector = if (isCompared) Icons.Default.Check else Icons.Default.CompareArrows,
+                            contentDescription = if (isCompared) "In comparison list" else "Add to compare",
+                            tint = if (isCompared) SteelBlue else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(
+                        onClick = { viewModel.toggleSave(prop.id) }
+                    ) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Save",
+                            tint = if (isSaved) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
@@ -269,23 +331,50 @@ fun PropertyDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 6.dp else 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "$formattedRent / mo",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                            Text(
-                                text = if (prop.utilitiesIncluded) "Elec & water included" else "Submetered / Water",
-                                fontSize = if (isNarrow) 10.sp else 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
+                        Surface(
+                            onClick = { showCostBreakdown = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) Color(0xFF1B2C3F) else Color(0xFFEDF4FA),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF2E4863) else Color(0xFFB8C9DC)),
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .testTag("lower_bar_rent_btn")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "$formattedRent / mo",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "View Cost Breakup",
+                                            fontSize = if (isNarrow) 9.5.sp else 10.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         Button(
@@ -335,14 +424,14 @@ fun PropertyDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Boarding House Real-time Bed Availability & Gender Rule
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
+                            color = if (isDark) PropertyBoxBgDark else Color.White,
                             border = BorderStroke(
                                 1.dp,
                                 if (boardingHouse.totalAvailableBeds > 0) {
@@ -370,9 +459,9 @@ fun PropertyDetailScreen(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (boardingHouse.totalAvailableBeds > 0) {
-                                        if (isDark) SoftGreenDark else Color.White
+                                        if (isDark) SoftGreenDark else Color(0xFF15803D)
                                     } else {
-                                        Color(0xFFFFD2D2)
+                                        Color(0xFFDC2626)
                                     }
                                 )
                             }
@@ -380,24 +469,24 @@ fun PropertyDetailScreen(
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
-                            border = BorderStroke(1.dp, SteelBlue)
+                            color = if (isDark) PropertyBoxBgDark else Color.White,
+                            border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
                         ) {
                             Text(
                                 text = boardingHouse.primaryGenderRule.badge,
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) Color(0xFF90CAF9) else Color.White,
+                                color = if (isDark) SteelBlueTextDark else SteelBlueText,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
 
-                    // Combined Location and Landmark in a single clean box below images with PropertyBoxBg (#EDF7FC) background
+                    // Combined Location and Landmark in a single clean box below images
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
-                        border = BorderStroke(1.dp, SteelBlue),
+                        color = if (isDark) PropertyBoxBgDark else Color.White,
+                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("detail_map_pin_btn")
@@ -410,14 +499,17 @@ fun PropertyDetailScreen(
                                 Icons.Default.LocationOn,
                                 contentDescription = "Map Pin",
                                 modifier = Modifier.size(16.dp),
-                                tint = if (isDark) SteelBlue else Color.White
+                                tint = SteelBlue
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = if (landmarkText.isNotBlank()) "$locationDisplay • Near $landmarkText" else locationDisplay,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White
+                                color = if (isDark) SteelBlueTextDark else SteelBlueText,
+                                lineHeight = 16.sp,
+                                softWrap = true,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                         }
                     }
@@ -437,14 +529,15 @@ fun PropertyDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isDark) Color(0xFF5C8DC4) else PropertyBoxBg
+                            containerColor = if (isDark) PropertyBoxBgDark else Color.White
                         ),
-                        border = BorderStroke(1.dp, SteelBlue)
+                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                     ) {
                         Text(
                             text = boardingHouse.fullDescription,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = if (isDark) Color(0xFFF8FAFC) else Color.White,
+                            color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B),
                             lineHeight = 24.sp,
                             modifier = Modifier.padding(16.dp)
                         )
@@ -462,10 +555,11 @@ fun PropertyDetailScreen(
                             .padding(bottom = 12.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isDark) Color(0xFFD5E3F2) else PropertyBoxBg,
-                            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.Black
+                            containerColor = if (isDark) PropertyBoxBgDark else Color.White,
+                            contentColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                         ),
-                        border = BorderStroke(1.dp, SteelBlue)
+                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -493,9 +587,10 @@ fun PropertyDetailScreen(
                                 .padding(vertical = 5.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isDark) Color(0xFFD5E3F2) else PropertyBoxBg
+                                containerColor = if (isDark) PropertyBoxBgDark else Color.White
                             ),
-                            border = BorderStroke(1.dp, SteelBlue)
+                            border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
@@ -507,7 +602,7 @@ fun PropertyDetailScreen(
                                         text = room.name,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White,
+                                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E),
                                         modifier = Modifier.weight(1f)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -580,15 +675,16 @@ fun PropertyDetailScreen(
 
                                 Spacer(modifier = Modifier.height(6.dp))
 
-                                // Room tags (Aircon, Private CR, Utilities)
-                                Row(
+                                // Room tags (Aircon, Private CR, Utilities) - Using FlowRow to prevent cutouts
+                                FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = if (isDark) Color(0xFF162536) else Color.White.copy(alpha = 0.85f),
-                                        border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
+                                        color = if (isDark) Color(0xFF162536) else Color(0xFFF1F5F9),
+                                        border = BorderStroke(0.8.dp, if (isDark) SteelBlue.copy(alpha = 0.6f) else Color(0xFFCBD5E1))
                                     ) {
                                         Text(
                                             text = if (room.hasAircon) "❄️ Aircon" else "💨 Fan Room",
@@ -600,8 +696,8 @@ fun PropertyDetailScreen(
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = if (isDark) Color(0xFF162536) else Color.White.copy(alpha = 0.85f),
-                                        border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
+                                        color = if (isDark) Color(0xFF162536) else Color(0xFFF1F5F9),
+                                        border = BorderStroke(0.8.dp, if (isDark) SteelBlue.copy(alpha = 0.6f) else Color(0xFFCBD5E1))
                                     ) {
                                         Text(
                                             text = if (room.hasPrivateBathroom) "🚿 Private CR" else "🚻 Shared CR",
@@ -613,8 +709,8 @@ fun PropertyDetailScreen(
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = if (isDark) Color(0xFF162536) else Color.White.copy(alpha = 0.85f),
-                                        border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.6f))
+                                        color = if (isDark) Color(0xFF162536) else Color(0xFFF1F5F9),
+                                        border = BorderStroke(0.8.dp, if (isDark) SteelBlue.copy(alpha = 0.6f) else Color(0xFFCBD5E1))
                                     ) {
                                         Text(
                                             text = "${room.advanceRentMonths} Mo Adv / ₱${room.securityDeposit.toInt()} Dep",
@@ -665,10 +761,11 @@ fun PropertyDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isDark) Color(0xFFDFE7F0) else PropertyBoxBg,
-                            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.White
+                            containerColor = if (isDark) PropertyBoxBgDark else Color.White,
+                            contentColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                         ),
-                        border = BorderStroke(1.dp, SteelBlue)
+                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             boardingHouse.specifications?.let { spec ->
@@ -707,14 +804,14 @@ fun PropertyDetailScreen(
                         cleanAmenities.forEach { amenity ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
-                                border = BorderStroke(1.dp, SteelBlue)
+                                color = if (isDark) PropertyBoxBgDark else Color.White,
+                                border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
                             ) {
                                 Text(
                                     text = "✓ $amenity",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) Color(0xFFF8FAFC) else Color.White,
+                                    color = if (isDark) SteelBlueTextDark else SteelBlueText,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
@@ -762,10 +859,11 @@ fun PropertyDetailScreen(
                             .testTag("detail_host_name_box"),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isDark) Color(0xFFDfE7F0) else PropertyBoxBg,
-                            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.White
+                            containerColor = if (isDark) PropertyBoxBgDark else Color.White,
+                            contentColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                         ),
-                        border = BorderStroke(1.dp, SteelBlue)
+                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
@@ -793,7 +891,10 @@ fun PropertyDetailScreen(
                                             text = hostInfo.hostName,
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White
+                                            color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
@@ -813,7 +914,7 @@ fun PropertyDetailScreen(
                                     Text(
                                         text = hostInfo.hostRole,
                                         fontSize = 12.sp,
-                                        color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.White.copy(alpha = 0.85f)
+                                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
                                     )
                                 }
                             }
@@ -823,8 +924,8 @@ fun PropertyDetailScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (isDark) Color(0xFFDFE7F0) else PropertyBoxBg,
-                                    border = BorderStroke(1.dp, SteelBlue),
+                                    color = if (isDark) Color(0xFF152233) else Color.White,
+                                    border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -841,7 +942,7 @@ fun PropertyDetailScreen(
                                             Icon(
                                                 Icons.Default.Phone,
                                                 contentDescription = "Host Phone",
-                                                tint = if (isDark) MaterialTheme.colorScheme.primary else Color.White,
+                                                tint = SteelBlue,
                                                 modifier = Modifier.size(15.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
@@ -850,12 +951,12 @@ fun PropertyDetailScreen(
                                                     text = hostInfo.phone,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (isDark) MaterialTheme.colorScheme.onSurface else Color.White
+                                                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                                                 )
                                                 Text(
                                                     text = hostInfo.contactChannel,
                                                     fontSize = 10.5.sp,
-                                                    color = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.White.copy(alpha = 0.85f)
+                                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
                                                 )
                                             }
                                         }
@@ -898,17 +999,6 @@ fun PropertyDetailScreen(
                             }
                         }
                     }
-                }
-            }
-
-            // 7. Rent & Utility Cost Break-up (Positioned at the bottom)
-            item {
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                    RentCostBreakdownPanel(
-                        breakdown = costBreakdown,
-                        isDark = isDark,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
         }
@@ -1369,7 +1459,76 @@ fun PropertyDetailScreen(
                         context.startActivity(Intent.createChooser(sendIntent, "Share Listing"))
                     }
                 ) {
-                    Text("Share...", fontSize = 11.5.sp)
+                    Text("Share", fontSize = 11.5.sp)
+                }
+            }
+        )
+    }
+
+    // Rent & Deposit Cost Breakup Modal Sheet
+    if (showCostBreakdown) {
+        ModalBottomSheet(
+            onDismissRequest = { showCostBreakdown = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Rent & Fee Cost Breakup",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = prop.title,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(onClick = { showCostBreakdown = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                RentCostBreakdownPanel(
+                    breakdown = costBreakdown,
+                    isDark = isDark,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+            }
+        }
+    }
+
+    if (showComparisonMatrix) {
+        ComparisonMatrixSheet(
+            properties = comparedProperties,
+            imagesMap = propertyImagesMap,
+            onDismiss = { showComparisonMatrix = false },
+            onRemoveProperty = { propertyId -> viewModel.removeFromCompare(propertyId) },
+            onClearAll = {
+                viewModel.clearCompare()
+                showComparisonMatrix = false
+            },
+            onNavigateToDetail = { id ->
+                showComparisonMatrix = false
+                if (id != prop.id) {
+                    onNavigateToProperty(id)
                 }
             }
         )
@@ -1378,13 +1537,24 @@ fun PropertyDetailScreen(
 
 @Composable
 private fun SpecColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
-    val contentColor = androidx.compose.material3.LocalContentColor.current
-    val isWhite = contentColor == Color.White
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, contentDescription = null, tint = if (isWhite) Color.White else MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = SteelBlue, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.height(4.dp))
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = contentColor, maxLines = 1, softWrap = false)
-        Text(label, fontSize = 10.sp, color = if (isWhite) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+        Text(
+            text = value,
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.5.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            softWrap = true
+        )
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            softWrap = true
+        )
     }
 }
 
@@ -1396,8 +1566,6 @@ private fun LivingSpecRow(
     modifier: Modifier = Modifier
 ) {
     if (value.isNullOrBlank()) return
-    val contentColor = androidx.compose.material3.LocalContentColor.current
-    val isWhite = contentColor == Color.White
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1407,7 +1575,7 @@ private fun LivingSpecRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (isWhite) Color.White else MaterialTheme.colorScheme.primary,
+            tint = SteelBlue,
             modifier = Modifier
                 .padding(top = 2.dp)
                 .size(15.dp)
@@ -1418,13 +1586,13 @@ private fun LivingSpecRow(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isWhite) Color.White else MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = value,
                 fontSize = 11.5.sp,
                 lineHeight = 16.sp,
-                color = if (isWhite) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

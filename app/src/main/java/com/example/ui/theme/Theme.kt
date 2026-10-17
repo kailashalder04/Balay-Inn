@@ -1,5 +1,6 @@
 package com.example.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -8,58 +9,62 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = SteelBlueDarkPrimary,
-    onPrimary = Color(0xFF0B1E30),
-    primaryContainer = Color(0xFF204568),
-    onPrimaryContainer = Color(0xFFDCE8F5),
-    secondary = AmberSecondary,
-    onSecondary = Color.Black,
-    secondaryContainer = Color(0xFF452600),
-    onSecondaryContainer = AmberContainer,
-    tertiary = SageDark,
-    onTertiary = Color(0xFF0F241A),
-    tertiaryContainer = SageDarkContainer,
-    onTertiaryContainer = OnSageDarkContainer,
-    background = DarkBackground,
-    surface = DarkSurface,
-    onBackground = DarkTextPrimary,
-    onSurface = DarkTextPrimary,
-    surfaceVariant = DarkSurfaceElevated,
-    onSurfaceVariant = DarkTextSecondary,
-    outline = Color(0xFF2E3E53),
-    outlineVariant = Color(0xFF1E2D44)
+    primary = Color(0xFF7AA5D6), // Vibrant light Steel Blue for dark theme
+    onPrimary = Color(0xFF0F1B2B),
+    primaryContainer = Color(0xFF29496C),
+    onPrimaryContainer = Color(0xFFE1EDF8),
+    secondary = AmberLight,
+    onSecondary = Color(0xFF0F1B2B),
+    secondaryContainer = Color(0xFF52330B),
+    onSecondaryContainer = Color(0xFFFDE68A),
+    tertiary = EmeraldLight,
+    onTertiary = Color(0xFF0F1B2B),
+    tertiaryContainer = Color(0xFF064E3B),
+    onTertiaryContainer = Color(0xFFA7F3D0),
+    background = SlateBackgroundDark,
+    onBackground = TextPrimaryDark,
+    surface = SlateSurfaceDark,
+    onSurface = TextPrimaryDark,
+    surfaceVariant = SlateSurfaceVariantDark,
+    onSurfaceVariant = TextSecondaryDark,
+    outline = Color(0xFF3D5878),
+    outlineVariant = Color(0xFF253B54)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = SteelBlue, // #4682B4
+    primary = SteelBluePrimary, // #4579AC
     onPrimary = Color.White,
-    primaryContainer = SteelBlueContainer,
-    onPrimaryContainer = OnSteelBlueContainer,
+    primaryContainer = Color(0xFFEDF4FA),
+    onPrimaryContainer = Color(0xFF18334E),
     secondary = AmberSecondary,
     onSecondary = Color.White,
-    secondaryContainer = AmberContainer,
-    onSecondaryContainer = OnAmberContainer,
-    tertiary = ForestSage,
+    secondaryContainer = Color(0xFFFEF3C7),
+    onSecondaryContainer = Color(0xFF92400E),
+    tertiary = EmeraldTertiary,
     onTertiary = Color.White,
-    tertiaryContainer = SageContainer,
-    onTertiaryContainer = OnSageContainer,
-    background = SurfaceBackground,
-    surface = SurfaceCard,
-    onBackground = TextPrimary,
-    onSurface = TextPrimary,
-    surfaceVariant = Color(0xFFE9F1F7),
-    onSurfaceVariant = TextSecondary,
-    outline = DividerBorder
+    tertiaryContainer = Color(0xFFD1FAE5),
+    onTertiaryContainer = Color(0xFF065F46),
+    background = SlateBackgroundLight,
+    onBackground = TextPrimaryLight,
+    surface = SlateSurfaceLight,
+    onSurface = TextPrimaryLight,
+    surfaceVariant = SlateSurfaceVariantLight,
+    onSurfaceVariant = TextSecondaryLight,
+    outline = Color(0xFFB8C9DC),
+    outlineVariant = Color(0xFFDFE7F2)
 )
 
 @Composable
-fun MyApplicationTheme(
+fun StayNestTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Keep branded Balay-Inn palette consistent
+    dynamicColor: Boolean = false, // Keep consistent branding colors
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -71,6 +76,14 @@ fun MyApplicationTheme(
         else -> LightColorScheme
     }
 
+    val view = LocalView.current
+    if (!view.isInEditMode && view.context is Activity) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
+    }
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
@@ -78,19 +91,16 @@ fun MyApplicationTheme(
     )
 }
 
-/**
- * Material3 ColorScheme extensions for Muted Sage and Soft Forest Green highlights.
- * Reduces eye strain across both Light and Dark modes.
- */
-val androidx.compose.material3.ColorScheme.sage: Color
-    get() = if (this.surface == DarkSurface) SageDark else ForestSage
+@Composable
+fun RentalFinderTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit
+) = StayNestTheme(darkTheme, dynamicColor, content)
 
-val androidx.compose.material3.ColorScheme.sageContainer: Color
-    get() = if (this.surface == DarkSurface) SageDarkContainer else SageContainer
-
-val androidx.compose.material3.ColorScheme.onSageContainer: Color
-    get() = if (this.surface == DarkSurface) OnSageDarkContainer else OnSageContainer
-
-val androidx.compose.material3.ColorScheme.sageBorder: Color
-    get() = if (this.surface == DarkSurface) SageDarkBorder else SageBorder
-
+@Composable
+fun MyApplicationTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit
+) = StayNestTheme(darkTheme, dynamicColor, content)

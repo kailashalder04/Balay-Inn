@@ -1,6 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,6 +72,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,8 +81,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.ui.components.CascadingLocationSelector
+import com.example.ui.components.ComparisonMatrixSheet
 import com.example.ui.components.InteractiveRentalMap
 import com.example.ui.components.PropertyCard
+import com.example.ui.theme.SteelBlue
 import com.example.ui.viewmodel.MarketplaceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,11 +95,14 @@ fun ExploreScreen(
     onNavigateToChat: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val isDark by viewModel.isDarkMode.collectAsState()
     val properties by viewModel.properties.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
     val savedProperties by viewModel.savedProperties.collectAsState()
     val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
+    val comparedProperties by viewModel.comparedProperties.collectAsState()
+    val comparedPropertyIds = remember(comparedProperties) { comparedProperties.map { it.id }.toSet() }
 
     val countries by viewModel.countries.collectAsState()
     val allProvinces by viewModel.allProvinces.collectAsState()
@@ -98,6 +110,7 @@ fun ExploreScreen(
     val allBarangays by viewModel.allBarangays.collectAsState()
 
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showComparisonMatrix by remember { mutableStateOf(false) }
     var focusedPropertyId by remember { mutableStateOf<String?>(null) }
 
     val savedIds = remember(savedProperties) {
@@ -206,7 +219,9 @@ fun ExploreScreen(
                             filterState.authorizedPosterOnly ||
                             filterState.verifiedOnly ||
                             filterState.minRent > 0 ||
-                            filterState.maxRent < 100000
+                            filterState.maxRent < 100000 ||
+                            filterState.leaseDurationFilter != "All" ||
+                            filterState.moveInDateFilter != "All"
 
                     Box(
                         modifier = Modifier
@@ -449,6 +464,22 @@ fun ExploreScreen(
                         )
                     }
 
+                    // Flexible Lease Duration chip
+                    if (filterState.leaseDurationFilter != "All") {
+                        FilterBadge(
+                            label = "Lease: ${filterState.leaseDurationFilter}",
+                            onRemove = { viewModel.updateLeaseDuration("All") }
+                        )
+                    }
+
+                    // Move-in Date filter chip
+                    if (filterState.moveInDateFilter != "All") {
+                        FilterBadge(
+                            label = "Move-in: ${filterState.moveInDateFilter}",
+                            onRemove = { viewModel.updateMoveInDate("All") }
+                        )
+                    }
+
                     // Sort By chip
                     if (filterState.sortBy != "NEWEST") {
                         val sortLabel = when (filterState.sortBy) {
@@ -475,7 +506,9 @@ fun ExploreScreen(
                         filterState.minAvailableBeds > 0 ||
                         filterState.sortBy != "NEWEST" ||
                         filterState.minRent > 0 ||
-                        filterState.maxRent < 100000
+                        filterState.maxRent < 100000 ||
+                        filterState.leaseDurationFilter != "All" ||
+                        filterState.moveInDateFilter != "All"
 
                     if (hasActiveFilters) {
                         Text(
@@ -621,6 +654,8 @@ fun ExploreScreen(
                                         imageUrls = propertyImagesMap[property.id] ?: emptyList(),
                                         isSaved = isSaved,
                                         onSaveToggle = { viewModel.toggleSave(property.id) },
+                                        isCompared = comparedPropertyIds.contains(property.id),
+                                        onCompareToggle = { viewModel.toggleCompare(property) },
                                         onClick = { onNavigateToPropertyDetail(property.id) },
                                         onViewOnMap = {
                                             focusedPropertyId = property.id
@@ -750,6 +785,8 @@ fun ExploreScreen(
                                     imageUrls = propertyImagesMap[property.id] ?: emptyList(),
                                     isSaved = isSaved,
                                     onSaveToggle = { viewModel.toggleSave(property.id) },
+                                    isCompared = comparedPropertyIds.contains(property.id),
+                                    onCompareToggle = { viewModel.toggleCompare(property) },
                                     onClick = { onNavigateToPropertyDetail(property.id) },
                                     onViewOnMap = {
                                         focusedPropertyId = property.id
@@ -768,7 +805,114 @@ fun ExploreScreen(
                     }
                 }
             }
+
+            // Floating Comparison Bottom Bar inside Box
+            androidx.compose.animation.AnimatedVisibility(
+                visible = comparedProperties.isNotEmpty(),
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 75.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isDark) Color(0xFF1E293B) else Color(0xFF0F2B48),
+                    shadowElevation = 8.dp,
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFF3B82F6).copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("floating_compare_bar")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .background(Color(0xFF3B82F6), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.CompareArrows,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "${comparedProperties.size} Selected for Comparison",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = if (comparedProperties.size >= 2) "Ready for side-by-side matrix" else "Select at least 2 to compare",
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(
+                                onClick = { viewModel.clearCompare() },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("Clear", color = Color(0xFFFCA5A5), fontSize = 12.sp)
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            Button(
+                                onClick = { showComparisonMatrix = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF2563EB),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("launch_compare_matrix_button")
+                            ) {
+                                Text("Compare", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    // Side-by-Side Comparison Matrix Bottom Sheet
+    if (showComparisonMatrix) {
+        ComparisonMatrixSheet(
+            properties = comparedProperties,
+            imagesMap = propertyImagesMap,
+            onDismiss = { showComparisonMatrix = false },
+            onRemoveProperty = { propertyId -> viewModel.removeFromCompare(propertyId) },
+            onClearAll = {
+                viewModel.clearCompare()
+                showComparisonMatrix = false
+            },
+            onNavigateToDetail = { id ->
+                showComparisonMatrix = false
+                onNavigateToPropertyDetail(id)
+            }
+        )
     }
 
     // Comprehensive Filter Modal Bottom Sheet
@@ -1183,7 +1327,83 @@ fun ExploreScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Section 8: Sort Order
+                // Section 8: Flexible Lease Duration
+                Text(
+                    text = "Flexible Lease Duration",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Find short stays, academic semester terms, or long-term annual rentals",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val leaseOptions = listOf(
+                        "All" to "All Terms",
+                        "Flexible (1-3 mos)" to "⚡ Flexible (1-3 mos)",
+                        "Mid-term (4-6 mos)" to "📅 Mid-term (4-6 mos)",
+                        "Academic / Semester" to "🎓 Academic / Semester",
+                        "Annual (12+ mos)" to "🏠 Annual (12+ mos)"
+                    )
+                    leaseOptions.forEach { (key, label) ->
+                        FilterChip(
+                            selected = filterState.leaseDurationFilter == key,
+                            onClick = { viewModel.updateLeaseDuration(key) },
+                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 9: Move-In Date & Availability Window
+                Text(
+                    text = "Move-In Date & Availability",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Filter properties ready for immediate occupancy or upcoming move-in dates",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val moveInOptions = listOf(
+                        "All" to "Any Move-in Date",
+                        "Immediate / Today" to "⚡ Immediate / Ready Today",
+                        "Within 7 Days" to "📦 Within 7 Days",
+                        "Within 15 Days" to "🗓️ Within 15 Days",
+                        "Within 30 Days" to "🗓️ Within 30 Days"
+                    )
+                    moveInOptions.forEach { (key, label) ->
+                        FilterChip(
+                            selected = filterState.moveInDateFilter == key,
+                            onClick = { viewModel.updateMoveInDate(key) },
+                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Section 10: Sort Order
                 Text(
                     text = "Sort By",
                     style = MaterialTheme.typography.titleSmall,

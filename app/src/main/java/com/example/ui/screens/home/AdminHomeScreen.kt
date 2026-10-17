@@ -63,6 +63,7 @@ import com.example.ui.theme.BadgeBlue
 import com.example.ui.theme.BadgeBlueBg
 import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
+import com.example.ui.components.BalayInnLogoHeader
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -75,6 +76,7 @@ fun AdminHomeScreen(
     onNavigateToAdminPanel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark by viewModel.isDarkMode.collectAsState()
     val allUsers by viewModel.allUsers.collectAsState()
     val properties by viewModel.properties.collectAsState()
     val allReports by viewModel.allReports.collectAsState()
@@ -93,6 +95,14 @@ fun AdminHomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
     ) {
+        // 0. Balay-Inn Brand Logo Header
+        item {
+            BalayInnLogoHeader(
+                isDark = isDark,
+                onToggleDarkMode = { viewModel.toggleDarkMode() }
+            )
+        }
+
         // 1. Operations Header Card
         item {
             Card(
@@ -126,13 +136,13 @@ fun AdminHomeScreen(
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFEFF6FF)
+                            color = if (isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF)
                         ) {
                             Text(
                                 text = "Central Visayas Live",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2563EB),
+                                color = if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 maxLines = 1,
                                 softWrap = false
@@ -154,6 +164,15 @@ fun AdminHomeScreen(
                         text = "Real-time compliance monitoring, user verification queue, and scam-prevention audit logs.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Persona Switcher
+                    QuickPersonaSwitcherRow(
+                        viewModel = viewModel,
+                        currentUser = currentUser,
+                        isDark = isDark
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))

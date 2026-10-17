@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -97,10 +98,10 @@ fun NearbyDestinationSection(
 
     if (allDestinations.isEmpty()) return
 
-    val isDark = isSystemInDarkTheme()
-    val exploreTeal = if (isDark) MaterialTheme.colorScheme.primary else Color.White
-    val dividerColor = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color.White.copy(alpha = 0.35f)
-    val dimTextColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color.White.copy(alpha = 0.85f)
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val exploreTeal = if (isDark) MaterialTheme.colorScheme.primary else SteelBlue
+    val dividerColor = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
+    val dimTextColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
 
     val groups = remember { DestinationGroup.entries.toList() }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { groups.size })
@@ -113,9 +114,9 @@ fun NearbyDestinationSection(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
-            contentColor = if (isDark) Color(0xFFF8FAFC) else Color.White
+            contentColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
         ),
-        border = BorderStroke(1.dp, SteelBlue)
+        border = BorderStroke(1.dp, if (isDark) SteelBlue else Color(0xFFCBD5E1))
     ) {
         Column(
             modifier = Modifier

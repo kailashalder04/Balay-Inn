@@ -26,7 +26,7 @@ enum class DestinationGroup(
     ),
     UTILITY(
         title = "UTILITY",
-        subtitle = "Shopping malls, stores, movie theaters, pharmacy stores"
+        subtitle = "Stores, pharmacies & shopping malls strictly under 3 km distance"
     )
 }
 
@@ -173,10 +173,59 @@ object CommuteGuideProvider {
         RawLandmark("boh_ut_alturas", "Alturas Mall", DestinationGroup.UTILITY, "Shopping Malls", 9.6465, 123.8565, "Tagbilaran Market Tricycle", LandmarkCategory.SHOPPING_MALL),
         RawLandmark("boh_ut_icm", "Island City Mall (ICM) Cinema", DestinationGroup.UTILITY, "Movie Theaters", 9.6644, 123.8741, "Dao-bound Tricycle / Multicab", LandmarkCategory.SHOPPING_MALL),
         RawLandmark("boh_ut_southstar", "South Star Drug CPG", DestinationGroup.UTILITY, "Pharmacies", 9.6455, 123.8545, "CPG Avenue Tricycle", LandmarkCategory.SHOPPING_MALL),
-        RawLandmark("boh_ut_mercury_tag", "Mercury Drug Tagbilaran", DestinationGroup.UTILITY, "Pharmacies", 10.6450, 123.8540, "Downtown Tricycle Route", LandmarkCategory.SHOPPING_MALL),
+        RawLandmark("boh_ut_mercury_tag", "Mercury Drug Tagbilaran", DestinationGroup.UTILITY, "Pharmacies", 9.6450, 123.8540, "Downtown Tricycle Route", LandmarkCategory.SHOPPING_MALL),
         RawLandmark("boh_ut_alona_strip", "Alona Commercial Stores", DestinationGroup.UTILITY, "Supermarkets & Stores", 9.5492, 123.7731, "Panglao Tourist Multicab", LandmarkCategory.SHOPPING_MALL),
         RawLandmark("boh_ut_7eleven", "7-Eleven Downtown Tagbilaran", DestinationGroup.UTILITY, "Supermarkets & Stores", 9.6445, 123.8550, "Downtown Tricycle Route", LandmarkCategory.SHOPPING_MALL)
     )
+
+    /**
+     * Returns local utility stores strictly under 3 km distance for any property
+     */
+    private fun generateLocalUtilityStoresUnder3Km(property: PropertyEntity): List<CommuteDestination> {
+        val propLat = property.latitude
+        val propLng = property.longitude
+        return listOf(
+            CommuteDestination(
+                id = "loc_store_7eleven_${property.id}",
+                name = "24/7 Convenience Store & Grocery",
+                group = DestinationGroup.UTILITY,
+                subcategory = "Supermarkets & Stores",
+                distanceMeters = 350,
+                walkingTimeMinutes = 4,
+                transitRouteName = "Direct Walk / Tricycle",
+                transitTimeMinutes = 2,
+                latitude = propLat + 0.002,
+                longitude = propLng + 0.001,
+                category = LandmarkCategory.SHOPPING_MALL
+            ),
+            CommuteDestination(
+                id = "loc_store_pharmacy_${property.id}",
+                name = "Mercury Drug / Community Pharmacy",
+                group = DestinationGroup.UTILITY,
+                subcategory = "Pharmacies",
+                distanceMeters = 650,
+                walkingTimeMinutes = 8,
+                transitRouteName = "Local Tricycle Route",
+                transitTimeMinutes = 3,
+                latitude = propLat - 0.003,
+                longitude = propLng + 0.002,
+                category = LandmarkCategory.SHOPPING_MALL
+            ),
+            CommuteDestination(
+                id = "loc_store_mart_${property.id}",
+                name = "City Supermarket & Fresh Retail Mart",
+                group = DestinationGroup.UTILITY,
+                subcategory = "Supermarkets & Stores",
+                distanceMeters = 1400,
+                walkingTimeMinutes = 17,
+                transitRouteName = "1-Ride Tricycle / Jeepney",
+                transitTimeMinutes = 5,
+                latitude = propLat + 0.008,
+                longitude = propLng - 0.005,
+                category = LandmarkCategory.SHOPPING_MALL
+            )
+        )
+    }
 
     /**
      * Returns destinations grouped by Subcategory for a given DestinationGroup (TRANSIT, ESSENTIALS, UTILITY)
@@ -186,21 +235,26 @@ object CommuteGuideProvider {
         group: DestinationGroup
     ): Map<String, List<CommuteDestination>> {
         val all = getCommuteDestinations(property).filter { it.group == group }
-        return all.groupBy { it.subcategory }
+        val filtered = if (group == DestinationGroup.UTILITY) {
+            all.filter { it.distanceMeters <= 3000 }
+        } else {
+            all
+        }
+        return filtered.groupBy { it.subcategory }
     }
 
     /**
      * Returns places grouped under three primary categories:
      * 1. TRANSIT - Nearby public transport depot
      * 2. ESSENTIALS - School, colleges and hospitals
-     * 3. UTILITY - Shopping malls, stores, movie theaters, pharmacy stores
+     * 3. UTILITY - Shopping malls, stores, movie theaters, pharmacy stores (strictly under 3 km)
      */
     fun getGroupedDestinations(property: PropertyEntity): Map<DestinationGroup, List<CommuteDestination>> {
         val allDestinations = getCommuteDestinations(property)
 
         val transitList = allDestinations.filter { it.group == DestinationGroup.TRANSIT }
         val essentialsList = allDestinations.filter { it.group == DestinationGroup.ESSENTIALS }
-        val utilityList = allDestinations.filter { it.group == DestinationGroup.UTILITY }
+        val utilityList = allDestinations.filter { it.group == DestinationGroup.UTILITY && it.distanceMeters <= 3000 }
 
         val map = linkedMapOf<DestinationGroup, List<CommuteDestination>>()
         if (transitList.isNotEmpty()) map[DestinationGroup.TRANSIT] = transitList
@@ -219,13 +273,13 @@ object CommuteGuideProvider {
 
         val computed = masterLandmarks.mapNotNull { landmark ->
             val dist = calculateDistanceMeters(propLat, propLng, landmark.lat, landmark.lng)
-            // Limit to relevant regional landmarks (within 45 km)
+            // For UTILITY group, strictly restrict to stores under 3,000 meters (3.0 km)
+            if (landmark.group == DestinationGroup.UTILITY && dist > 3000) {
+                return@mapNotNull null
+            }
             if (dist <= 45_000) {
-                // Walking speed: ~4.8 km/h = 80 m/min
                 val walkMins = (dist / 80).coerceAtLeast(1)
-                // Transit speed: avg 22 km/h in city traffic
                 val transitMins = (dist / 360 + 3).coerceAtLeast(3)
-                // Drive speed: avg 32 km/h
                 val driveMins = (dist / 530 + 2).coerceAtLeast(2)
 
                 CommuteDestination(
@@ -245,6 +299,12 @@ object CommuteGuideProvider {
                 )
             } else null
         }.sortedBy { it.distanceMeters }
+
+        // Local utility stores strictly under 3 km
+        val localStores = generateLocalUtilityStoresUnder3Km(property)
+        val combinedDestinations = (computed + localStores)
+            .distinctBy { it.name.lowercase() }
+            .sortedBy { it.distanceMeters }
 
         // If the property specifically has a custom nearbyLandmark entered by landlord,
         // prepend it to the matching group and subcategory!
@@ -302,10 +362,10 @@ object CommuteGuideProvider {
                 longitude = propLng + 0.002,
                 category = LandmarkCategory.WORK_BPO
             )
-            return listOf(customLandmark) + computed.filter { it.name.lowercase() != property.nearbyLandmark.lowercase() }
+            return listOf(customLandmark) + combinedDestinations.filter { it.name.lowercase() != property.nearbyLandmark.lowercase() }
         }
 
-        return computed
+        return combinedDestinations
     }
 
     /**

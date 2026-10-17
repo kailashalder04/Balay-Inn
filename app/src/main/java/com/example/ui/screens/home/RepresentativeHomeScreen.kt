@@ -61,12 +61,15 @@ import com.example.ui.theme.BadgeBlue
 import com.example.ui.theme.BadgeBlueBg
 import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
+import com.example.ui.theme.SoftGreenDark
+import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueLightBg
 import com.example.ui.components.VerifiedIcon
 import com.example.ui.components.VerifiedPillBadge
 import com.example.ui.components.isPlatformVerified
 import com.example.ui.viewmodel.MarketplaceViewModel
+import com.example.ui.components.BalayInnLogoHeader
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -79,6 +82,7 @@ fun RepresentativeHomeScreen(
     onNavigateToVerificationCenter: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark by viewModel.isDarkMode.collectAsState()
     // Only assigned properties where posterId == currentUser.id
     val managedProperties by viewModel.managedProperties.collectAsState()
     val userViewings by viewModel.userViewings.collectAsState()
@@ -98,6 +102,14 @@ fun RepresentativeHomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
     ) {
+        // 0. Balay-Inn Brand Logo Header
+        item {
+            BalayInnLogoHeader(
+                isDark = isDark,
+                onToggleDarkMode = { viewModel.toggleDarkMode() }
+            )
+        }
+
         // 1. Representative Authority Banner
         item {
             Card(
@@ -116,13 +128,13 @@ fun RepresentativeHomeScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = BadgeBlueBg
+                            color = if (isDark) Color(0xFF1E3A8A) else BadgeBlueBg
                         ) {
                             Text(
                                 text = "AUTHORIZED REPRESENTATIVE HUB",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = BadgeBlue,
+                                color = if (isDark) Color(0xFF60A5FA) else BadgeBlue,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 maxLines = 1,
                                 softWrap = false
@@ -131,13 +143,21 @@ fun RepresentativeHomeScreen(
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (currentUser.isAuthorizedByOwner) BadgeGreenBg else BadgeAmberBg
+                            color = if (currentUser.isAuthorizedByOwner) {
+                                if (isDark) SoftGreenDarkBg else BadgeGreenBg
+                            } else {
+                                if (isDark) Color(0xFF451A03) else BadgeAmberBg
+                            }
                         ) {
                             Text(
                                 text = if (currentUser.isAuthorizedByOwner) "✓ Owner Authorized" else "Authorization Pending",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (currentUser.isAuthorizedByOwner) BadgeGreen else BadgeAmber,
+                                color = if (currentUser.isAuthorizedByOwner) {
+                                    if (isDark) SoftGreenDark else BadgeGreen
+                                } else {
+                                    if (isDark) Color(0xFFFBBF24) else BadgeAmber
+                                },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 maxLines = 1,
                                 softWrap = false
@@ -175,6 +195,13 @@ fun RepresentativeHomeScreen(
                             softWrap = false
                         )
                     }
+
+                    // Persona Switcher
+                    QuickPersonaSwitcherRow(
+                        viewModel = viewModel,
+                        currentUser = currentUser,
+                        isDark = isDark
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 

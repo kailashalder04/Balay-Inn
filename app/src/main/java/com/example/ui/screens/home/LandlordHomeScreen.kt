@@ -3,6 +3,7 @@ package com.example.ui.screens.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +67,7 @@ import com.example.ui.theme.BadgeGreenBg
 import com.example.ui.theme.SoftGreenDark
 import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.theme.SteelBlueDarkBg
-import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.components.BalayInnLogoHeader
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -80,6 +81,7 @@ fun LandlordHomeScreen(
     onNavigateToVerificationCenter: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark by viewModel.isDarkMode.collectAsState()
     val managedProperties by viewModel.managedProperties.collectAsState()
     val userViewings by viewModel.userViewings.collectAsState()
     val conversations by viewModel.conversations.collectAsState()
@@ -99,6 +101,14 @@ fun LandlordHomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
     ) {
+        // 0. Balay-Inn Brand Logo Header
+        item {
+            BalayInnLogoHeader(
+                isDark = isDark,
+                onToggleDarkMode = { viewModel.toggleDarkMode() }
+            )
+        }
+
         // 1. Business Overview Header Card
         item {
             Card(
@@ -115,7 +125,7 @@ fun LandlordHomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
@@ -162,6 +172,13 @@ fun LandlordHomeScreen(
                         }
                     }
 
+                    // Persona Switcher
+                    QuickPersonaSwitcherRow(
+                        viewModel = viewModel,
+                        currentUser = currentUser,
+                        isDark = isDark
+                    )
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Listing status breakdown
@@ -172,22 +189,22 @@ fun LandlordHomeScreen(
                         StatusKpiCard(
                             label = "Active",
                             count = "${activeListings.size}",
-                            color = BadgeGreen,
-                            bg = BadgeGreenBg,
+                            color = if (isDark) SoftGreenDark else BadgeGreen,
+                            bg = if (isDark) SoftGreenDarkBg else BadgeGreenBg,
                             modifier = Modifier.weight(1f)
                         )
                         StatusKpiCard(
                             label = "Pending",
                             count = "${pendingListings.size}",
-                            color = BadgeAmber,
-                            bg = BadgeAmberBg,
+                            color = if (isDark) Color(0xFFFBBF24) else BadgeAmber,
+                            bg = if (isDark) Color(0xFF451A03) else BadgeAmberBg,
                             modifier = Modifier.weight(1f)
                         )
                         StatusKpiCard(
                             label = "Rented",
                             count = "${rentedListings.size}",
-                            color = Color(0xFF2563EB),
-                            bg = Color(0xFFEFF6FF),
+                            color = if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB),
+                            bg = if (isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -634,15 +651,16 @@ private fun LandlordPropertyManagementCard(
 ) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val isActive = property.status == "ACTIVE"
-    val isDark = isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isDark) SteelBlueDarkBg else SteelBlueLightBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(

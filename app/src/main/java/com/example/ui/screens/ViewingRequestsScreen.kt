@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -304,7 +305,7 @@ fun ViewingCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val isDark = isSystemInDarkTheme()
+                val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = when (viewing.status) {

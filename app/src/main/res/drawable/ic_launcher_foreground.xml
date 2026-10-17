@@ -4,34 +4,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Roof with modern overhang and chimney -->
+    <!-- Roof and House body -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M54,28 L30,48 L36,48 L36,78 L72,78 L72,48 L78,48 Z" />
+    <!-- Doorway with warm ambient glow -->
     <path
         android:fillColor="#FBBF24"
-        android:pathData="M54,26 L26,50 L31,54 L54,34 L77,54 L82,50 Z" />
-    <path
-        android:fillColor="#F59E0B"
-        android:pathData="M68,34 L74,34 L74,44 L68,39 Z" />
-
-    <!-- House Body -->
+        android:pathData="M48,58 L60,58 L60,78 L48,78 Z" />
+    <!-- Window with cozy light -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M33,52 L33,78 C33,80.2 34.8,82 37,82 L71,82 C73.2,82 75,80.2 75,78 L75,52 L54,34 Z" />
-
-    <!-- Arched Modern Doorway -->
-    <path
-        android:fillColor="#004D40"
-        android:pathData="M48,82 L48,64 C48,60.7 50.7,58 54,58 C57.3,58 60,60.7 60,64 L60,82 Z" />
-
-    <!-- Warm Window / Key Emblem -->
-    <path
-        android:fillColor="#0D9488"
-        android:pathData="M40,54 L46,54 L46,60 L40,60 Z" />
-    <path
-        android:fillColor="#0D9488"
-        android:pathData="M62,54 L68,54 L68,60 L62,60 Z" />
-
-    <!-- Little Golden Keyhole Dot -->
-    <path
-        android:fillColor="#FBBF24"
-        android:pathData="M57.5,70 A1.5,1.5 0 1,0 57.5,70.01" />
+        android:pathData="M50,42 L58,42 L58,50 L50,50 Z" />
 </vector>

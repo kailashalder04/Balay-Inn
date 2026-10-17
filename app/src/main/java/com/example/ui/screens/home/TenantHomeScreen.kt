@@ -1,21 +1,14 @@
 package com.example.ui.screens.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -23,34 +16,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -59,19 +30,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.local.entity.UserEntity
+import com.example.ui.components.BalayInnLogoHeader
+import com.example.ui.components.ComparisonMatrixSheet
 import com.example.ui.components.PropertyCard
-import com.example.ui.theme.BadgeAmber
-import com.example.ui.theme.BadgeAmberBg
-import com.example.ui.theme.BadgeGreen
-import com.example.ui.theme.BadgeGreenBg
-import com.example.ui.theme.SteelBlue
-import com.example.ui.theme.SteelBlueDarkBg
-import com.example.ui.theme.SteelBlueLightBg
-import com.example.ui.theme.SteelBlueText
-import com.example.ui.theme.PropertyBoxBg
 import com.example.ui.components.VerifiedIcon
 import com.example.ui.components.VerifiedPillBadge
 import com.example.ui.components.isPlatformVerified
+import com.example.ui.theme.*
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -85,168 +50,228 @@ fun TenantHomeScreen(
     onNavigateToVerificationCenter: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark by viewModel.isDarkMode.collectAsState()
     val properties by viewModel.properties.collectAsState()
     val savedProperties by viewModel.savedProperties.collectAsState()
-    val savedSearches by viewModel.savedSearches.collectAsState()
     val recentlyViewed by viewModel.recentlyViewedProperties.collectAsState()
     val recommended by viewModel.recommendedProperties.collectAsState()
     val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
 
     val savedPropIds = savedProperties.map { it.propertyId }.toSet()
     val savedItems = properties.filter { it.id in savedPropIds }
+    val comparedProperties by viewModel.comparedProperties.collectAsState()
+    val comparedPropertyIds = remember(comparedProperties) { comparedProperties.map { it.id }.toSet() }
+    var showComparisonMatrix by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("tenant_home_screen"),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        // 1. Personalized Welcome & Discovery Hero
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("tenant_welcome_hero"),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-            ) {
-                Box(
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("tenant_home_screen"),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            // 0. Balay-Inn Brand Logo Header
+            item {
+                BalayInnLogoHeader(
+                    isDark = isDark,
+                    onToggleDarkMode = { viewModel.toggleDarkMode() }
+                )
+            }
+
+            // 1. Personalized Welcome & Discovery Hero
+            item {
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
+                        .testTag("tenant_welcome_hero"),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+                    ),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(44.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Mabuhay, ${currentUser.fullName}!",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color.White else Color(0xFF0F172A),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = SoftGreenBg,
+                                            border = BorderStroke(0.8.dp, SoftGreenBorder)
+                                        ) {
+                                            Text(
+                                                text = "Level ${currentUser.verificationLevel} Verified Renter",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = SoftGreenDark,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            IconButton(
+                                onClick = onNavigateToVerificationCenter,
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .background(
+                                        if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9),
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = "Verification Center",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
                                 )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Rent verified, budget-friendly rooms & dorms across Cebu, Bohol, and Bacolod with zero hidden fees.",
+                            fontSize = 12.5.sp,
+                            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569),
+                            lineHeight = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Quick Search Bar Shortcut Button
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToExplore() },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Search Tagbilaran, Panglao, Cebu City, IT Park...",
+                                    fontSize = 12.sp,
+                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                ) {
+                                    Text(
+                                        text = "Explore",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Demo Persona Switcher
+                        QuickPersonaSwitcherRow(
+                            viewModel = viewModel,
+                            currentUser = currentUser,
+                            isDark = isDark
+                        )
+                    }
+                }
+            }
+
+            // 2. Recently Viewed Properties
+            if (recentlyViewed.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Recently Viewed",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color(0xFF0F172A),
+                                maxLines = 1,
+                                softWrap = false
                             )
-                        )
-                        .padding(20.dp)
-                ) {
-                    Column {
+                        }
                         Text(
-                            text = "Mabuhay, ${currentUser.fullName}!",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = "Rent verified, budget-friendly rooms and boarding houses across Cebu, Bohol, and Bacolod. Safe, honest rates, zero hassle!",
-                            fontSize = 13.sp,
-                            color = Color.White.copy(alpha = 0.95f),
-                            lineHeight = 19.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        // 2. Search Bar (Positioned below Welcome Panel and above Saved Search Alerts)
-        item {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToExplore() }
-                    .testTag("home_search_bar"),
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                shadowElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Search boarding houses, bed spaces, studios...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                    ) {
-                        Text(
-                            text = "Search",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 3. Saved Search Summary
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToExplore() },
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
-                border = CardDefaults.outlinedCardBorder()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Bookmark, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Your Saved Search Alerts",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                        Text(
-                            text = if (savedSearches.isNotEmpty()) "${savedSearches.size} active alert(s) for Cebu, Bohol & Bacolod City" else "Instant notifications for new properties matching your budget",
-                            fontSize = 11.sp,
+                            text = "${recentlyViewed.size} items",
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis
+                            softWrap = false
                         )
                     }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                }
+
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(recentlyViewed, key = { "recent_${it.id}" }) { prop ->
+                            RecentPropertyMiniCard(
+                                property = prop,
+                                locationDisplay = viewModel.getLocationDisplay(prop),
+                                onClick = {
+                                    viewModel.recordPropertyView(prop.id)
+                                    onNavigateToPropertyDetail(prop.id)
+                                },
+                                isDark = isDark
+                            )
+                        }
+                    }
                 }
             }
-        }
 
-        // 3. Recently Viewed Properties (Placed on top of Recommended)
-        if (recentlyViewed.isNotEmpty()) {
+            // 3. Recommended for You
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -255,121 +280,218 @@ fun TenantHomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BadgeGreen, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Recently Viewed",
+                            text = "Recommended for You",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color.White else Color(0xFF0F172A),
                             maxLines = 1,
                             softWrap = false
                         )
                     }
-                    Text(
-                        text = "${recentlyViewed.size} items",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-            }
-
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(recentlyViewed, key = { "recent_${it.id}" }) { prop ->
-                        RecentPropertyMiniCard(
-                            property = prop,
-                            locationDisplay = viewModel.getLocationDisplay(prop),
-                            onClick = {
-                                viewModel.recordPropertyView(prop.id)
-                                onNavigateToPropertyDetail(prop.id)
-                            }
-                        )
+                    TextButton(onClick = onNavigateToExplore) {
+                        Text("Explore All (${properties.size})", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
                 }
             }
-        }
 
-        // 4. Recommended for You
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BadgeGreen, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Recommended for You",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-                TextButton(onClick = onNavigateToExplore) {
-                    Text("Explore All (${properties.size})", fontSize = 12.sp, maxLines = 1, softWrap = false)
-                }
-            }
-        }
-
-        items(recommended.take(6), key = { "rec_${it.id}" }) { prop ->
-            PropertyCard(
-                property = prop,
-                locationDisplay = viewModel.getLocationDisplay(prop),
-                imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                isSaved = prop.id in savedPropIds,
-                onSaveToggle = { viewModel.toggleSave(prop.id) },
-                onClick = {
-                    viewModel.recordPropertyView(prop.id)
-                    onNavigateToPropertyDetail(prop.id)
-                },
-                onViewOnMap = onNavigateToExplore
-            )
-        }
-
-        // 8. Saved Properties Preview
-        if (savedItems.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFE11D48), modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Your Saved Properties",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                    Text("${savedItems.size} saved", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
-                }
-            }
-
-            items(savedItems.take(2), key = { "saved_home_${it.id}" }) { prop ->
+            items(recommended.take(6), key = { "rec_${it.id}" }) { prop ->
                 PropertyCard(
                     property = prop,
                     locationDisplay = viewModel.getLocationDisplay(prop),
-                    primaryImageUrl = null,
-                    isSaved = true,
+                    imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                    isSaved = prop.id in savedPropIds,
                     onSaveToggle = { viewModel.toggleSave(prop.id) },
+                    isCompared = prop.id in comparedPropertyIds,
+                    onCompareToggle = { viewModel.toggleCompare(prop) },
                     onClick = {
                         viewModel.recordPropertyView(prop.id)
                         onNavigateToPropertyDetail(prop.id)
                     },
                     onViewOnMap = onNavigateToExplore
                 )
+            }
+
+            // 4. Saved Properties Preview
+            if (savedItems.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFE11D48), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Your Saved Properties",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color(0xFF0F172A),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                        Text("${savedItems.size} saved", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                    }
+                }
+
+                items(savedItems.take(2), key = { "saved_home_${it.id}" }) { prop ->
+                    PropertyCard(
+                        property = prop,
+                        locationDisplay = viewModel.getLocationDisplay(prop),
+                        imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                        isSaved = true,
+                        onSaveToggle = { viewModel.toggleSave(prop.id) },
+                        isCompared = prop.id in comparedPropertyIds,
+                        onCompareToggle = { viewModel.toggleCompare(prop) },
+                        onClick = {
+                            viewModel.recordPropertyView(prop.id)
+                            onNavigateToPropertyDetail(prop.id)
+                        },
+                        onViewOnMap = onNavigateToExplore
+                    )
+                }
+            }
+        }
+
+        // Floating Comparison Bottom Bar
+        AnimatedVisibility(
+            visible = comparedProperties.isNotEmpty(),
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showComparisonMatrix = true }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CompareArrows, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Compare ${comparedProperties.size} Properties",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "Tap to view side-by-side rent & features",
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.White
+                    ) {
+                        Text(
+                            text = "Compare Now",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showComparisonMatrix) {
+        ComparisonMatrixSheet(
+            properties = comparedProperties,
+            imagesMap = propertyImagesMap,
+            onDismiss = { showComparisonMatrix = false },
+            onRemoveProperty = { propertyId -> viewModel.removeFromCompare(propertyId) },
+            onClearAll = {
+                viewModel.clearCompare()
+                showComparisonMatrix = false
+            },
+            onNavigateToDetail = { id ->
+                showComparisonMatrix = false
+                onNavigateToPropertyDetail(id)
+            }
+        )
+    }
+}
+
+@Composable
+fun QuickPersonaSwitcherRow(
+    viewModel: MarketplaceViewModel,
+    currentUser: UserEntity,
+    isDark: Boolean
+) {
+    val allUsers by viewModel.allUsers.collectAsState()
+
+    Column(modifier = Modifier.padding(top = 10.dp)) {
+        Text(
+            text = "DEMO PERSONA SWITCHER",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val personas = listOf(
+                Triple("usr_tenant_1", "Joshua (Tenant)", "TENANT"),
+                Triple("usr_owner_1", "Donato (Owner)", "PROPERTY_OWNER"),
+                Triple("usr_broker_marco", "Marco (Broker)", "REAL_ESTATE_BROKER"),
+                Triple("usr_caretaker_mark", "Mark (Caretaker)", "CARETAKER"),
+                Triple("usr_admin_1", "Admin (Compliance)", "ADMIN")
+            )
+
+            items(personas) { (id, label, roleStr) ->
+                val isSelected = currentUser.id == id || currentUser.role.contains(roleStr, ignoreCase = true)
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = when {
+                        isSelected -> MaterialTheme.colorScheme.primary
+                        isDark -> Color(0xFF0F172A)
+                        else -> Color(0xFFF1F5F9)
+                    },
+                    border = BorderStroke(
+                        1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary else if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+                    ),
+                    modifier = Modifier
+                        .clickable {
+                            val match = allUsers.find { it.id == id } ?: allUsers.find { it.role.contains(roleStr, ignoreCase = true) }
+                            if (match != null) {
+                                viewModel.switchUser(match)
+                            }
+                        }
+                        .testTag("persona_chip_$id")
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) Color.White else if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
             }
         }
     }
@@ -379,17 +501,18 @@ fun TenantHomeScreen(
 private fun RecentPropertyMiniCard(
     property: PropertyEntity,
     locationDisplay: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isDark: Boolean = false
 ) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     Card(
         modifier = Modifier
             .width(220.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        border = BorderStroke(1.dp, SteelBlue),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF1E293B) else Color.White),
+        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -399,21 +522,21 @@ private fun RecentPropertyMiniCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = PropertyBoxBg,
-                    border = BorderStroke(1.dp, SteelBlue.copy(alpha = 0.6f))
+                    color = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
                 ) {
                     Text(
                         text = property.propertyType,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = SteelBlueText,
+                        color = if (isDark) SteelBlueTextDark else SteelBlueText,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         maxLines = 1,
                         softWrap = false
                     )
                 }
                 if (property.isPlatformVerified()) {
-                    VerifiedPillBadge(isDark = false)
+                    VerifiedPillBadge(isDark = isDark)
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))
@@ -424,8 +547,8 @@ private fun RecentPropertyMiniCard(
                 Text(
                     text = property.title,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 12.5.sp,
+                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F172A),
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Ellipsis,
@@ -439,8 +562,8 @@ private fun RecentPropertyMiniCard(
             Spacer(modifier = Modifier.height(4.dp))
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = PropertyBoxBg,
-                border = BorderStroke(0.8.dp, SteelBlue.copy(alpha = 0.5f)),
+                color = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                border = BorderStroke(0.8.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
                 modifier = Modifier.padding(vertical = 2.dp)
             ) {
                 Row(
@@ -451,26 +574,26 @@ private fun RecentPropertyMiniCard(
                         Icons.Default.LocationOn,
                         contentDescription = null,
                         modifier = Modifier.size(11.dp),
-                        tint = SteelBlue
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = locationDisplay,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isDark) SteelBlueTextDark else SteelBlueText,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "${currencyFormat.format(property.monthlyRent).replace("PHP", "₱")} / mo",
                 fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                color = SteelBlue,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 softWrap = false
             )

@@ -89,7 +89,9 @@ data class MarketplaceFilterState(
     val genderRule: String = "all", // all, female_only, male_only
     val minAvailableBeds: Int = 0,
     val targetMarket: String = "All",
-    val utilityRuleFilter: String = "All"
+    val utilityRuleFilter: String = "All",
+    val leaseDurationFilter: String = "All", // All, Flexible (1-3 mos), Mid-term (4-6 mos), Annual (12+ mos)
+    val moveInDateFilter: String = "All" // All, Immediate / Available Now, Within 15 Days, Within 30 Days, Flexible
 )
 
 class MarketplaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -444,11 +446,43 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             // Min Available Beds
             val matchesMinBeds = filter.minAvailableBeds <= 0 || (prop.bedrooms == 0 || prop.bedrooms >= filter.minAvailableBeds)
 
+            // Flexible Lease Duration Filter
+            val matchesLeaseDuration = when (filter.leaseDurationFilter) {
+                "Flexible (1-3 mos)", "Short-term (< 6 mos)" ->
+                    prop.leaseDurationMonths <= 3 ||
+                    prop.description.contains("flexible", ignoreCase = true) ||
+                    prop.description.contains("short term", ignoreCase = true)
+                "Mid-term (4-6 mos)", "Semester (4-6 mos)" ->
+                    prop.leaseDurationMonths in 4..6 ||
+                    prop.description.contains("semester", ignoreCase = true)
+                "Annual (12+ mos)", "Long-term (12+ mos)" ->
+                    prop.leaseDurationMonths >= 12
+                else -> true
+            }
+
+            // Move-In Date Filter
+            val matchesMoveInDate = when (filter.moveInDateFilter) {
+                "Immediate / Available Now", "Immediate" ->
+                    prop.availabilityDate.contains("Immediate", ignoreCase = true) ||
+                    prop.availabilityDate.contains("Now", ignoreCase = true) ||
+                    prop.availabilityDate <= "2026-10-15"
+                "Within 15 Days" ->
+                    prop.availabilityDate.contains("Immediate", ignoreCase = true) ||
+                    prop.availabilityDate.contains("Now", ignoreCase = true) ||
+                    prop.availabilityDate <= "2026-10-31"
+                "Within 30 Days" ->
+                    prop.availabilityDate.contains("Immediate", ignoreCase = true) ||
+                    prop.availabilityDate.contains("Now", ignoreCase = true) ||
+                    prop.availabilityDate <= "2026-11-15"
+                "Flexible Move-in", "Flexible" -> true
+                else -> true
+            }
+
             matchesKeyword && matchesProvince && matchesCity && matchesBarangay && matchesPrice &&
                 matchesType && matchesTargetMarket && matchesUtilityRule &&
                 matchesBeds && matchesFurnished && matchesParking && matchesPets &&
                 matchesVerified && matchesListedBy && matchesAuthorized && matchesBounds && matchesDistance &&
-                matchesGender && matchesMinBeds
+                matchesGender && matchesMinBeds && matchesLeaseDuration && matchesMoveInDate
         }.sortedWith(
             when (filter.sortBy) {
                 "PRICE_ASC", "lowest_price" -> compareBy { it.monthlyRent }
@@ -579,8 +613,51 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         _filterState.value = _filterState.value.copy(distanceFilter = null)
     }
 
+    fun updateLeaseDuration(duration: String) {
+        _filterState.value = _filterState.value.copy(leaseDurationFilter = duration)
+    }
+
+    fun updateMoveInDate(date: String) {
+        _filterState.value = _filterState.value.copy(moveInDateFilter = date)
+    }
+
     fun resetFilters() {
         _filterState.value = MarketplaceFilterState()
+    }
+
+    // Side-by-Side Comparison Matrix State (Up to 4 properties)
+    private val _comparedProperties = MutableStateFlow<List<PropertyEntity>>(emptyList())
+    val comparedProperties: StateFlow<List<PropertyEntity>> = _comparedProperties.asStateFlow()
+
+    fun addToCompare(property: PropertyEntity) {
+        val current = _comparedProperties.value
+        if (current.none { it.id == property.id } && current.size < 4) {
+            _comparedProperties.value = current + property
+        }
+    }
+
+    fun removeFromCompare(propertyId: String) {
+        _comparedProperties.value = _comparedProperties.value.filter { it.id != propertyId }
+    }
+
+    fun toggleCompare(property: PropertyEntity) {
+        val current = _comparedProperties.value
+        if (current.any { it.id == property.id }) {
+            removeFromCompare(property.id)
+        } else if (current.size < 4) {
+            _comparedProperties.value = current + property
+        }
+    }
+
+    fun isCompared(propertyId: String): Boolean =
+        _comparedProperties.value.any { it.id == propertyId }
+
+    fun clearComparison() {
+        _comparedProperties.value = emptyList()
+    }
+
+    fun clearCompare() {
+        clearComparison()
     }
 
     // User Switching & Authentication
