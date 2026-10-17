@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Shield
+import com.example.ui.components.SecurityPrivacyBottomSheet
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
@@ -100,6 +102,11 @@ fun DashboardScreen(
     val pushNotificationsEnabled by viewModel.pushNotificationsEnabled.collectAsState()
     val requirements by viewModel.requirements.collectAsState()
 
+    val isPhoneMaskingEnabled by viewModel.isPhoneMaskingEnabled.collectAsState()
+    val isSecureScreenEnabled by viewModel.isSecureScreenEnabled.collectAsState()
+    val isRootDefenseActive by viewModel.isRootDefenseActive.collectAsState()
+    var showSecuritySheet by remember { mutableStateOf(false) }
+
     var showEditProfileModal by remember { mutableStateOf(false) }
 
     // Edit Profile State
@@ -122,6 +129,16 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
+                    IconButton(
+                        onClick = { showSecuritySheet = true },
+                        modifier = Modifier.testTag("security_suite_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = "App Security Suite",
+                            tint = Color(0xFF16A34A)
+                        )
+                    }
                     // Appearance Mode: Combined solely on the top-right moon/sun icon
                     IconButton(
                         onClick = { viewModel.toggleDarkMode() },
@@ -842,6 +859,18 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(28.dp))
             }
         }
+    }
+
+    if (showSecuritySheet) {
+        SecurityPrivacyBottomSheet(
+            isPhoneMaskingEnabled = isPhoneMaskingEnabled,
+            isSecureScreenEnabled = isSecureScreenEnabled,
+            isRootDefenseActive = isRootDefenseActive,
+            userRoleName = currentUser.role,
+            onTogglePhoneMasking = { viewModel.togglePhoneMasking() },
+            onToggleSecureScreen = { viewModel.toggleSecureScreen() },
+            onDismiss = { showSecuritySheet = false }
+        )
     }
 }
 

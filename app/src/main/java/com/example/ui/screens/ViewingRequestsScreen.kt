@@ -103,17 +103,41 @@ fun ViewingRequestsScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Viewings (${tenantViewings.size})", maxLines = 1, softWrap = false) }
+                    text = {
+                        Text(
+                            text = "Viewings (${tenantViewings.size})",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Saved (${savedItems.size})", maxLines = 1, softWrap = false) }
+                    text = {
+                        Text(
+                            text = "Saved (${savedItems.size})",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
                 )
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    text = { Text("Host Requests (${posterViewings.size})", maxLines = 1, softWrap = false) }
+                    text = {
+                        Text(
+                            text = "Requests (${posterViewings.size})",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
                 )
             }
 
@@ -325,7 +349,7 @@ fun ViewingCard(
                         },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         maxLines = 1,
-                        softWrap = false
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
 
@@ -334,18 +358,21 @@ fun ViewingCard(
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    softWrap = false
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = viewing.preferredDate, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "(${viewing.preferredTime})", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = viewing.preferredDate, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "(${viewing.preferredTime})", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
 
             if (viewing.tenantMessage.isNotBlank()) {
@@ -353,6 +380,7 @@ fun ViewingCard(
                 Text(
                     text = "\"${viewing.tenantMessage}\"",
                     fontSize = 12.sp,
+                    lineHeight = 17.sp,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                 )
@@ -363,6 +391,7 @@ fun ViewingCard(
                 Text(
                     text = "Poster note: ${viewing.posterResponse}",
                     fontSize = 11.sp,
+                    lineHeight = 16.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
@@ -372,14 +401,16 @@ fun ViewingCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
                     onClick = onViewProperty,
                     shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("View Listing", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                    Text("View Listing", fontSize = 11.5.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
 
                 if (isPoster && viewing.status == "REQUESTED") {
@@ -387,25 +418,27 @@ fun ViewingCard(
                         onClick = onAccept,
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Accept", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        Text("Accept", fontSize = 11.5.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
 
                 if (viewing.status != "CANCELLED" && viewing.status != "COMPLETED") {
                     OutlinedButton(
                         onClick = onCancel,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Text("Cancel", fontSize = 12.sp, color = MaterialTheme.colorScheme.error, maxLines = 1, softWrap = false)
+                        Text("Cancel", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.error, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
 
                 OutlinedButton(
                     onClick = onSendEmailAlert,
                     shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Icon(Icons.Default.Email, contentDescription = "Send Email Alert", modifier = Modifier.size(16.dp), tint = Color(0xFFEA4335))
                 }

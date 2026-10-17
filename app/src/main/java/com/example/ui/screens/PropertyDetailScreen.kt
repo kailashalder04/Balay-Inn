@@ -20,6 +20,7 @@ import com.example.data.model.PropertyCostHelper
 import com.example.data.model.RoomType
 import com.example.data.model.VerificationChecks
 import com.example.data.model.toBoardingHouseListing
+import com.example.util.AppSecurityManager
 import com.example.ui.components.BoardingHouseImagePager
 import com.example.ui.components.NearbyDestinationSection
 import com.example.ui.components.RentCostBreakdownPanel
@@ -245,6 +246,11 @@ fun PropertyDetailScreen(
     val comparedProperties by viewModel.comparedProperties.collectAsState()
     val isCompared = comparedProperties.any { it.id == prop.id }
 
+    val isPhoneMaskingEnabled by viewModel.isPhoneMaskingEnabled.collectAsState()
+    val revealedPhonePropertyIds by viewModel.revealedPhonePropertyIds.collectAsState()
+    val isPhoneRevealed = !isPhoneMaskingEnabled || revealedPhonePropertyIds.contains(prop.id)
+    val maskedPhone = AppSecurityManager.maskPhoneNumber(hostInfo.phone, isPhoneRevealed)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -354,7 +360,7 @@ fun PropertyDetailScreen(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1,
-                                        softWrap = false
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
@@ -363,7 +369,7 @@ fun PropertyDetailScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary,
                                             maxLines = 1,
-                                            softWrap = false
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                         Spacer(modifier = Modifier.width(2.dp))
                                         Icon(
@@ -948,15 +954,16 @@ fun PropertyDetailScreen(
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Column {
                                                 Text(
-                                                    text = hostInfo.phone,
+                                                    text = maskedPhone,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                                                 )
                                                 Text(
-                                                    text = hostInfo.contactChannel,
+                                                    text = if (!isPhoneRevealed) "🔒 Tap to Reveal Contact" else hostInfo.contactChannel,
                                                     fontSize = 10.5.sp,
-                                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+                                                    color = if (!isPhoneRevealed) SteelBlue else (if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)),
+                                                    modifier = Modifier.clickable { if (!isPhoneRevealed) viewModel.toggleRevealPhone(prop.id) }
                                                 )
                                             }
                                         }

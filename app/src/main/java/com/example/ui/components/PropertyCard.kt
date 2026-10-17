@@ -158,22 +158,25 @@ fun PropertyCard(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     Text(
                         text = property.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1,
+                        maxLines = 2,
+                        lineHeight = 20.sp,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 6.dp)
                     )
                     if (property.verificationLevel >= 3) {
                         VerifiedPillBadge()
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -190,8 +193,10 @@ fun PropertyCard(
                         text = if (locationDisplay.isNotBlank()) locationDisplay else "${property.cityMunicipalityId}, ${property.provinceId}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 2,
+                        lineHeight = 16.sp,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
 
@@ -216,9 +221,10 @@ fun PropertyCard(
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 17.sp,
+                        softWrap = true,
                         modifier = Modifier.testTag("property_card_description_${property.id}")
                     )
                 }

@@ -57,6 +57,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import android.app.Activity
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import com.example.util.AppSecurityManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,6 +89,18 @@ fun VerificationCenterScreen(
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
     val userDocuments by viewModel.userDocuments.collectAsState()
+    val isSecureScreenEnabled by viewModel.isSecureScreenEnabled.collectAsState()
+
+    val context = LocalContext.current
+    DisposableEffect(isSecureScreenEnabled) {
+        val activity = context as? Activity
+        if (isSecureScreenEnabled) {
+            AppSecurityManager.applySecureScreenProtection(activity, true)
+        }
+        onDispose {
+            AppSecurityManager.applySecureScreenProtection(activity, false)
+        }
+    }
 
     var showUploadDialog by remember { mutableStateOf(false) }
 

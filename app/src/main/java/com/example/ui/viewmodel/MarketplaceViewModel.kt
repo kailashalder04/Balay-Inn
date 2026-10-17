@@ -1422,4 +1422,35 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
 
     fun getImagesForProperty(propertyId: String): Flow<List<PropertyImageEntity>> =
         repository.getImagesForProperty(propertyId)
+
+    // App Security Suite State & Control
+    private val _isPhoneMaskingEnabled = MutableStateFlow(true)
+    val isPhoneMaskingEnabled: StateFlow<Boolean> = _isPhoneMaskingEnabled.asStateFlow()
+
+    private val _isSecureScreenEnabled = MutableStateFlow(true)
+    val isSecureScreenEnabled: StateFlow<Boolean> = _isSecureScreenEnabled.asStateFlow()
+
+    private val _isRootDefenseActive = MutableStateFlow(com.example.util.AppSecurityManager.isDeviceRooted())
+    val isRootDefenseActive: StateFlow<Boolean> = _isRootDefenseActive.asStateFlow()
+
+    private val _revealedPhonePropertyIds = MutableStateFlow<Set<String>>(emptySet())
+    val revealedPhonePropertyIds: StateFlow<Set<String>> = _revealedPhonePropertyIds.asStateFlow()
+
+    fun togglePhoneMasking() {
+        _isPhoneMaskingEnabled.value = !_isPhoneMaskingEnabled.value
+    }
+
+    fun toggleSecureScreen() {
+        _isSecureScreenEnabled.value = !_isSecureScreenEnabled.value
+    }
+
+    fun toggleRevealPhone(propertyId: String) {
+        val current = _revealedPhonePropertyIds.value.toMutableSet()
+        if (current.contains(propertyId)) {
+            current.remove(propertyId)
+        } else {
+            current.add(propertyId)
+        }
+        _revealedPhonePropertyIds.value = current
+    }
 }
