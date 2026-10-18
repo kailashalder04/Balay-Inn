@@ -169,8 +169,8 @@ fun RepresentativeHomeScreen(
 
                     Text(
                         text = currentUser.fullName,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis

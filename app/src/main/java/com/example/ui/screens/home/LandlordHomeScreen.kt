@@ -145,8 +145,8 @@ fun LandlordHomeScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Welcome, ${currentUser.fullName}",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold,
                                 maxLines = 1,
                                 softWrap = false,
                                 overflow = TextOverflow.Ellipsis
