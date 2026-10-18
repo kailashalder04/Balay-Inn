@@ -39,10 +39,14 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Shield
+import com.example.ui.components.DataPrivacyConsentBanner
+import com.example.ui.components.PrivacyPolicyDialog
 import com.example.ui.components.SecurityPrivacyBottomSheet
+import com.example.ui.components.TermsOfServiceDialog
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -91,6 +95,7 @@ fun DashboardScreen(
     onNavigateToAdminPanel: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
     onNavigateToOnboarding: (String) -> Unit = {},
+    onNavigateToLegalPolicy: (PolicyTab) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
@@ -105,7 +110,12 @@ fun DashboardScreen(
     val isPhoneMaskingEnabled by viewModel.isPhoneMaskingEnabled.collectAsState()
     val isSecureScreenEnabled by viewModel.isSecureScreenEnabled.collectAsState()
     val isRootDefenseActive by viewModel.isRootDefenseActive.collectAsState()
+    val dataPrivacyConsentAccepted by viewModel.dataPrivacyConsentAccepted.collectAsState()
+
     var showSecuritySheet by remember { mutableStateOf(false) }
+    var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
+    var showTermsDialog by remember { mutableStateOf(false) }
+    var showAccountDeletionDialog by remember { mutableStateOf(false) }
 
     var showEditProfileModal by remember { mutableStateOf(false) }
 
@@ -861,6 +871,20 @@ fun DashboardScreen(
         }
     }
 
+    if (!dataPrivacyConsentAccepted) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            DataPrivacyConsentBanner(
+                onAccept = { viewModel.acceptDataPrivacyConsent() },
+                onViewPrivacyPolicy = { onNavigateToLegalPolicy(PolicyTab.PRIVACY) },
+                onViewTerms = { onNavigateToLegalPolicy(PolicyTab.TERMS) }
+            )
+        }
+    }
+
     if (showSecuritySheet) {
         SecurityPrivacyBottomSheet(
             isPhoneMaskingEnabled = isPhoneMaskingEnabled,
@@ -869,7 +893,71 @@ fun DashboardScreen(
             userRoleName = currentUser.role,
             onTogglePhoneMasking = { viewModel.togglePhoneMasking() },
             onToggleSecureScreen = { viewModel.toggleSecureScreen() },
+            onOpenPrivacyPolicy = {
+                showSecuritySheet = false
+                onNavigateToLegalPolicy(PolicyTab.PRIVACY)
+            },
+            onOpenTerms = {
+                showSecuritySheet = false
+                onNavigateToLegalPolicy(PolicyTab.TERMS)
+            },
+            onRequestAccountDeletion = { showAccountDeletionDialog = true },
             onDismiss = { showSecuritySheet = false }
+        )
+    }
+
+    if (showPrivacyPolicyDialog) {
+        PrivacyPolicyDialog(
+            onDismiss = { showPrivacyPolicyDialog = false }
+        )
+    }
+
+    if (showTermsDialog) {
+        TermsOfServiceDialog(
+            onDismiss = { showTermsDialog = false }
+        )
+    }
+
+    if (showAccountDeletionDialog) {
+        AlertDialog(
+            onDismissRequest = { showAccountDeletionDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = Color(0xFFDC2626)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Confirm Account Deletion", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Text(
+                    "Are you sure you want to request account and data deletion? In compliance with Google Play Policies and Philippine Data Privacy Act (RA 10173), your account profile, posted property listings, saved properties, and inquiry logs will be permanently purged.",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showAccountDeletionDialog = false
+                        showSecuritySheet = false
+                        viewModel.requestAccountDeletion {
+                            onNavigateToLogin()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                ) {
+                    Text("Delete Account & Data", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showAccountDeletionDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

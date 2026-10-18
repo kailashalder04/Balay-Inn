@@ -1530,4 +1530,20 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         }
         _revealedPhonePropertyIds.value = current
     }
+
+    // Philippine Data Privacy Act (NPC RA 10173) State
+    private val _dataPrivacyConsentAccepted = MutableStateFlow(false)
+    val dataPrivacyConsentAccepted: StateFlow<Boolean> = _dataPrivacyConsentAccepted.asStateFlow()
+
+    fun acceptDataPrivacyConsent() {
+        _dataPrivacyConsentAccepted.value = true
+    }
+
+    // Google Play Account & Stored Data Deletion
+    fun requestAccountDeletion(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _dataPrivacyConsentAccepted.value = false
+            onSuccess()
+        }
+    }
 }

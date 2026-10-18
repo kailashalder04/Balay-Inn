@@ -67,6 +67,8 @@ import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.PostPropertyScreen
 import com.example.ui.screens.PropertyDetailScreen
 import com.example.ui.screens.TenantRequirementScreen
+import com.example.ui.screens.LegalPolicyScreen
+import com.example.ui.screens.PolicyTab
 import com.example.ui.screens.VerificationCenterScreen
 import com.example.ui.screens.ViewingRequestsScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -86,6 +88,7 @@ sealed class AppScreen {
     object AdminPanel : AppScreen()
     object Login : AppScreen()
     data class Onboarding(val initialRole: String? = null) : AppScreen()
+    data class LegalPolicy(val initialTab: PolicyTab = PolicyTab.PRIVACY) : AppScreen()
 }
 
 class MainActivity : ComponentActivity() {
@@ -216,7 +219,14 @@ fun BalayInnApp(
                         onNavigateToVerificationCenter = { navigateTo(AppScreen.VerificationCenter) },
                         onNavigateToAdminPanel = { navigateTo(AppScreen.AdminPanel) },
                         onNavigateToLogin = { navigateTo(AppScreen.Login) },
-                        onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) }
+                        onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) },
+                        onNavigateToLegalPolicy = { tab -> navigateTo(AppScreen.LegalPolicy(tab)) }
+                    )
+                }
+                is AppScreen.LegalPolicy -> {
+                    LegalPolicyScreen(
+                        initialTab = currentScreen.initialTab,
+                        onBack = { navigateBack() }
                     )
                 }
                 is AppScreen.PropertyDetail -> {
