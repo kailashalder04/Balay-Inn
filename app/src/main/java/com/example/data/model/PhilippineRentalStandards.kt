@@ -264,7 +264,7 @@ enum class PhilippineRentalPropertyCategory(
         fun fromPropertyType(type: String): PhilippineRentalPropertyCategory {
             val normalized = type.trim().lowercase()
             return when {
-                normalized.contains("board") || normalized.contains("bed") || normalized.contains("space") || normalized == "room" -> BED_SPACE
+                normalized.contains("board") || normalized.contains("bed") || normalized.contains("dorm") || normalized.contains("space") || normalized == "room" -> BED_SPACE
                 normalized.contains("studio") -> STUDIO_UNIT
                 normalized.contains("condo") -> CONDOMINIUM
                 normalized.contains("apart") || normalized.contains("flat") -> APARTMENT_FLAT

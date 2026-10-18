@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -920,7 +921,7 @@ fun InteractiveRentalMap(
             }
         }
 
-        // --- COMPACT PROPERTY PREVIEW DRAWER / CARD ---
+        // --- SLIDE-UP PROPERTY SUMMARY BOTTOM SHEET MODAL ---
         AnimatedVisibility(
             visible = activeProperty != null,
             enter = slideInVertically(initialOffsetY = { it }),
@@ -928,140 +929,285 @@ fun InteractiveRentalMap(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(14.dp)
-                .zIndex(25f)
+                .zIndex(30f)
         ) {
             if (activeProperty != null) {
                 val prop = activeProperty!!
                 val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
                 val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
                 val isSaved = savedPropertyIds.contains(prop.id)
-
                 val isDark = isSystemInDarkTheme()
-                Card(
+                val keyAmenities = remember(prop.amenitiesJson) { parseKeyAmenities(prop.amenitiesJson) }
+
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("map_property_preview_card"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isDark) SteelBlueDarkBg else SteelBlueLightBg),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .shadow(20.dp, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
+                        .testTag("map_property_modal_sheet"),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 20.dp, bottomEnd = 20.dp),
+                    color = if (isDark) SteelBlueDarkBg else SteelBlueLightBg,
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp)
+                    ) {
+                        // Drag Handle Pill
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(bottom = 10.dp)
+                                .width(38.dp)
+                                .height(4.dp)
+                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
+                        )
+
+                        // Hero Image Banner & Overlay Badges
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
+                                .clip(RoundedCornerShape(16.dp))
                         ) {
-                            val thumbnail = propertyImagesMap[prop.id]?.firstOrNull()
-                                ?: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&auto=format&fit=crop&q=80"
+                            val images = propertyImagesMap[prop.id] ?: emptyList()
+                            val thumbnail = images.firstOrNull()
+                                ?: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&auto=format&fit=crop&q=80"
 
                             AsyncImage(
-                                model = thumbnail,
+                                model = ImageRequest.Builder(context)
+                                    .data(thumbnail)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = prop.title,
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(68.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                modifier = Modifier.fillMaxSize()
                             )
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                            // Top Left Property Category Tag
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(8.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color.Black.copy(alpha = 0.72f)
+                            ) {
+                                Text(
+                                    text = prop.propertyType,
+                                    color = Color.White,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = prop.title,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "$formattedRent / month • ${prop.propertyType}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Default.Place,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Text(
-                                        text = "${prop.bedrooms} BR • ${prop.bathrooms} Bath • ${prop.floorAreaSqm.toInt()} m²",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
+                            // Top Right Actions (Save & Close)
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    IconButton(onClick = { onToggleSave?.invoke(prop.id) }) {
+                                        Icon(
+                                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Save property",
+                                            tint = if (isSaved) Color(0xFFE11D48) else Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    IconButton(onClick = { activeProperty = null }) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Close modal",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
 
-                            // Save Toggle
-                            IconButton(
-                                onClick = { onToggleSave?.invoke(prop.id) },
-                                modifier = Modifier.size(32.dp)
+                            // Bottom Rent Price Banner
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(8.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primary
                             ) {
-                                Icon(
-                                    imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Save property",
-                                    tint = if (isSaved) Color(0xFFDC2626) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
+                                Text(
+                                    text = "$formattedRent / month",
+                                    color = Color.White,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
-                            }
-
-                            IconButton(
-                                onClick = { activeProperty = null },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "Close preview", modifier = Modifier.size(18.dp))
                             }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
 
+                        // Title & Location
+                        Text(
+                            text = prop.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color.White else Color(0xFF0F172A),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.padding(top = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (prop.locationPrivacy == "APPROXIMATE") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceVariant
+                            Icon(
+                                Icons.Default.Place,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (prop.neighborhood.isNotBlank()) "${prop.neighborhood} • ${prop.nearbyLandmark}" else prop.nearbyLandmark,
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Key Specs Row (Beds, Baths, Area, Furnished)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            SpecBadge(label = "🛏️ ${prop.bedrooms} Bed", isDark = isDark)
+                            SpecBadge(label = "🚿 ${prop.bathrooms} Bath", isDark = isDark)
+                            SpecBadge(label = "📐 ${prop.floorAreaSqm.toInt()} m²", isDark = isDark)
+                            SpecBadge(label = "🪑 ${prop.furnishedStatus}", isDark = isDark)
+                        }
+
+                        // Key Amenities Chips Row
+                        if (keyAmenities.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Key Amenities:",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Default.Shield,
-                                        contentDescription = null,
-                                        tint = if (prop.locationPrivacy == "APPROXIMATE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (prop.locationPrivacy == "APPROXIMATE") "Approximate Location" else "Verified Address",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (prop.locationPrivacy == "APPROXIMATE") MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                keyAmenities.forEach { (emoji, name) ->
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                                        border = BorderStroke(0.8.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                    ) {
+                                        Text(
+                                            text = "$emoji $name",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF334155),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
                             }
+                        }
 
-                            Button(
-                                onClick = { onPropertySelected(prop) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                modifier = Modifier.testTag("map_view_details_btn")
-                            ) {
-                                Text("View Details", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Primary Action Button
+                        Button(
+                            onClick = { onPropertySelected(prop) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .testTag("map_modal_view_details_btn"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("View Full Listing Details", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SpecBadge(label: String, isDark: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+        border = BorderStroke(0.8.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+    ) {
+        Text(
+            text = label,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569),
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+fun parseKeyAmenities(jsonOrCsv: String): List<Pair<String, String>> {
+    val clean = jsonOrCsv.replace("[", "").replace("]", "").replace("\"", "")
+    val rawList = clean.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+    val result = mutableListOf<Pair<String, String>>()
+    rawList.forEach { item ->
+        val lower = item.lowercase()
+        val emoji = when {
+            lower.contains("wifi") || lower.contains("internet") -> "📶"
+            lower.contains("air") || lower.contains("ac") -> "❄️"
+            lower.contains("park") || lower.contains("car") -> "🚗"
+            lower.contains("kitchen") || lower.contains("cook") -> "🍳"
+            lower.contains("pet") -> "🐾"
+            lower.contains("secur") || lower.contains("guard") || lower.contains("cctv") -> "🛡️"
+            lower.contains("balcony") || lower.contains("deck") -> "🌅"
+            lower.contains("furnish") -> "🛋️"
+            lower.contains("pool") -> "🏊"
+            lower.contains("gym") -> "🏋️"
+            lower.contains("bed") || lower.contains("bunk") -> "🛏️"
+            lower.contains("bath") || lower.contains("cr") -> "🚿"
+            else -> "✨"
+        }
+        result.add(Pair(emoji, item))
+    }
+    return if (result.isEmpty()) {
+        listOf(Pair("📶", "WiFi Ready"), Pair("❄️", "Aircon"), Pair("🛡️", "24/7 Security"))
+    } else {
+        result.take(6)
     }
 }
 

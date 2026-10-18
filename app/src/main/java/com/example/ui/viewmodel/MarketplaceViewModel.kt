@@ -249,6 +249,10 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    // Unfiltered Active Properties Stream (for category counts)
+    val allUnfilteredProperties: StateFlow<List<PropertyEntity>> = repository.getAllActiveProperties()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Filtered Properties Stream
     val properties: StateFlow<List<PropertyEntity>> = combine(
         repository.getAllActiveProperties(),

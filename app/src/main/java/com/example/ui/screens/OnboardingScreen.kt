@@ -130,9 +130,9 @@ fun OnboardingScreen(
         )
     }
 
-    // Step state (1 to 4)
+    // Step state (1 to 2 for Tenant, 1 to 4 for Landlord)
     var currentStep by remember { mutableIntStateOf(1) }
-    val totalSteps = 4
+    val totalSteps = if (selectedRole == "TENANT") 2 else 4
     val scrollState = rememberScrollState()
 
     // Tenant Fields
@@ -193,10 +193,6 @@ fun OnboardingScreen(
                         IconButton(onClick = { currentStep-- }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous step")
                         }
-                    } else {
-                        IconButton(onClick = onFinishOnboarding) {
-                            Icon(Icons.Default.Home, contentDescription = "Exit to app")
-                        }
                     }
                 },
                 actions = {
@@ -232,8 +228,10 @@ fun OnboardingScreen(
                         }
                     }
 
-                    TextButton(onClick = onFinishOnboarding) {
-                        Text("Skip", fontSize = 13.sp)
+                    if (currentStep > 2) {
+                        TextButton(onClick = onFinishOnboarding) {
+                            Text("Skip", fontSize = 13.sp)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -282,25 +280,7 @@ fun OnboardingScreen(
                             1 -> TenantStepOneWelcome(onNext = { currentStep = 2 })
                             2 -> TenantStepTwoVerification(
                                 viewModel = viewModel,
-                                onNext = { currentStep = 3 }
-                            )
-                            3 -> TenantStepThreePreferences(
-                                provinces = allProvinces,
-                                cities = allCities,
-                                selectedProvinceId = tenantProvinceId,
-                                onProvinceChange = { tenantProvinceId = it },
-                                selectedCityId = tenantCityId,
-                                onCityChange = { tenantCityId = it },
-                                maxBudget = tenantMaxBudget,
-                                onBudgetChange = { tenantMaxBudget = it },
-                                propertyType = tenantPropertyType,
-                                onPropertyTypeChange = { tenantPropertyType = it },
-                                furnished = tenantFurnished,
-                                onFurnishedToggle = { tenantFurnished = it },
-                                parking = tenantParking,
-                                onParkingToggle = { tenantParking = it },
-                                petFriendly = tenantPetFriendly,
-                                onPetFriendlyToggle = { tenantPetFriendly = it },
+                                isSubmitting = isSubmitting,
                                 onNext = {
                                     isSubmitting = true
                                     viewModel.submitTenantOnboarding(
@@ -316,19 +296,10 @@ fun OnboardingScreen(
                                         idNumber = tenantIdNumber,
                                         onDone = {
                                             isSubmitting = false
-                                            currentStep = 4
+                                            onFinishOnboarding()
                                         }
                                     )
-                                },
-                                isSubmitting = isSubmitting
-                            )
-                            4 -> TenantStepFourComplete(
-                                matchingProperties = properties.filter {
-                                    (tenantProvinceId.isBlank() || it.provinceId == tenantProvinceId) &&
-                                        it.monthlyRent <= tenantMaxBudget
-                                },
-                                onExplore = onNavigateToHome,
-                                onPropertyClick = onNavigateToPropertyDetail
+                                }
                             )
                         }
                     } else {
@@ -533,6 +504,7 @@ private fun TenantStepOneWelcome(onNext: () -> Unit) {
 @Composable
 private fun TenantStepTwoVerification(
     viewModel: MarketplaceViewModel,
+    isSubmitting: Boolean = false,
     onNext: () -> Unit
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
@@ -800,6 +772,7 @@ private fun TenantStepTwoVerification(
                     onNext()
                 }
             },
+            enabled = !isSubmitting,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
@@ -807,9 +780,17 @@ private fun TenantStepTwoVerification(
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Text("Complete Dual OTP Verification", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(modifier = Modifier.width(6.dp))
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Complete Verification & Finish", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+            }
         }
     }
 }

@@ -31,13 +31,16 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.local.entity.UserEntity
 import com.example.ui.components.BalayInnLogoHeader
+import com.example.ui.components.CategoryFilterRow
 import com.example.ui.components.ComparisonMatrixSheet
 import com.example.ui.components.PropertyCard
+import com.example.ui.components.SelectedCategoryHeaderCard
 import com.example.ui.components.VerifiedIcon
 import com.example.ui.components.VerifiedPillBadge
 import com.example.ui.components.isPlatformVerified
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.MarketplaceViewModel
+import androidx.compose.ui.text.style.TextAlign
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -52,6 +55,8 @@ fun TenantHomeScreen(
 ) {
     val isDark by viewModel.isDarkMode.collectAsState()
     val properties by viewModel.properties.collectAsState()
+    val allUnfilteredProperties by viewModel.allUnfilteredProperties.collectAsState()
+    val filterState by viewModel.filterState.collectAsState()
     val savedProperties by viewModel.savedProperties.collectAsState()
     val recentlyViewed by viewModel.recentlyViewedProperties.collectAsState()
     val recommended by viewModel.recommendedProperties.collectAsState()
@@ -168,49 +173,6 @@ fun TenantHomeScreen(
                             lineHeight = 18.sp
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Quick Search Bar Shortcut Button
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onNavigateToExplore() },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Search Tagbilaran, Panglao, Cebu City, IT Park...",
-                                    fontSize = 12.sp,
-                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primary
-                                ) {
-                                    Text(
-                                        text = "Explore",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-
                         // Demo Persona Switcher
                         QuickPersonaSwitcherRow(
                             viewModel = viewModel,
@@ -221,8 +183,82 @@ fun TenantHomeScreen(
                 }
             }
 
+            // 1.5 Category Filter System Bar
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("category_filter_card"),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+                    ),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(30.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.FilterList,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Property Categories",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                                )
+                            }
+
+                            if (filterState.propertyType != "All") {
+                                TextButton(
+                                    onClick = { viewModel.updatePropertyType("All") },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Reset Filter", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        CategoryFilterRow(
+                            selectedCategory = filterState.propertyType,
+                            allProperties = allUnfilteredProperties,
+                            onSelectCategory = { selectedCat ->
+                                viewModel.updatePropertyType(selectedCat)
+                            },
+                            isDark = isDark
+                        )
+
+                        SelectedCategoryHeaderCard(
+                            selectedCategory = filterState.propertyType,
+                            filteredCount = properties.size,
+                            onResetCategory = { viewModel.updatePropertyType("All") },
+                            isDark = isDark,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
+                    }
+                }
+            }
+
             // 2. Recently Viewed Properties
-            if (recentlyViewed.isNotEmpty()) {
+            if (filterState.propertyType == "All" && recentlyViewed.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
@@ -271,47 +307,134 @@ fun TenantHomeScreen(
                 }
             }
 
-            // 3. Recommended for You
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BadgeGreen, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Recommended for You",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color(0xFF0F172A),
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                    TextButton(onClick = onNavigateToExplore) {
-                        Text("Explore All (${properties.size})", fontSize = 12.sp, maxLines = 1, softWrap = false)
+            // 3. Recommended / Category Filtered Properties
+            if (filterState.propertyType == "All") {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BadgeGreen, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Recommended for You",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color(0xFF0F172A),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                        TextButton(onClick = onNavigateToExplore) {
+                            Text("Explore All (${properties.size})", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
                     }
                 }
-            }
 
-            items(recommended.take(6), key = { "rec_${it.id}" }) { prop ->
-                PropertyCard(
-                    property = prop,
-                    locationDisplay = viewModel.getLocationDisplay(prop),
-                    imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                    isSaved = prop.id in savedPropIds,
-                    onSaveToggle = { viewModel.toggleSave(prop.id) },
-                    isCompared = prop.id in comparedPropertyIds,
-                    onCompareToggle = { viewModel.toggleCompare(prop) },
-                    onClick = {
-                        viewModel.recordPropertyView(prop.id)
-                        onNavigateToPropertyDetail(prop.id)
-                    },
-                    onViewOnMap = onNavigateToExplore
-                )
+                items(recommended.take(6), key = { "rec_${it.id}" }) { prop ->
+                    PropertyCard(
+                        property = prop,
+                        locationDisplay = viewModel.getLocationDisplay(prop),
+                        imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                        isSaved = prop.id in savedPropIds,
+                        onSaveToggle = { viewModel.toggleSave(prop.id) },
+                        isCompared = prop.id in comparedPropertyIds,
+                        onCompareToggle = { viewModel.toggleCompare(prop) },
+                        onClick = {
+                            viewModel.recordPropertyView(prop.id)
+                            onNavigateToPropertyDetail(prop.id)
+                        },
+                        onViewOnMap = onNavigateToExplore
+                    )
+                }
+            } else {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BadgeGreen, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Filtered Listings (${properties.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color.White else Color(0xFF0F172A),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                        TextButton(onClick = { viewModel.updatePropertyType("All") }) {
+                            Text("Show All", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                }
+
+                if (properties.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "No properties found in this category",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = if (isDark) Color.White else Color(0xFF0F172A),
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Try clearing category filters or exploring other areas across Cebu, Bohol, and Bacolod.",
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Button(
+                                    onClick = { viewModel.updatePropertyType("All") },
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("Reset Filters", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(properties, key = { "cat_filtered_${it.id}" }) { prop ->
+                        PropertyCard(
+                            property = prop,
+                            locationDisplay = viewModel.getLocationDisplay(prop),
+                            imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                            isSaved = prop.id in savedPropIds,
+                            onSaveToggle = { viewModel.toggleSave(prop.id) },
+                            isCompared = prop.id in comparedPropertyIds,
+                            onCompareToggle = { viewModel.toggleCompare(prop) },
+                            onClick = {
+                                viewModel.recordPropertyView(prop.id)
+                                onNavigateToPropertyDetail(prop.id)
+                            },
+                            onViewOnMap = onNavigateToExplore
+                        )
+                    }
+                }
             }
 
             // 4. Saved Properties Preview

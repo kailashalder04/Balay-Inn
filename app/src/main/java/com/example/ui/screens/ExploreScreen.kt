@@ -81,9 +81,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.ui.components.CascadingLocationSelector
+import com.example.ui.components.CategoryFilterRow
 import com.example.ui.components.ComparisonMatrixSheet
 import com.example.ui.components.InteractiveRentalMap
 import com.example.ui.components.PropertyCard
+import com.example.ui.components.SelectedCategoryHeaderCard
 import com.example.ui.theme.SteelBlue
 import com.example.ui.viewmodel.MarketplaceViewModel
 
@@ -97,6 +99,7 @@ fun ExploreScreen(
 ) {
     val isDark by viewModel.isDarkMode.collectAsState()
     val properties by viewModel.properties.collectAsState()
+    val allUnfilteredProperties by viewModel.allUnfilteredProperties.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
     val savedProperties by viewModel.savedProperties.collectAsState()
@@ -273,97 +276,25 @@ fun ExploreScreen(
                 }
 
                 // Philippine Rental Categories Bar (Visible to tenants/renters)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val isAllActive = filterState.propertyType == "All"
-                    FilterChip(
-                        selected = isAllActive,
-                        onClick = { viewModel.updatePropertyType("All") },
-                        label = { Text("🏠 All Types", fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                Box(modifier = Modifier.padding(top = 10.dp)) {
+                    CategoryFilterRow(
+                        selectedCategory = filterState.propertyType,
+                        allProperties = allUnfilteredProperties,
+                        onSelectCategory = { selectedCat ->
+                            viewModel.updatePropertyType(selectedCat)
+                        },
+                        isDark = isDark
                     )
-
-                    PhilippineRentalPropertyCategory.ALL_CATEGORIES.forEach { cat ->
-                        val isCatActive = filterState.propertyType == cat.displayName ||
-                                filterState.propertyType == cat.shortLabel
-                        FilterChip(
-                            selected = isCatActive,
-                            onClick = {
-                                viewModel.updatePropertyType(if (isCatActive) "All" else cat.displayName)
-                            },
-                            label = {
-                                Text(
-                                    text = "${cat.targetEmoji} ${cat.shortLabel}",
-                                    fontSize = 11.5.sp,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                        )
-                    }
                 }
 
                 // Active Category Market Standard Info Card for Renters
-                if (filterState.propertyType != "All") {
-                    val activeCat = PhilippineRentalPropertyCategory.fromPropertyType(filterState.propertyType)
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${activeCat.targetEmoji} ${activeCat.displayName}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "Philippine Standard",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Text(
-                                text = "👤 Ideal for: ${activeCat.targetMarket}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "🏠 Amenities: ${activeCat.expectedAmenities.take(4).joinToString(", ")}",
-                                fontSize = 10.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "⚡ Utilities: ${activeCat.waterDefault} • ${activeCat.electricityDefault}",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "📋 Rules: ${activeCat.curfewDefault} • ${activeCat.cookingDefault} • ${activeCat.securityDefault}",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+                SelectedCategoryHeaderCard(
+                    selectedCategory = filterState.propertyType,
+                    filteredCount = properties.size,
+                    onResetCategory = { viewModel.updatePropertyType("All") },
+                    isDark = isDark,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
 
                 // Active Filter Chips Row
                 Row(
