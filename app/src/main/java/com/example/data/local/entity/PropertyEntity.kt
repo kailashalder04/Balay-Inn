@@ -93,6 +93,7 @@ data class PropertyEntity(
     @ColumnInfo(name = "other_fees") val otherFees: Double = 0.0,
 
     @ColumnInfo(name = "amenities_json") val amenitiesJson: String = "[]",
+    @ColumnInfo(name = "category_specs_json") val categorySpecsJson: String = "{}",
     @ColumnInfo(name = "contact_preferences") val contactPreferences: String = "In-App Messaging Only",
     val status: String = "ACTIVE", // ACTIVE, PAUSED, RENTED, UNDER_REVIEW
 

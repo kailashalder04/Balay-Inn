@@ -1343,6 +1343,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         isAuthorized: Boolean,
         amenities: List<String>,
         imageUrls: List<String>,
+        categorySpecsJson: String = "{}",
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
@@ -1375,6 +1376,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 associationDues = dues,
                 internetIncluded = internetIncluded,
                 amenitiesJson = amenities.joinToString(prefix = "[\"", separator = "\",\"", postfix = "\"]"),
+                categorySpecsJson = categorySpecsJson,
                 status = "ACTIVE",
                 ownerId = if (relationship == "Property owner") user.id else "usr_owner_external",
                 posterId = user.id,

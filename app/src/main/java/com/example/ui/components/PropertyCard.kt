@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.local.entity.PropertyEntity
+import com.example.data.model.CategoryDetailChip
+import com.example.data.model.getCategoryHighlightChips
+import com.example.data.model.getCategorySpecifications
 import com.example.ui.theme.*
 import java.text.NumberFormat
 import java.util.Locale
@@ -204,15 +208,28 @@ fun PropertyCard(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Amenities / features chips
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    FeatureChip(text = "${property.bedrooms} bedrooms")
-                    if (property.internetIncluded) FeatureChip(text = "Free WiFi")
-                    if (property.parkingAvailable) FeatureChip(text = "Parking")
-                    if (property.petPolicy.contains("Allow", ignoreCase = true)) FeatureChip(text = "Pet Friendly")
+                // Category-specific details chips (Studio/Condo, Apartment, Townhouse, Bedspace)
+                val highlightChips = remember(property) { property.getCategoryHighlightChips() }
+                if (highlightChips.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("property_card_category_chips_${property.id}")
+                    ) {
+                        highlightChips.forEach { chip ->
+                            CategoryHighlightChip(chip = chip)
+                        }
+                    }
+                } else {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        FeatureChip(text = "${property.bedrooms} bedrooms")
+                        if (property.internetIncluded) FeatureChip(text = "Free WiFi")
+                        if (property.parkingAvailable) FeatureChip(text = "Parking")
+                        if (property.petPolicy.contains("Allow", ignoreCase = true)) FeatureChip(text = "Pet Friendly")
+                    }
                 }
 
                 // Description of property details (strictly 2 lines only)
@@ -233,6 +250,30 @@ fun PropertyCard(
                     modifier = Modifier.testTag("property_card_description_${property.id}")
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CategoryHighlightChip(chip: com.example.data.model.CategoryDetailChip) {
+    Surface(
+        color = if (chip.isPrimary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(6.dp),
+        border = if (chip.isPrimary) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)) else null
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp)
+        ) {
+            Text(
+                text = "${chip.icon} ${chip.label}",
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 10.5.sp,
+                fontWeight = if (chip.isPrimary) FontWeight.Bold else FontWeight.Medium,
+                color = if (chip.isPrimary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false
+            )
         }
     }
 }
