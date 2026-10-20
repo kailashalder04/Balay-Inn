@@ -98,7 +98,12 @@ fun MessagesScreen(
                     title = {
                         Column {
                             val otherParty = if (currentUser.id == activeConv.tenantId) activeConv.posterName else activeConv.tenantName
-                            Text(otherParty, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                            val headerNameFontSize = when {
+                                otherParty.length > 26 -> 12.5.sp
+                                otherParty.length > 18 -> 13.5.sp
+                                else -> 15.sp
+                            }
+                            Text(otherParty, fontSize = headerNameFontSize, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             Text(activeConv.propertyTitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                         }
                     },
@@ -315,25 +320,32 @@ fun MessagesScreen(
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
+                                    val nameFontSize = when {
+                                        otherParty.length > 26 -> 12.sp
+                                        otherParty.length > 20 -> 13.5.sp
+                                        else -> 15.sp
+                                    }
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            otherParty,
+                                            text = otherParty,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
+                                            fontSize = nameFontSize,
                                             maxLines = 1,
                                             softWrap = false,
-                                            overflow = TextOverflow.Ellipsis,
                                             modifier = Modifier.weight(1f, fill = false)
                                         )
                                         if (timeStr.isNotBlank()) {
+                                            Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                timeStr,
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                text = timeStr,
+                                                fontSize = 10.5.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                softWrap = false
                                             )
                                         }
                                     }

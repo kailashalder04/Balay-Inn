@@ -528,16 +528,25 @@ fun LoginScreen(
                                             }
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Column(modifier = Modifier.weight(1f)) {
+                                                val profileNameFontSize = when {
+                                                    name.length > 25 -> 11.5.sp
+                                                    name.length > 18 -> 12.5.sp
+                                                    else -> 13.5.sp
+                                                }
                                                 Text(
                                                     text = name,
-                                                    fontSize = 13.sp,
+                                                    fontSize = profileNameFontSize,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                                 Text(
                                                     text = desc,
                                                     fontSize = 10.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                             }
                                             Icon(

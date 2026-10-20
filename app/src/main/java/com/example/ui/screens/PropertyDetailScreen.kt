@@ -892,14 +892,19 @@ fun PropertyDetailScreen(
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
+                                    val hostNameFontSize = when {
+                                        hostInfo.hostName.length > 25 -> 13.5.sp
+                                        hostInfo.hostName.length > 18 -> 15.sp
+                                        else -> 16.5.sp
+                                    }
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = hostInfo.hostName,
-                                            style = MaterialTheme.typography.titleMedium,
+                                            fontSize = hostNameFontSize,
                                             fontWeight = FontWeight.Bold,
                                             color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E),
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
+                                            softWrap = false,
                                             modifier = Modifier.weight(1f, fill = false)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -1002,7 +1007,14 @@ fun PropertyDetailScreen(
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Message ${hostInfo.hostName}", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                val msgBtnFontSize = if (hostInfo.hostName.length > 20) 11.5.sp else 13.sp
+                                Text(
+                                    text = "Message ${hostInfo.hostName}",
+                                    fontSize = msgBtnFontSize,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
                             }
                         }
                     }
@@ -1231,7 +1243,10 @@ fun PropertyDetailScreen(
 
         AlertDialog(
             onDismissRequest = { showChatDialog = false },
-            title = { Text("Message ${prop.posterName}") },
+            title = {
+                val dialogTitleFontSize = if (prop.posterName.length > 22) 13.5.sp else 16.sp
+                Text("Message ${prop.posterName}", fontSize = dialogTitleFontSize, maxLines = 1, softWrap = false)
+            },
             text = {
                 Column {
                     Text("Send a secure in-app message. Your phone number is not shared publicly.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

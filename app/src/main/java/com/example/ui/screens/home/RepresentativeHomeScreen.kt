@@ -166,15 +166,22 @@ fun RepresentativeHomeScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val repNameFontSize = when {
+                        currentUser.fullName.length > 30 -> 14.5.sp
+                        currentUser.fullName.length > 24 -> 16.5.sp
+                        currentUser.fullName.length > 18 -> 18.5.sp
+                        else -> 22.sp
+                    }
 
                     Text(
                         text = currentUser.fullName,
-                        fontSize = 24.sp,
+                        fontSize = repNameFontSize,
                         fontWeight = FontWeight.ExtraBold,
                         maxLines = 1,
                         softWrap = false,
-                        overflow = TextOverflow.Ellipsis
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Text(
@@ -557,6 +564,21 @@ private fun RepresentativePropertyCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 softWrap = false,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            val repCardDescription = property.description.trim().ifBlank {
+                "Managed Philippine rental listing with verified amenities and authorized landlord representation."
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = repCardDescription,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                minLines = 2,
+                lineHeight = 15.sp,
+                softWrap = true,
                 overflow = TextOverflow.Ellipsis
             )
 

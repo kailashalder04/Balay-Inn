@@ -187,51 +187,39 @@ fun DashboardScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(30.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = currentUser.fullName,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 17.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = currentUser.email,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                if (currentUser.phone.isNotBlank()) {
-                                    Text(
-                                        text = currentUser.phone,
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
-                                Text(
-                                    text = "Role: ${currentUser.role.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }}",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = "Role: ${currentUser.role.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }}",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
                             }
 
                             // Edit Profile Button
@@ -245,17 +233,55 @@ fun DashboardScreen(
                                     showEditProfileModal = true
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
                                 modifier = Modifier.testTag("edit_profile_btn")
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Edit Profile",
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Edit", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                                Text("Edit", fontSize = 11.5.sp, maxLines = 1, softWrap = false)
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val nameFontSize = when {
+                            currentUser.fullName.length > 30 -> 14.5.sp
+                            currentUser.fullName.length > 24 -> 16.5.sp
+                            currentUser.fullName.length > 18 -> 18.5.sp
+                            else -> 21.sp
+                        }
+
+                        Text(
+                            text = currentUser.fullName,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = nameFontSize,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = currentUser.email,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+
+                        if (currentUser.phone.isNotBlank()) {
+                            Text(
+                                text = currentUser.phone,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                     }
                 }

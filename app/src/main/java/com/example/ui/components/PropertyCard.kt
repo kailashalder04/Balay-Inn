@@ -215,21 +215,23 @@ fun PropertyCard(
                     if (property.petPolicy.contains("Allow", ignoreCase = true)) FeatureChip(text = "Pet Friendly")
                 }
 
-                // Description of property details
-                if (property.description.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = property.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 17.sp,
-                        softWrap = true,
-                        modifier = Modifier.testTag("property_card_description_${property.id}")
-                    )
+                // Description of property details (strictly 2 lines only)
+                val cardDescription = property.description.trim().ifBlank {
+                    "Verified Philippine rental space featuring secure accommodations, essential amenities, and convenient transit access."
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = cardDescription,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    minLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 17.sp,
+                    softWrap = true,
+                    modifier = Modifier.testTag("property_card_description_${property.id}")
+                )
             }
         }
     }

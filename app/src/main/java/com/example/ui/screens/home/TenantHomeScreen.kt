@@ -103,37 +103,26 @@ fun TenantHomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = SoftGreenBg,
+                                border = BorderStroke(0.8.dp, SoftGreenBorder)
+                            ) {
                                 Text(
-                                    text = "Mabuhay, ${currentUser.fullName}!",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = if (isDark) Color.White else Color(0xFF0F172A),
+                                    text = "Level ${currentUser.verificationLevel} Verified Renter",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = SoftGreenDark,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    softWrap = false
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = SoftGreenBg,
-                                        border = BorderStroke(0.8.dp, SoftGreenBorder)
-                                    ) {
-                                        Text(
-                                            text = "Level ${currentUser.verificationLevel} Verified Renter",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = SoftGreenDark,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
-                                }
                             }
 
                             IconButton(
                                 onClick = onNavigateToVerificationCenter,
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(34.dp)
                                     .background(
                                         if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9),
                                         CircleShape
@@ -143,10 +132,39 @@ fun TenantHomeScreen(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = "Verification Center",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Mabuhay!",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 0.5.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        val tenantNameFontSize = when {
+                            currentUser.fullName.length > 30 -> 14.5.sp
+                            currentUser.fullName.length > 24 -> 16.5.sp
+                            currentUser.fullName.length > 18 -> 18.5.sp
+                            else -> 22.sp
+                        }
+
+                        Text(
+                            text = currentUser.fullName,
+                            fontSize = tenantNameFontSize,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isDark) Color.White else Color(0xFF0F172A),
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
                         Spacer(modifier = Modifier.height(12.dp))
 
@@ -562,11 +580,11 @@ fun QuickPersonaSwitcherRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val personas = listOf(
-                Triple("usr_tenant_1", "Joshua (Tenant)", "TENANT"),
-                Triple("usr_owner_1", "Donato (Owner)", "PROPERTY_OWNER"),
-                Triple("usr_broker_marco", "Marco (Broker)", "REAL_ESTATE_BROKER"),
-                Triple("usr_caretaker_mark", "Mark (Caretaker)", "CARETAKER"),
-                Triple("usr_admin_1", "Admin (Compliance)", "ADMIN")
+                Triple("usr_tenant_1", "Joshua Alcantara (Tenant)", "TENANT"),
+                Triple("usr_owner_1", "Donato Yap (Owner)", "PROPERTY_OWNER"),
+                Triple("usr_broker_marco", "Marco Villanueva (Broker)", "REAL_ESTATE_BROKER"),
+                Triple("usr_caretaker_mark", "Kuya Mark (Caretaker)", "CARETAKER"),
+                Triple("usr_admin_1", "Balay-Inn Compliance Admin (Admin)", "ADMIN")
             )
 
             items(personas) { (id, label, roleStr) ->
@@ -593,10 +611,12 @@ fun QuickPersonaSwitcherRow(
                 ) {
                     Text(
                         text = label,
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) Color.White else if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }

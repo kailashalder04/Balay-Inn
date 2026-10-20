@@ -1,6 +1,7 @@
 package com.example
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -94,6 +95,7 @@ sealed class AppScreen {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("BalayInn", "Restored Balay-Inn Application Launched successfully")
         enableEdgeToEdge()
         setContent {
             val viewModel: MarketplaceViewModel = viewModel()

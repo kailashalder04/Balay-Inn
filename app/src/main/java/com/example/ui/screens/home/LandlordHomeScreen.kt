@@ -126,36 +126,16 @@ fun LandlordHomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Text(
-                                        text = "PROPERTY BUSINESS OVERVIEW",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
                             Text(
-                                text = "Welcome, ${currentUser.fullName}",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Property Owner • Level ${currentUser.verificationLevel} Verified Host",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = "PROPERTY BUSINESS OVERVIEW",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 maxLines = 1,
                                 softWrap = false
                             )
@@ -165,13 +145,49 @@ fun LandlordHomeScreen(
                             onClick = onNavigateToPostProperty,
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier.testTag("landlord_post_property_btn")
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Post Property", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                            Text("Post Property", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Welcome back,",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 0.5.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    val landlordNameFontSize = when {
+                        currentUser.fullName.length > 30 -> 14.5.sp
+                        currentUser.fullName.length > 24 -> 16.5.sp
+                        currentUser.fullName.length > 18 -> 18.5.sp
+                        else -> 22.sp
+                    }
+
+                    Text(
+                        text = currentUser.fullName,
+                        fontSize = landlordNameFontSize,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "Property Owner • Level ${currentUser.verificationLevel} Verified Host",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
+                    )
 
                     // Persona Switcher
                     QuickPersonaSwitcherRow(
@@ -409,10 +425,15 @@ fun LandlordHomeScreen(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
+                            val tenantItemFontSize = when {
+                                conv.tenantName.length > 25 -> 11.5.sp
+                                conv.tenantName.length > 18 -> 12.5.sp
+                                else -> 13.5.sp
+                            }
                             Text(
                                 text = conv.tenantName,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = tenantItemFontSize,
                                 maxLines = 1,
                                 softWrap = false
                             )

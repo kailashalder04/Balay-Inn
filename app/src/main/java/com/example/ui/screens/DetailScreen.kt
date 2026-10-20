@@ -502,11 +502,18 @@ fun DetailScreen(
                             Spacer(modifier = Modifier.width(12.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
+                                val landlordNameFontSize = when {
+                                    property.landlord.name.length > 24 -> 13.sp
+                                    property.landlord.name.length > 18 -> 14.5.sp
+                                    else -> 16.sp
+                                }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = property.landlord.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
+                                        fontSize = landlordNameFontSize,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                     if (property.landlord.isVerified) {
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -557,7 +564,10 @@ fun DetailScreen(
 
         AlertDialog(
             onDismissRequest = { showInquiryDialog = false },
-            title = { Text("Inquire with ${property.landlord.name}") },
+            title = {
+                val inquiryTitleFontSize = if (property.landlord.name.length > 22) 13.5.sp else 16.sp
+                Text("Inquire with ${property.landlord.name}", fontSize = inquiryTitleFontSize, maxLines = 1, softWrap = false)
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
