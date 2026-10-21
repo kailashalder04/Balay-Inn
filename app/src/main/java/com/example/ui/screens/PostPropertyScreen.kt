@@ -84,14 +84,8 @@ import java.util.UUID
 import com.example.ui.components.CascadingLocationSelector
 import com.example.ui.components.LocationMapPicker
 import com.example.ui.components.PropertyTypeSpecificationSelector
-import com.example.ui.components.CategorySpecificationsPostingSection
 import com.example.ui.components.SearchableDropdownField
 import com.example.data.model.PhilippineRentalPropertyCategory
-import com.example.data.model.PropertyCategorySpecifications
-import com.example.data.model.StudioCondoDetails
-import com.example.data.model.ApartmentDetails
-import com.example.data.model.HouseTownhouseDetails
-import com.example.data.model.RoomBedspaceDetails
 import com.example.ui.viewmodel.MarketplaceViewModel
 import kotlinx.coroutines.launch
 
@@ -130,51 +124,6 @@ fun PostPropertyScreen(
     var selectedVisitorsOption by remember(selectedCategory) { mutableStateOf(selectedCategory.visitorsDefault) }
     var selectedPetOption by remember(selectedCategory) { mutableStateOf(selectedCategory.petPolicyDefault) }
     var selectedParkingOption by remember(selectedCategory) { mutableStateOf(selectedCategory.parkingDefault) }
-
-    // Category Specific Details States (Studio & Condo, Apartment, House, Room)
-    // 1. Studio & Condominium
-    var condoDeveloperName by remember { mutableStateOf("") }
-    var condoBuildingName by remember { mutableStateOf("") }
-    var condoTower by remember { mutableStateOf("") }
-    var condoFloorLevel by remember { mutableStateOf("8th Floor") }
-    var condoUnitNumber by remember { mutableStateOf("") }
-    var condoHideUnitNumber by remember { mutableStateOf(false) }
-    var condoFloorAreaStr by remember { mutableStateOf("28") }
-    var condoHasBalcony by remember { mutableStateOf(false) }
-    var condoAssocDuesStatus by remember { mutableStateOf("Inclusive") }
-    val condoAmenities = remember { mutableStateListOf("24/7 Security", "Swimming Pool", "Gym / Fitness Center", "Backup Power / Generator") }
-    var condoPetFriendly by remember { mutableStateOf(true) }
-
-    // 2. Apartment (Multi-door)
-    var aptNumberOfUnits by remember { mutableStateOf("4-door") }
-    var aptFloorLevel by remember { mutableStateOf("1st Floor") }
-    var aptElectricityMeter by remember { mutableStateOf("Separate Meralco Meter") }
-    var aptWaterMeter by remember { mutableStateOf("Separate Maynilad/Water Sub-meter") }
-    var aptParkingType by remember { mutableStateOf("Garage") }
-    var aptBeds by remember { mutableIntStateOf(1) }
-    var aptBaths by remember { mutableIntStateOf(1) }
-
-    // 3. House & Townhouse
-    var houseLotAreaStr by remember { mutableStateOf("120") }
-    var houseFloorAreaStr by remember { mutableStateOf("85") }
-    var houseSubdivisionName by remember { mutableStateOf("") }
-    var houseHoaDues by remember { mutableStateOf("₱500/mo (Inclusive)") }
-    var houseUnitType by remember { mutableStateOf("Inner") }
-    var houseFloors by remember { mutableStateOf("2-Storey") }
-    var houseGarageCapacity by remember { mutableStateOf("2-Car") }
-    var houseHasMaidsRoom by remember { mutableStateOf(false) }
-    var houseHasGardenYard by remember { mutableStateOf(false) }
-    var houseSecurityType by remember { mutableStateOf("Gated & Roving Guards") }
-
-    // 4. Room (Bedspace / Co-living)
-    var roomOccupancyType by remember { mutableStateOf("Solo") }
-    var roomBedspaceHeadCount by remember { mutableIntStateOf(1) }
-    var roomTargetTenant by remember { mutableStateOf("Mixed") }
-    var roomBathFacility by remember { mutableStateOf("Shared CR") }
-    var roomCookingRules by remember { mutableStateOf("Light electric only") }
-    var roomVisitorPolicy by remember { mutableStateOf("Daytime visitors only") }
-    val roomInclusions = remember { mutableStateListOf("WiFi", "Water", "Electricity") }
-    val roomFurnishing = remember { mutableStateListOf("Single bed", "Cabinets / Lockers", "Aircon") }
 
     // Poster & Owner Relationship (Crucial Marketplace Rules 1 & 4)
     var posterRelationship by remember { mutableStateOf("Property owner") }
@@ -396,177 +345,6 @@ fun PostPropertyScreen(
                                 }
                             }
                         }
-
-                        // 4 Primary Property Types Category Selector
-                        Text(
-                            text = "Property Type Category *",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Select from the 4 primary Philippine rental categories:",
-                            fontSize = 11.5.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        val categoryItems = listOf(
-                            PhilippineRentalPropertyCategory.CONDOMINIUM to "Studio & Condominium",
-                            PhilippineRentalPropertyCategory.APARTMENT_FLAT to "Apartment (Multi-door)",
-                            PhilippineRentalPropertyCategory.HOUSE_TOWNHOUSE to "House & Townhouse",
-                            PhilippineRentalPropertyCategory.BED_SPACE to "Room (Bedspace / Co-living)"
-                        )
-
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth().testTag("property_type_category_tabs")
-                        ) {
-                            categoryItems.forEach { (cat, label) ->
-                                val isSelected = when (cat) {
-                                    PhilippineRentalPropertyCategory.CONDOMINIUM -> selectedCategory == PhilippineRentalPropertyCategory.CONDOMINIUM || selectedCategory == PhilippineRentalPropertyCategory.STUDIO_UNIT
-                                    else -> selectedCategory == cat
-                                }
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        propertyType = label
-                                        selectedWaterOption = cat.waterDefault
-                                        selectedElectricityOption = cat.electricityDefault
-                                        selectedInternetOption = cat.internetDefault
-                                        selectedCurfewOption = cat.curfewDefault
-                                        selectedSecurityOption = cat.securityDefault
-                                        selectedCookingOption = cat.cookingDefault
-                                        selectedVisitorsOption = cat.visitorsDefault
-                                        selectedPetOption = cat.petPolicyDefault
-                                        selectedParkingOption = cat.parkingDefault
-                                        petPolicy = cat.petPolicyDefault
-                                        internetIncluded = cat.internetDefault.contains("Free", ignoreCase = true) || cat.internetDefault.contains("Shared", ignoreCase = true)
-                                        selectedAmenities.clear()
-                                        selectedAmenities.addAll(cat.expectedAmenities)
-                                    },
-                                    label = {
-                                        Text(
-                                            text = "${cat.targetEmoji} $label",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                        )
-                                    },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                )
-                            }
-                        }
-
-                        // Mandatory Category-Specific Details Form Section
-                        CategorySpecificationsPostingSection(
-                            category = selectedCategory,
-                            condoDeveloperName = condoDeveloperName,
-                            onCondoDeveloperNameChange = { condoDeveloperName = it },
-                            condoBuildingName = condoBuildingName,
-                            onCondoBuildingNameChange = { condoBuildingName = it },
-                            condoTower = condoTower,
-                            onCondoTowerChange = { condoTower = it },
-                            condoFloorLevel = condoFloorLevel,
-                            onCondoFloorLevelChange = { condoFloorLevel = it },
-                            condoUnitNumber = condoUnitNumber,
-                            onCondoUnitNumberChange = { condoUnitNumber = it },
-                            condoHideUnitNumber = condoHideUnitNumber,
-                            onCondoHideUnitNumberChange = { condoHideUnitNumber = it },
-                            condoFloorAreaStr = condoFloorAreaStr,
-                            onCondoFloorAreaChange = { 
-                                condoFloorAreaStr = it
-                                floorAreaStr = it
-                            },
-                            condoHasBalcony = condoHasBalcony,
-                            onCondoHasBalconyChange = { condoHasBalcony = it },
-                            condoAssocDuesStatus = condoAssocDuesStatus,
-                            onCondoAssocDuesStatusChange = { 
-                                condoAssocDuesStatus = it
-                                if (it == "Inclusive") associationDuesStr = "0"
-                            },
-                            condoAmenities = condoAmenities,
-                            onToggleCondoAmenity = { amen ->
-                                if (condoAmenities.contains(amen)) condoAmenities.remove(amen) else condoAmenities.add(amen)
-                            },
-                            condoPetFriendly = condoPetFriendly,
-                            onCondoPetFriendlyChange = { 
-                                condoPetFriendly = it
-                                petPolicy = if (it) "Pets Allowed" else "No Pets"
-                            },
-                            aptNumberOfUnits = aptNumberOfUnits,
-                            onAptNumberOfUnitsChange = { aptNumberOfUnits = it },
-                            aptFloorLevel = aptFloorLevel,
-                            onAptFloorLevelChange = { aptFloorLevel = it },
-                            aptElectricityMeter = aptElectricityMeter,
-                            onAptElectricityMeterChange = { aptElectricityMeter = it },
-                            aptWaterMeter = aptWaterMeter,
-                            onAptWaterMeterChange = { aptWaterMeter = it },
-                            aptParkingType = aptParkingType,
-                            onAptParkingTypeChange = { 
-                                aptParkingType = it
-                                parkingAvailable = !it.contains("Street", ignoreCase = true)
-                            },
-                            aptBeds = aptBeds,
-                            onAptBedsChange = { 
-                                aptBeds = it
-                                bedrooms = it
-                            },
-                            aptBaths = aptBaths,
-                            onAptBathsChange = { 
-                                aptBaths = it
-                                bathrooms = it
-                            },
-                            houseLotAreaStr = houseLotAreaStr,
-                            onHouseLotAreaChange = { houseLotAreaStr = it },
-                            houseFloorAreaStr = houseFloorAreaStr,
-                            onHouseFloorAreaChange = { 
-                                houseFloorAreaStr = it
-                                floorAreaStr = it
-                            },
-                            houseSubdivisionName = houseSubdivisionName,
-                            onHouseSubdivisionNameChange = { 
-                                houseSubdivisionName = it
-                                if (neighborhood.isBlank()) neighborhood = it
-                            },
-                            houseHoaDues = houseHoaDues,
-                            onHouseHoaDuesChange = { houseHoaDues = it },
-                            houseUnitType = houseUnitType,
-                            onHouseUnitTypeChange = { houseUnitType = it },
-                            houseFloors = houseFloors,
-                            onHouseFloorsChange = { houseFloors = it },
-                            houseGarageCapacity = houseGarageCapacity,
-                            onHouseGarageCapacityChange = { houseGarageCapacity = it },
-                            houseHasMaidsRoom = houseHasMaidsRoom,
-                            onHouseHasMaidsRoomChange = { houseHasMaidsRoom = it },
-                            houseHasGardenYard = houseHasGardenYard,
-                            onHouseHasGardenYardChange = { houseHasGardenYard = it },
-                            houseSecurityType = houseSecurityType,
-                            onHouseSecurityTypeChange = { houseSecurityType = it },
-                            roomOccupancyType = roomOccupancyType,
-                            onRoomOccupancyTypeChange = { roomOccupancyType = it },
-                            roomBedspaceHeadCount = roomBedspaceHeadCount,
-                            onRoomBedspaceHeadCountChange = { roomBedspaceHeadCount = it },
-                            roomTargetTenant = roomTargetTenant,
-                            onRoomTargetTenantChange = { roomTargetTenant = it },
-                            roomBathFacility = roomBathFacility,
-                            onRoomBathFacilityChange = { roomBathFacility = it },
-                            roomCookingRules = roomCookingRules,
-                            onRoomCookingRulesChange = { roomCookingRules = it },
-                            roomVisitorPolicy = roomVisitorPolicy,
-                            onRoomVisitorPolicyChange = { roomVisitorPolicy = it },
-                            roomInclusions = roomInclusions,
-                            onToggleRoomInclusion = { incl ->
-                                if (roomInclusions.contains(incl)) roomInclusions.remove(incl) else roomInclusions.add(incl)
-                                internetIncluded = roomInclusions.contains("WiFi")
-                            },
-                            roomFurnishing = roomFurnishing,
-                            onToggleRoomFurnishing = { furn ->
-                                if (roomFurnishing.contains(furn)) roomFurnishing.remove(furn) else roomFurnishing.add(furn)
-                            }
-                        )
 
                         // Dynamic Property Type Specification Selector Component
                         // Displays dynamic amenities, utilities, and house rules based on selected property type
@@ -1137,76 +915,6 @@ fun PostPropertyScreen(
                             selectedAmenities.toList()
                         )
 
-                        // Build PropertyCategorySpecifications from filled category form details
-                        val categorySpecifications = when (selectedCategory) {
-                            PhilippineRentalPropertyCategory.CONDOMINIUM,
-                            PhilippineRentalPropertyCategory.STUDIO_UNIT -> {
-                                PropertyCategorySpecifications(
-                                    category = "Studio & Condominium",
-                                    studioCondo = StudioCondoDetails(
-                                        developerName = condoDeveloperName,
-                                        buildingName = condoBuildingName,
-                                        tower = condoTower,
-                                        floorLevel = condoFloorLevel,
-                                        unitNumber = condoUnitNumber,
-                                        hideUnitNumber = condoHideUnitNumber,
-                                        floorAreaSqm = condoFloorAreaStr.toDoubleOrNull() ?: 28.0,
-                                        hasBalcony = condoHasBalcony,
-                                        associationDuesStatus = condoAssocDuesStatus,
-                                        amenities = condoAmenities.toList(),
-                                        petFriendly = condoPetFriendly
-                                    )
-                                )
-                            }
-                            PhilippineRentalPropertyCategory.APARTMENT_FLAT -> {
-                                PropertyCategorySpecifications(
-                                    category = "Apartment (Multi-door)",
-                                    apartment = ApartmentDetails(
-                                        numberOfUnits = aptNumberOfUnits,
-                                        floorLevel = aptFloorLevel,
-                                        electricityMeter = aptElectricityMeter,
-                                        waterMeter = aptWaterMeter,
-                                        parkingType = aptParkingType,
-                                        beds = aptBeds,
-                                        baths = aptBaths
-                                    )
-                                )
-                            }
-                            PhilippineRentalPropertyCategory.HOUSE_TOWNHOUSE -> {
-                                PropertyCategorySpecifications(
-                                    category = "House & Townhouse",
-                                    houseTownhouse = HouseTownhouseDetails(
-                                        lotAreaSqm = houseLotAreaStr.toDoubleOrNull() ?: 120.0,
-                                        floorAreaSqm = houseFloorAreaStr.toDoubleOrNull() ?: 85.0,
-                                        subdivisionName = houseSubdivisionName,
-                                        hoaDues = houseHoaDues,
-                                        unitType = houseUnitType,
-                                        floors = houseFloors,
-                                        garageCapacity = houseGarageCapacity,
-                                        hasMaidsRoom = houseHasMaidsRoom,
-                                        hasGardenYard = houseHasGardenYard,
-                                        securityType = houseSecurityType
-                                    )
-                                )
-                            }
-                            PhilippineRentalPropertyCategory.BED_SPACE -> {
-                                PropertyCategorySpecifications(
-                                    category = "Room (Bedspace / Co-living)",
-                                    roomBedspace = RoomBedspaceDetails(
-                                        occupancyType = if (roomOccupancyType == "Bedspace") "Bedspace ($roomBedspaceHeadCount pax)" else roomOccupancyType,
-                                        bedspaceHeadCount = roomBedspaceHeadCount,
-                                        targetTenant = roomTargetTenant,
-                                        bathFacility = roomBathFacility,
-                                        cookingRules = roomCookingRules,
-                                        visitorPolicy = roomVisitorPolicy,
-                                        inclusions = roomInclusions.toList(),
-                                        furnishing = roomFurnishing.toList()
-                                    )
-                                )
-                            }
-                        }
-                        val categorySpecsJson = categorySpecifications.toJson()
-
                         viewModel.postProperty(
                             title = title,
                             description = finalDesc,
@@ -1233,7 +941,6 @@ fun PostPropertyScreen(
                             isAuthorized = isAuthorized == "Yes",
                             amenities = filteredAmenities,
                             imageUrls = finalImages,
-                            categorySpecsJson = categorySpecsJson,
                             onSuccess = {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Property listed successfully!")

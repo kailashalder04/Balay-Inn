@@ -51,8 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import com.example.data.model.CategoryDetailChip
-import com.example.data.model.getCategoryHighlightChips
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -572,33 +570,6 @@ private fun RepresentativePropertyCard(
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
             )
-
-            val highlightChips = remember(property) { property.getCategoryHighlightChips() }
-            if (highlightChips.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    highlightChips.take(3).forEach { chip ->
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "${chip.icon} ${chip.label}",
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
-                    }
-                }
-            }
 
             val repCardDescription = property.description.trim().ifBlank {
                 "Managed Philippine rental listing with verified amenities and authorized landlord representation."

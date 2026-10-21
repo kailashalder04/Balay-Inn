@@ -20,8 +20,6 @@ import com.example.data.model.PropertyCostHelper
 import com.example.data.model.RoomType
 import com.example.data.model.VerificationChecks
 import com.example.data.model.toBoardingHouseListing
-import com.example.data.model.getCategoryHighlightChips
-import com.example.data.model.getCategorySpecifications
 import com.example.util.AppSecurityManager
 import com.example.ui.components.BoardingHouseImagePager
 import com.example.ui.components.NearbyDestinationSection
@@ -749,46 +747,6 @@ fun PropertyDetailScreen(
                                     modifier = Modifier.align(Alignment.End)
                                 ) {
                                     Text("Apply / Inquire for this Room", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 4a. Property Type Category Specifications (Studio/Condo, Apartment, House, Room)
-            item {
-                val categoryChips = remember(prop) { prop.getCategoryHighlightChips() }
-                if (categoryChips.isNotEmpty()) {
-                    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-                        Text(
-                            text = "Category Specifications (${prop.propertyType})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            categoryChips.forEach { chip ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (chip.isPrimary) MaterialTheme.colorScheme.primaryContainer else if (isDark) PropertyBoxBgDark else Color.White,
-                                    border = BorderStroke(1.dp, if (chip.isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
-                                    ) {
-                                        Text(
-                                            text = "${chip.icon} ${chip.label}",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = if (chip.isPrimary) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (chip.isPrimary) MaterialTheme.colorScheme.onPrimaryContainer else if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
-                                        )
-                                    }
                                 }
                             }
                         }
