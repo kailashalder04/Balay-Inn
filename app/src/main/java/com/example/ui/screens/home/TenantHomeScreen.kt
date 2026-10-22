@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -335,30 +340,16 @@ fun TenantHomeScreen(
                     }
 
                     item(key = "cat_carousel_${config.id}") {
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("category_carousel_${config.id.lowercase().replace(" ", "_")}"),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp)
-                        ) {
-                            items(categoryProperties, key = { "cat_${config.id}_${it.id}" }) { prop ->
-                                HorizontalCategoryPropertyCard(
-                                    property = prop,
-                                    locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
-                                    imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                                    isSaved = prop.id in savedPropIds,
-                                    onSaveToggle = { viewModel.toggleSave(prop.id) },
-                                    isCompared = prop.id in comparedPropertyIds,
-                                    onCompareToggle = { viewModel.toggleCompare(prop) },
-                                    onClick = {
-                                        viewModel.recordPropertyView(prop.id)
-                                        onNavigateToPropertyDetail(prop.id)
-                                    },
-                                    isDark = isDark
-                                )
-                            }
-                        }
+                        CategoryPropertySnapRow(
+                            categoryProperties = categoryProperties,
+                            propertyImagesMap = propertyImagesMap,
+                            savedPropIds = savedPropIds,
+                            comparedPropertyIds = comparedPropertyIds,
+                            viewModel = viewModel,
+                            onNavigateToPropertyDetail = onNavigateToPropertyDetail,
+                            isDark = isDark,
+                            testTag = "category_carousel_${config.id.lowercase().replace(" ", "_")}"
+                        )
                         Spacer(modifier = Modifier.height(6.dp))
                     }
                 }
@@ -382,30 +373,16 @@ fun TenantHomeScreen(
                 }
 
                 item(key = "cat_carousel_other") {
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("category_carousel_other"),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp)
-                    ) {
-                        items(otherProperties, key = { "other_${it.id}" }) { prop ->
-                            HorizontalCategoryPropertyCard(
-                                property = prop,
-                                locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
-                                imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                                isSaved = prop.id in savedPropIds,
-                                onSaveToggle = { viewModel.toggleSave(prop.id) },
-                                isCompared = prop.id in comparedPropertyIds,
-                                onCompareToggle = { viewModel.toggleCompare(prop) },
-                                onClick = {
-                                    viewModel.recordPropertyView(prop.id)
-                                    onNavigateToPropertyDetail(prop.id)
-                                },
-                                isDark = isDark
-                            )
-                        }
-                    }
+                    CategoryPropertySnapRow(
+                        categoryProperties = otherProperties,
+                        propertyImagesMap = propertyImagesMap,
+                        savedPropIds = savedPropIds,
+                        comparedPropertyIds = comparedPropertyIds,
+                        viewModel = viewModel,
+                        onNavigateToPropertyDetail = onNavigateToPropertyDetail,
+                        isDark = isDark,
+                        testTag = "category_carousel_other"
+                    )
                     Spacer(modifier = Modifier.height(6.dp))
                 }
             }
@@ -790,6 +767,53 @@ fun CategoryCarouselHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CategoryPropertySnapRow(
+    categoryProperties: List<PropertyEntity>,
+    propertyImagesMap: Map<String, List<String>>,
+    savedPropIds: Set<String>,
+    comparedPropertyIds: Set<String>,
+    viewModel: MarketplaceViewModel,
+    onNavigateToPropertyDetail: (String) -> Unit,
+    isDark: Boolean,
+    testTag: String
+) {
+    val listState = rememberLazyListState()
+    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+    val configuration = LocalConfiguration.current
+    // Roughly 78% of the screen width so the edge of the second card is naturally visible
+    val cardWidth = (configuration.screenWidthDp.dp * 0.78f).coerceIn(275.dp, 360.dp)
+
+    LazyRow(
+        state = listState,
+        flingBehavior = snapFlingBehavior,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(testTag),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp)
+    ) {
+        items(categoryProperties, key = { "snap_${testTag}_${it.id}" }) { prop ->
+            HorizontalCategoryPropertyCard(
+                property = prop,
+                locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
+                imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                isSaved = prop.id in savedPropIds,
+                onSaveToggle = { viewModel.toggleSave(prop.id) },
+                isCompared = prop.id in comparedPropertyIds,
+                onCompareToggle = { viewModel.toggleCompare(prop) },
+                onClick = {
+                    viewModel.recordPropertyView(prop.id)
+                    onNavigateToPropertyDetail(prop.id)
+                },
+                isDark = isDark,
+                cardWidth = cardWidth
+            )
+        }
+    }
+}
+
 @Composable
 fun HorizontalCategoryPropertyCard(
     property: PropertyEntity,
@@ -801,8 +825,13 @@ fun HorizontalCategoryPropertyCard(
     onCompareToggle: () -> Unit = {},
     onClick: () -> Unit,
     isDark: Boolean = false,
+    cardWidth: Dp? = null,
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    // Roughly 78% of the screen width so the edge of the second card is naturally visible
+    val effectiveCardWidth = cardWidth ?: (configuration.screenWidthDp.dp * 0.78f).coerceIn(275.dp, 360.dp)
+
     PropertyCard(
         property = property,
         locationDisplay = locationDisplay,
@@ -812,8 +841,9 @@ fun HorizontalCategoryPropertyCard(
         isCompared = isCompared,
         onCompareToggle = onCompareToggle,
         onClick = onClick,
-        modifier = modifier.width(285.dp)
+        modifier = modifier.width(effectiveCardWidth)
     )
 }
+
 
 

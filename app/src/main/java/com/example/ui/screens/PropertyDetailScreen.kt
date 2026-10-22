@@ -260,77 +260,6 @@ fun PropertyDetailScreen(
     val maskedPhone = AppSecurityManager.maskPhoneNumber(hostInfo.phone, isPhoneRevealed)
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = cleanTitle,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        if (prop.isPlatformVerified()) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            VerifiedIcon(size = 18.dp)
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (comparedProperties.size >= 2) {
-                        IconButton(
-                            onClick = { showComparisonMatrix = true }
-                        ) {
-                            BadgedBox(
-                                badge = {
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = Color.White
-                                    ) {
-                                        Text("${comparedProperties.size}", fontSize = 10.sp)
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CompareArrows,
-                                    contentDescription = "Open Comparison Matrix",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                    IconButton(
-                        onClick = { viewModel.toggleCompare(prop) }
-                    ) {
-                        Icon(
-                            imageVector = if (isCompared) Icons.Default.Check else Icons.Default.CompareArrows,
-                            contentDescription = if (isCompared) "In comparison list" else "Add to compare",
-                            tint = if (isCompared) SteelBlue else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(
-                        onClick = { viewModel.toggleSave(prop.id) }
-                    ) {
-                        Icon(
-                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Save",
-                            tint = if (isSaved) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-            )
-        },
         bottomBar = {
             Surface(
                 color = MaterialTheme.colorScheme.surface,
@@ -412,7 +341,7 @@ fun PropertyDetailScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(bottom = innerPadding.calculateBottomPadding()),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             // 1. Header Image & Title: Carousel, Property Name, and Location
@@ -422,10 +351,8 @@ fun PropertyDetailScreen(
                         images = displayImages,
                         propertyTitle = cleanTitle,
                         roomType = prop.propertyType,
+                        onBack = onBack,
                         onShare = { showExportPostDialog = true },
-                        isSaved = isSaved,
-                        onToggleSave = { viewModel.toggleSave(prop.id) },
-                        onReport = { showReportDialog = true },
                         modifier = Modifier.fillMaxWidth()
                     )
 
