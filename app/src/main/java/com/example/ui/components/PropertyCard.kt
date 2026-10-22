@@ -143,7 +143,7 @@ fun PropertyCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(14.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 // Top Row: Category badge & Save button
@@ -161,14 +161,16 @@ fun PropertyCard(
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
 
                     IconButton(
                         onClick = onSaveToggle,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .background(Color.Black.copy(alpha = 0.45f), CircleShape)
                     ) {
                         Icon(
@@ -190,39 +192,42 @@ fun PropertyCard(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
-                        fontSize = 21.sp,
+                        fontSize = 18.5.sp,
                         maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.testTag("property_card_rent_${property.id}")
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     // 2. Name
                     Text(
                         text = property.title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        fontSize = 15.sp,
+                        fontSize = 13.5.sp,
                         maxLines = 1,
+                        softWrap = false,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.testTag("property_card_title_${property.id}")
                     )
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     // 3. Address- Barangay/District, Province only
                     Text(
                         text = addressOnly,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 12.5.sp,
+                        fontSize = 11.5.sp,
                         maxLines = 1,
+                        softWrap = false,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.testTag("property_card_address_${property.id}")
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // Subtle divider
                     Box(
@@ -232,9 +237,9 @@ fun PropertyCard(
                             .background(Color.White.copy(alpha = 0.22f))
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
 
-                    // 4. Footer: 3 Specification with icons below the address
+                    // 4. Footer: 3 Specification with icons below the address (single line icon and text)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -246,15 +251,15 @@ fun PropertyCard(
                         val areaText = if (property.floorAreaSqm > 0) "${property.floorAreaSqm.toInt()} m²" else "24 m²"
                         SpecificationItem(
                             icon = Icons.Default.SquareFoot,
-                            value = areaText,
-                            label = "Living",
-                            contentDescription = "Living Area"
+                            text = areaText,
+                            contentDescription = "Living Area",
+                            modifier = Modifier.weight(1f)
                         )
 
                         // Vertical Divider 1
                         Box(
                             modifier = Modifier
-                                .height(22.dp)
+                                .height(14.dp)
                                 .width(1.dp)
                                 .background(Color.White.copy(alpha = 0.22f))
                         )
@@ -264,15 +269,15 @@ fun PropertyCard(
                         val roomLabel = if (property.bedrooms == 1) "Room" else "Rooms"
                         SpecificationItem(
                             icon = Icons.Default.KingBed,
-                            value = roomCount,
-                            label = roomLabel,
-                            contentDescription = "Rooms"
+                            text = "$roomCount $roomLabel",
+                            contentDescription = "Rooms",
+                            modifier = Modifier.weight(1f)
                         )
 
                         // Vertical Divider 2
                         Box(
                             modifier = Modifier
-                                .height(22.dp)
+                                .height(14.dp)
                                 .width(1.dp)
                                 .background(Color.White.copy(alpha = 0.22f))
                         )
@@ -282,9 +287,9 @@ fun PropertyCard(
                         val bathLabel = if (property.bathrooms == 1) "Bath" else "Baths"
                         SpecificationItem(
                             icon = Icons.Default.Bathtub,
-                            value = bathCount,
-                            label = bathLabel,
-                            contentDescription = "Bathrooms"
+                            text = "$bathCount $bathLabel",
+                            contentDescription = "Bathrooms",
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -296,38 +301,30 @@ fun PropertyCard(
 @Composable
 private fun SpecificationItem(
     icon: ImageVector,
-    value: String,
-    label: String,
+    text: String,
     contentDescription: String,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Row(
         modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = Color.White,
-                modifier = Modifier.size(15.dp)
-            )
-            Text(
-                text = value,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
-            )
-        }
-        Spacer(modifier = Modifier.height(2.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = Color.White.copy(alpha = 0.9f),
+            modifier = Modifier.size(13.dp)
+        )
+        Spacer(modifier = Modifier.width(3.dp))
         Text(
-            text = label,
-            color = Color.White.copy(alpha = 0.75f),
+            text = text,
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp,
-            fontWeight = FontWeight.Normal
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
