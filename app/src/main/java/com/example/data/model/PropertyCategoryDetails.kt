@@ -5,213 +5,256 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Category-specific specifications and details for Philippine rentals.
- *
- * Covers the 4 core categories:
- * 1. Studio & Condominium
- * 2. Apartment (Multi-door)
- * 3. House & Townhouse
- * 4. Room (Bedspace / Co-living)
+ * 1. Condition: Boarding House Specifications
  */
-data class StudioCondoDetails(
-    val developerName: String = "",
-    val buildingName: String = "",
-    val tower: String = "",
-    val floorLevel: String = "",
-    val unitNumber: String = "",
-    val hideUnitNumber: Boolean = false,
-    val floorAreaSqm: Double = 0.0,
-    val hasBalcony: Boolean = false,
-    val associationDuesStatus: String = "Inclusive", // Inclusive or Exclusive
-    val amenities: List<String> = emptyList(), // Pool, Gym, Security, Function Hall, Backup Power
-    val petFriendly: Boolean = true
+data class BoardingHouseDetails(
+    val pricingModel: String = "Per Person/Bed", // "Per Person/Bed" vs "Per Room"
+    val monthlyRent: Double = 0.0,
+    val roomCapacity: String = "4-bed bunk", // "Single", "Double bed", "4-bed bunk", "6-bed bunk"
+    val tenantPreference: String = "Mixed", // "Male Only", "Female Only", "Mixed"
+    val bathroomType: String = "Shared/Communal", // "Private/En-suite" vs "Shared/Communal"
+    val utilities: List<String> = listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included")
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
-            put("developerName", developerName)
-            put("buildingName", buildingName)
-            put("tower", tower)
-            put("floorLevel", floorLevel)
-            put("unitNumber", unitNumber)
-            put("hideUnitNumber", hideUnitNumber)
-            put("floorAreaSqm", floorAreaSqm)
-            put("hasBalcony", hasBalcony)
-            put("associationDuesStatus", associationDuesStatus)
-            put("amenities", JSONArray(amenities))
-            put("petFriendly", petFriendly)
+            put("pricingModel", pricingModel)
+            put("monthlyRent", monthlyRent)
+            put("roomCapacity", roomCapacity)
+            put("tenantPreference", tenantPreference)
+            put("bathroomType", bathroomType)
+            put("utilities", JSONArray(utilities))
         }
     }
 
     companion object {
-        fun fromJsonObject(obj: JSONObject): StudioCondoDetails {
-            val amenitiesList = mutableListOf<String>()
-            val arr = obj.optJSONArray("amenities")
+        fun fromJsonObject(obj: JSONObject): BoardingHouseDetails {
+            val utils = mutableListOf<String>()
+            val arr = obj.optJSONArray("utilities")
             if (arr != null) {
-                for (i in 0 until arr.length()) {
-                    amenitiesList.add(arr.optString(i))
-                }
+                for (i in 0 until arr.length()) utils.add(arr.optString(i))
             }
-            return StudioCondoDetails(
-                developerName = obj.optString("developerName", ""),
-                buildingName = obj.optString("buildingName", ""),
-                tower = obj.optString("tower", ""),
-                floorLevel = obj.optString("floorLevel", ""),
-                unitNumber = obj.optString("unitNumber", ""),
-                hideUnitNumber = obj.optBoolean("hideUnitNumber", false),
-                floorAreaSqm = obj.optDouble("floorAreaSqm", 0.0),
-                hasBalcony = obj.optBoolean("hasBalcony", false),
-                associationDuesStatus = obj.optString("associationDuesStatus", "Inclusive"),
-                amenities = amenitiesList,
-                petFriendly = obj.optBoolean("petFriendly", true)
+            return BoardingHouseDetails(
+                pricingModel = obj.optString("pricingModel", "Per Person/Bed"),
+                monthlyRent = obj.optDouble("monthlyRent", 0.0),
+                roomCapacity = obj.optString("roomCapacity", "4-bed bunk"),
+                tenantPreference = obj.optString("tenantPreference", "Mixed"),
+                bathroomType = obj.optString("bathroomType", "Shared/Communal"),
+                utilities = if (utils.isNotEmpty()) utils else listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included")
             )
         }
     }
 }
 
+/**
+ * 2. Condition: Apartment Specifications
+ */
 data class ApartmentDetails(
-    val numberOfUnits: String = "4-door", // e.g. 2-door, 4-door, 6-door
-    val floorLevel: String = "1st Floor", // Ground, 1st Floor, 2nd Floor, etc.
-    val electricityMeter: String = "Separate Meralco Meter", // Separate Meralco Meter / Separate VECO / Sub-meter
-    val waterMeter: String = "Separate Maynilad/Water Sub-meter", // Separate Maynilad/Water Sub-meter
-    val parkingType: String = "Garage", // Street, Garage, First-come
-    val beds: Int = 1,
-    val baths: Int = 1
+    val monthlyRent: Double = 0.0,
+    val totalFloorAreaSqm: Double = 35.0,
+    val bedrooms: Int = 1,
+    val bathrooms: Int = 1,
+    val leaseTermMinimum: String = "1 year", // "6 months", "1 year"
+    val furnishing: String = "Semi-Furnished", // "Bare", "Semi-Furnished", "Fully Furnished"
+    val kitchenType: String = "Indoor/Integral", // "Indoor/Integral" vs "Outdoor/Dirty Kitchen"
+    val utilityBilling: String = "Own Meter" // "Own Meter" vs "Sub-metered by Landlord"
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
-            put("numberOfUnits", numberOfUnits)
-            put("floorLevel", floorLevel)
-            put("electricityMeter", electricityMeter)
-            put("waterMeter", waterMeter)
-            put("parkingType", parkingType)
-            put("beds", beds)
-            put("baths", baths)
+            put("monthlyRent", monthlyRent)
+            put("totalFloorAreaSqm", totalFloorAreaSqm)
+            put("bedrooms", bedrooms)
+            put("bathrooms", bathrooms)
+            put("leaseTermMinimum", leaseTermMinimum)
+            put("furnishing", furnishing)
+            put("kitchenType", kitchenType)
+            put("utilityBilling", utilityBilling)
         }
     }
 
     companion object {
         fun fromJsonObject(obj: JSONObject): ApartmentDetails {
             return ApartmentDetails(
-                numberOfUnits = obj.optString("numberOfUnits", "4-door"),
-                floorLevel = obj.optString("floorLevel", "1st Floor"),
-                electricityMeter = obj.optString("electricityMeter", "Separate Meralco Meter"),
-                waterMeter = obj.optString("waterMeter", "Separate Maynilad/Water Sub-meter"),
-                parkingType = obj.optString("parkingType", "Garage"),
-                beds = obj.optInt("beds", 1),
-                baths = obj.optInt("baths", 1)
+                monthlyRent = obj.optDouble("monthlyRent", 0.0),
+                totalFloorAreaSqm = obj.optDouble("totalFloorAreaSqm", 35.0),
+                bedrooms = obj.optInt("bedrooms", 1),
+                bathrooms = obj.optInt("bathrooms", 1),
+                leaseTermMinimum = obj.optString("leaseTermMinimum", "1 year"),
+                furnishing = obj.optString("furnishing", "Semi-Furnished"),
+                kitchenType = obj.optString("kitchenType", "Indoor/Integral"),
+                utilityBilling = obj.optString("utilityBilling", "Own Meter")
             )
         }
     }
 }
 
-data class HouseTownhouseDetails(
-    val lotAreaSqm: Double = 0.0,
-    val floorAreaSqm: Double = 0.0,
-    val subdivisionName: String = "", // Subdivision / Village Name
-    val hoaDues: String = "₱500/mo (Inclusive)",
-    val unitType: String = "Inner", // Inner, End, Corner
-    val floors: String = "2-Storey", // 1-Storey, 2-Storey, 3-Storey
-    val garageCapacity: String = "2-Car", // 1-Car, 2-Car, 3-Car
-    val hasMaidsRoom: Boolean = false, // Maid's Room
-    val hasGardenYard: Boolean = false, // Garden / Yard
-    val securityType: String = "Gated, Roving Guards" // Gated, Roving Guards
+/**
+ * 3. Condition: Condominium & Studio Specifications
+ */
+data class CondominiumDetails(
+    val monthlyRent: Double = 0.0,
+    val associationDues: String = "Inclusive in rent", // "Inclusive in rent" vs "Exclusive/Tenant pays separately"
+    val unitLayout: String = "Studio", // "Studio", "1BR", "2BR", "Loft", "Bi-level"
+    val totalFloorAreaSqm: Double = 28.0,
+    val floorLevel: String = "8th Floor", // e.g. "14th floor"
+    val parking: String = "Available for extra fee", // "Included in rent", "Available for extra fee", "None"
+    val amenities: List<String> = listOf("Pool", "Gym", "24/7 Security", "Balcony"),
+    val petPolicy: String = "Pet-Friendly" // "Strictly No Pets" vs "Pet-Friendly"
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
+            put("monthlyRent", monthlyRent)
+            put("associationDues", associationDues)
+            put("unitLayout", unitLayout)
+            put("totalFloorAreaSqm", totalFloorAreaSqm)
+            put("floorLevel", floorLevel)
+            put("parking", parking)
+            put("amenities", JSONArray(amenities))
+            put("petPolicy", petPolicy)
+        }
+    }
+
+    companion object {
+        fun fromJsonObject(obj: JSONObject): CondominiumDetails {
+            val ams = mutableListOf<String>()
+            val arr = obj.optJSONArray("amenities")
+            if (arr != null) {
+                for (i in 0 until arr.length()) ams.add(arr.optString(i))
+            }
+            return CondominiumDetails(
+                monthlyRent = obj.optDouble("monthlyRent", 0.0),
+                associationDues = obj.optString("associationDues", "Inclusive in rent"),
+                unitLayout = obj.optString("unitLayout", "Studio"),
+                totalFloorAreaSqm = obj.optDouble("totalFloorAreaSqm", 28.0),
+                floorLevel = obj.optString("floorLevel", "8th Floor"),
+                parking = obj.optString("parking", "Available for extra fee"),
+                amenities = if (ams.isNotEmpty()) ams else listOf("Pool", "Gym", "24/7 Security"),
+                petPolicy = obj.optString("petPolicy", "Pet-Friendly")
+            )
+        }
+    }
+}
+
+/**
+ * 4. Condition: Townhouse Specifications
+ */
+data class TownhouseDetails(
+    val monthlyRent: Double = 0.0,
+    val lotAreaSqm: Double = 120.0,
+    val floorAreaSqm: Double = 85.0,
+    val stories: Int = 2,
+    val bedrooms: Int = 3,
+    val bathrooms: Int = 2,
+    val garageCapacity: Int = 2,
+    val hasMaidsRoom: Boolean = false, // Maid's Room / Service Quarters Included?
+    val isGatedSubdivision: Boolean = true // Located inside a gated subdivision?
+) {
+    fun toJsonObject(): JSONObject {
+        return JSONObject().apply {
+            put("monthlyRent", monthlyRent)
             put("lotAreaSqm", lotAreaSqm)
             put("floorAreaSqm", floorAreaSqm)
-            put("subdivisionName", subdivisionName)
-            put("hoaDues", hoaDues)
-            put("unitType", unitType)
-            put("floors", floors)
+            put("stories", stories)
+            put("bedrooms", bedrooms)
+            put("bathrooms", bathrooms)
             put("garageCapacity", garageCapacity)
             put("hasMaidsRoom", hasMaidsRoom)
-            put("hasGardenYard", hasGardenYard)
-            put("securityType", securityType)
+            put("isGatedSubdivision", isGatedSubdivision)
         }
     }
 
     companion object {
-        fun fromJsonObject(obj: JSONObject): HouseTownhouseDetails {
-            return HouseTownhouseDetails(
-                lotAreaSqm = obj.optDouble("lotAreaSqm", 0.0),
-                floorAreaSqm = obj.optDouble("floorAreaSqm", 0.0),
-                subdivisionName = obj.optString("subdivisionName", ""),
-                hoaDues = obj.optString("hoaDues", "₱500/mo (Inclusive)"),
-                unitType = obj.optString("unitType", "Inner"),
-                floors = obj.optString("floors", "2-Storey"),
-                garageCapacity = obj.optString("garageCapacity", "2-Car"),
+        fun fromJsonObject(obj: JSONObject): TownhouseDetails {
+            return TownhouseDetails(
+                monthlyRent = obj.optDouble("monthlyRent", 0.0),
+                lotAreaSqm = obj.optDouble("lotAreaSqm", 120.0),
+                floorAreaSqm = obj.optDouble("floorAreaSqm", 85.0),
+                stories = obj.optInt("stories", 2),
+                bedrooms = obj.optInt("bedrooms", 3),
+                bathrooms = obj.optInt("bathrooms", 2),
+                garageCapacity = obj.optInt("garageCapacity", 2),
                 hasMaidsRoom = obj.optBoolean("hasMaidsRoom", false),
-                hasGardenYard = obj.optBoolean("hasGardenYard", false),
-                securityType = obj.optString("securityType", "Gated, Roving Guards")
+                isGatedSubdivision = obj.optBoolean("isGatedSubdivision", true)
             )
         }
     }
 }
 
-data class RoomBedspaceDetails(
-    val occupancyType: String = "Solo", // Solo, Shared, Bedspace with head count
-    val bedspaceHeadCount: Int = 1,
-    val targetTenant: String = "Mixed", // Female Only, Male Only, Mixed
-    val bathFacility: String = "Shared CR", // Shared vs En-suite bath
-    val cookingRules: String = "Light electric only", // Cooking rules
-    val visitorPolicy: String = "Daytime visitors only", // Visitors
-    val inclusions: List<String> = listOf("WiFi", "Water", "Electricity"), // WiFi, Water, Electricity
-    val furnishing: List<String> = listOf("Single bed", "Cabinets", "Aircon") // Double-deck, single bed, cabinets, aircon/fan
+/**
+ * Role-Based Verification Data captured in Step 1
+ */
+data class RoleVerificationDetails(
+    val role: String = "Property owner", // "Property owner", "Authorized representative / Caretaker", "Sublessor / Master tenant"
+    val isTitleOwnerConfirmed: Boolean = true,
+    val ownerIdType: String = "Philippine National ID (PhilSys)",
+    val ownerIdNumber: String = "",
+    val contactPreference: String = "Direct Phone & In-App Chat",
+    val landlordFullName: String = "",
+    val representativeRelationship: String = "Caretaker",
+    val isAuthorizedByOwner: Boolean = true,
+    val authorizationDocType: String = "Written Consent & Authorization Note",
+    val representativePhone: String = "",
+    val masterLandlordName: String = "",
+    val hasSubleasePermission: Boolean = true,
+    val masterLeaseExpiry: String = "Within 1 year"
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
-            put("occupancyType", occupancyType)
-            put("bedspaceHeadCount", bedspaceHeadCount)
-            put("targetTenant", targetTenant)
-            put("bathFacility", bathFacility)
-            put("cookingRules", cookingRules)
-            put("visitorPolicy", visitorPolicy)
-            put("inclusions", JSONArray(inclusions))
-            put("furnishing", JSONArray(furnishing))
+            put("role", role)
+            put("isTitleOwnerConfirmed", isTitleOwnerConfirmed)
+            put("ownerIdType", ownerIdType)
+            put("ownerIdNumber", ownerIdNumber)
+            put("contactPreference", contactPreference)
+            put("landlordFullName", landlordFullName)
+            put("representativeRelationship", representativeRelationship)
+            put("isAuthorizedByOwner", isAuthorizedByOwner)
+            put("authorizationDocType", authorizationDocType)
+            put("representativePhone", representativePhone)
+            put("masterLandlordName", masterLandlordName)
+            put("hasSubleasePermission", hasSubleasePermission)
+            put("masterLeaseExpiry", masterLeaseExpiry)
         }
     }
 
     companion object {
-        fun fromJsonObject(obj: JSONObject): RoomBedspaceDetails {
-            val incl = mutableListOf<String>()
-            val arr1 = obj.optJSONArray("inclusions")
-            if (arr1 != null) {
-                for (i in 0 until arr1.length()) incl.add(arr1.optString(i))
-            }
-            val furn = mutableListOf<String>()
-            val arr2 = obj.optJSONArray("furnishing")
-            if (arr2 != null) {
-                for (i in 0 until arr2.length()) furn.add(arr2.optString(i))
-            }
-            return RoomBedspaceDetails(
-                occupancyType = obj.optString("occupancyType", "Solo"),
-                bedspaceHeadCount = obj.optInt("bedspaceHeadCount", 1),
-                targetTenant = obj.optString("targetTenant", "Mixed"),
-                bathFacility = obj.optString("bathFacility", "Shared CR"),
-                cookingRules = obj.optString("cookingRules", "Light electric only"),
-                visitorPolicy = obj.optString("visitorPolicy", "Daytime visitors only"),
-                inclusions = if (incl.isNotEmpty()) incl else listOf("WiFi", "Water", "Electricity"),
-                furnishing = if (furn.isNotEmpty()) furn else listOf("Single bed", "Cabinets", "Aircon")
+        fun fromJsonObject(obj: JSONObject): RoleVerificationDetails {
+            return RoleVerificationDetails(
+                role = obj.optString("role", "Property owner"),
+                isTitleOwnerConfirmed = obj.optBoolean("isTitleOwnerConfirmed", true),
+                ownerIdType = obj.optString("ownerIdType", "Philippine National ID (PhilSys)"),
+                ownerIdNumber = obj.optString("ownerIdNumber", ""),
+                contactPreference = obj.optString("contactPreference", "Direct Phone & In-App Chat"),
+                landlordFullName = obj.optString("landlordFullName", ""),
+                representativeRelationship = obj.optString("representativeRelationship", "Caretaker"),
+                isAuthorizedByOwner = obj.optBoolean("isAuthorizedByOwner", true),
+                authorizationDocType = obj.optString("authorizationDocType", "Written Consent & Authorization Note"),
+                representativePhone = obj.optString("representativePhone", ""),
+                masterLandlordName = obj.optString("masterLandlordName", ""),
+                hasSubleasePermission = obj.optBoolean("hasSubleasePermission", true),
+                masterLeaseExpiry = obj.optString("masterLeaseExpiry", "Within 1 year")
             )
         }
     }
 }
 
+/**
+ * Root specification container serialized into property.categorySpecsJson
+ */
 data class PropertyCategorySpecifications(
-    val category: String = "", // "Studio & Condominium", "Apartment (Multi-door)", "House & Townhouse", "Room (Bedspace / Co-living)"
-    val studioCondo: StudioCondoDetails? = null,
+    val category: String = "", // "Boarding House", "Apartment", "Condominium", "Studio", "Townhouse"
+    val boardingHouse: BoardingHouseDetails? = null,
     val apartment: ApartmentDetails? = null,
-    val houseTownhouse: HouseTownhouseDetails? = null,
-    val roomBedspace: RoomBedspaceDetails? = null
+    val condominium: CondominiumDetails? = null,
+    val townhouse: TownhouseDetails? = null,
+    val roleVerification: RoleVerificationDetails? = null
 ) {
     fun toJson(): String {
         return JSONObject().apply {
             put("category", category)
-            studioCondo?.let { put("studioCondo", it.toJsonObject()) }
+            boardingHouse?.let { put("boardingHouse", it.toJsonObject()) }
             apartment?.let { put("apartment", it.toJsonObject()) }
-            houseTownhouse?.let { put("houseTownhouse", it.toJsonObject()) }
-            roomBedspace?.let { put("roomBedspace", it.toJsonObject()) }
+            condominium?.let { put("condominium", it.toJsonObject()) }
+            townhouse?.let { put("townhouse", it.toJsonObject()) }
+            roleVerification?.let { put("roleVerification", it.toJsonObject()) }
         }.toString()
     }
 
@@ -221,11 +264,40 @@ data class PropertyCategorySpecifications(
             return try {
                 val obj = JSONObject(jsonStr)
                 val cat = obj.optString("category", "")
-                val sc = obj.optJSONObject("studioCondo")?.let { StudioCondoDetails.fromJsonObject(it) }
+                val bh = obj.optJSONObject("boardingHouse")?.let { BoardingHouseDetails.fromJsonObject(it) }
+                    ?: obj.optJSONObject("roomBedspace")?.let {
+                        BoardingHouseDetails(
+                            pricingModel = if (it.optString("occupancyType").contains("Bedspace", ignoreCase = true)) "Per Person/Bed" else "Per Room",
+                            roomCapacity = "${it.optInt("bedspaceHeadCount", 1)}-bed bunk",
+                            tenantPreference = it.optString("targetTenant", "Mixed"),
+                            bathroomType = if (it.optString("bathFacility").contains("Private", ignoreCase = true) || it.optString("bathFacility").contains("En-suite", ignoreCase = true)) "Private/En-suite" else "Shared/Communal"
+                        )
+                    }
                 val ap = obj.optJSONObject("apartment")?.let { ApartmentDetails.fromJsonObject(it) }
-                val ht = obj.optJSONObject("houseTownhouse")?.let { HouseTownhouseDetails.fromJsonObject(it) }
-                val rb = obj.optJSONObject("roomBedspace")?.let { RoomBedspaceDetails.fromJsonObject(it) }
-                PropertyCategorySpecifications(cat, sc, ap, ht, rb)
+                val cd = obj.optJSONObject("condominium")?.let { CondominiumDetails.fromJsonObject(it) }
+                    ?: obj.optJSONObject("studioCondo")?.let {
+                        CondominiumDetails(
+                            associationDues = it.optString("associationDuesStatus", "Inclusive in rent"),
+                            unitLayout = "Studio",
+                            totalFloorAreaSqm = it.optDouble("floorAreaSqm", 28.0),
+                            floorLevel = it.optString("floorLevel", "8th Floor"),
+                            parking = "Available for extra fee",
+                            petPolicy = if (it.optBoolean("petFriendly", true)) "Pet-Friendly" else "Strictly No Pets"
+                        )
+                    }
+                val th = obj.optJSONObject("townhouse")?.let { TownhouseDetails.fromJsonObject(it) }
+                    ?: obj.optJSONObject("houseTownhouse")?.let {
+                        TownhouseDetails(
+                            lotAreaSqm = it.optDouble("lotAreaSqm", 120.0),
+                            floorAreaSqm = it.optDouble("floorAreaSqm", 85.0),
+                            stories = if (it.optString("floors").contains("3")) 3 else 2,
+                            garageCapacity = if (it.optString("garageCapacity").contains("2")) 2 else 1,
+                            hasMaidsRoom = it.optBoolean("hasMaidsRoom", false),
+                            isGatedSubdivision = it.optString("securityType").contains("Gated", ignoreCase = true)
+                        )
+                    }
+                val rv = obj.optJSONObject("roleVerification")?.let { RoleVerificationDetails.fromJsonObject(it) }
+                PropertyCategorySpecifications(cat, bh, ap, cd, th, rv)
             } catch (_: Exception) {
                 PropertyCategorySpecifications()
             }
@@ -234,12 +306,12 @@ data class PropertyCategorySpecifications(
 }
 
 /**
- * Chip item representation for rendering category details in UI cards and lists
+ * Item for seamless integration in PropertyDetailScreen's Living Specifications list
  */
-data class CategoryDetailChip(
-    val icon: String,
+data class CategorySpecificationItem(
     val label: String,
-    val isPrimary: Boolean = false
+    val value: String,
+    val iconEmoji: String
 )
 
 /**
@@ -248,80 +320,75 @@ data class CategoryDetailChip(
 fun PropertyEntity.getCategorySpecifications(): PropertyCategorySpecifications {
     if (categorySpecsJson.isNotBlank() && categorySpecsJson != "{}") {
         val parsed = PropertyCategorySpecifications.fromJson(categorySpecsJson)
-        if (parsed.studioCondo != null || parsed.apartment != null || parsed.houseTownhouse != null || parsed.roomBedspace != null) {
+        if (parsed.boardingHouse != null || parsed.apartment != null || parsed.condominium != null || parsed.townhouse != null) {
             return parsed
         }
     }
 
-    // Infer from existing property entity fields
     val type = propertyType.lowercase()
     return when {
-        type.contains("condo") || type.contains("studio") -> {
-            val isCondo = type.contains("condo")
+        type.contains("board") || type.contains("bed") || type.contains("room") -> {
+            val headCount = if (description.contains("4", ignoreCase = true)) 4 else if (description.contains("2", ignoreCase = true)) 2 else 1
             PropertyCategorySpecifications(
-                category = if (isCondo) "Condominium" else "Studio",
-                studioCondo = StudioCondoDetails(
-                    developerName = if (isCondo) "Cebu Landmasters" else "Local Developer",
-                    buildingName = if (isCondo) "Horizons 101" else neighborhood.ifBlank { "Central Studio Suites" },
-                    tower = "Tower 1",
-                    floorLevel = "8th Floor",
-                    unitNumber = "Unit 812",
-                    hideUnitNumber = true,
-                    floorAreaSqm = if (floorAreaSqm > 0) floorAreaSqm else 28.0,
-                    hasBalcony = amenitiesJson.contains("balcony", ignoreCase = true) || description.contains("balcony", ignoreCase = true),
-                    associationDuesStatus = if (associationDues > 0) "Exclusive (₱${associationDues.toInt()}/mo)" else "Inclusive",
-                    amenities = listOf("Pool", "Gym", "Security", "Backup Power"),
-                    petFriendly = petPolicy.contains("Allow", ignoreCase = true)
+                category = "Boarding House",
+                boardingHouse = BoardingHouseDetails(
+                    pricingModel = if (headCount > 1) "Per Person/Bed" else "Per Room",
+                    monthlyRent = monthlyRent,
+                    roomCapacity = if (headCount == 4) "4-bed bunk" else if (headCount == 2) "Double bed" else "Single",
+                    tenantPreference = if (description.contains("female", ignoreCase = true) || title.contains("female", ignoreCase = true)) "Female Only"
+                                       else if (description.contains("male", ignoreCase = true) || title.contains("male", ignoreCase = true)) "Male Only"
+                                       else "Mixed",
+                    bathroomType = if (bathrooms > 1 || description.contains("private", ignoreCase = true)) "Private/En-suite" else "Shared/Communal",
+                    utilities = listOf("Sub-metered Electricity", "Sub-metered Water", if (internetIncluded) "Free Wi-Fi included" else "")
+                        .filter { it.isNotBlank() }
                 )
             )
         }
-        type.contains("house") || type.contains("town") -> {
+        type.contains("condo") || type.contains("studio") -> {
+            val isStudio = type.contains("studio")
             PropertyCategorySpecifications(
-                category = "House & Townhouse",
-                houseTownhouse = HouseTownhouseDetails(
+                category = if (isStudio) "Studio" else "Condominium",
+                condominium = CondominiumDetails(
+                    monthlyRent = monthlyRent,
+                    associationDues = if (associationDues > 0) "Exclusive/Tenant pays separately (₱${associationDues.toInt()}/mo)" else "Inclusive in rent",
+                    unitLayout = if (isStudio) "Studio" else if (bedrooms >= 2) "2BR" else "1BR",
+                    totalFloorAreaSqm = if (floorAreaSqm > 0) floorAreaSqm else if (isStudio) 24.0 else 32.0,
+                    floorLevel = "8th Floor",
+                    parking = if (parkingAvailable) "Included in rent" else "Available for extra fee",
+                    amenities = listOf("Pool", "Gym", "24/7 Security", if (amenitiesJson.contains("balcony", ignoreCase = true)) "Balcony" else "").filter { it.isNotBlank() },
+                    petPolicy = if (petPolicy.contains("Allow", ignoreCase = true)) "Pet-Friendly" else "Strictly No Pets"
+                )
+            )
+        }
+        type.contains("town") || type.contains("house") -> {
+            PropertyCategorySpecifications(
+                category = "Townhouse",
+                townhouse = TownhouseDetails(
+                    monthlyRent = monthlyRent,
                     lotAreaSqm = 120.0,
                     floorAreaSqm = if (floorAreaSqm > 0) floorAreaSqm else 85.0,
-                    subdivisionName = neighborhood.ifBlank { "Villa Leona Subdivision" },
-                    hoaDues = "₱500/mo (Inclusive)",
-                    unitType = "Corner",
-                    floors = "2-Storey",
-                    garageCapacity = if (parkingAvailable) "2-Car" else "1-Car",
+                    stories = 2,
+                    bedrooms = if (bedrooms > 0) bedrooms else 3,
+                    bathrooms = if (bathrooms > 0) bathrooms else 2,
+                    garageCapacity = if (parkingAvailable) 2 else 1,
                     hasMaidsRoom = bedrooms >= 3,
-                    hasGardenYard = true,
-                    securityType = "Gated, Roving Guards"
-                )
-            )
-        }
-        type.contains("apart") || type.contains("flat") -> {
-            PropertyCategorySpecifications(
-                category = "Apartment (Multi-door)",
-                apartment = ApartmentDetails(
-                    numberOfUnits = "4-door",
-                    floorLevel = "2nd Floor",
-                    electricityMeter = "Separate Meralco Meter",
-                    waterMeter = "Separate Maynilad/Water Sub-meter",
-                    parkingType = if (parkingAvailable) "Garage" else "Street",
-                    beds = bedrooms,
-                    baths = bathrooms
+                    isGatedSubdivision = true
                 )
             )
         }
         else -> {
-            // Room / Bedspace
-            val headCount = if (description.contains("2", ignoreCase = true)) 2 else if (description.contains("4", ignoreCase = true)) 4 else 1
+            // Apartment
             PropertyCategorySpecifications(
-                category = "Room (Bedspace / Co-living)",
-                roomBedspace = RoomBedspaceDetails(
-                    occupancyType = if (headCount > 1) "Bedspace ($headCount pax)" else "Solo",
-                    bedspaceHeadCount = headCount,
-                    targetTenant = if (description.contains("female", ignoreCase = true) || title.contains("female", ignoreCase = true)) "Female Only"
-                                  else if (description.contains("male", ignoreCase = true) || title.contains("male", ignoreCase = true)) "Male Only"
-                                  else "Mixed",
-                    bathFacility = if (bathrooms > 1 || description.contains("private cr", ignoreCase = true)) "En-suite Bath" else "Shared CR",
-                    cookingRules = if (description.contains("no lpg", ignoreCase = true) || description.contains("electric", ignoreCase = true)) "Light electric only" else "Cooking allowed",
-                    visitorPolicy = if (description.contains("no visitor", ignoreCase = true)) "Strictly no visitors" else "Daytime visitors only",
-                    inclusions = listOf("WiFi", "Water", "Electricity"),
-                    furnishing = listOf(if (headCount > 1) "Double-deck" else "Single bed", "Cabinets", if (amenitiesJson.contains("air", ignoreCase = true)) "Aircon" else "Wall fan")
+                category = "Apartment",
+                apartment = ApartmentDetails(
+                    monthlyRent = monthlyRent,
+                    totalFloorAreaSqm = if (floorAreaSqm > 0) floorAreaSqm else 36.0,
+                    bedrooms = if (bedrooms > 0) bedrooms else 1,
+                    bathrooms = if (bathrooms > 0) bathrooms else 1,
+                    leaseTermMinimum = "1 year",
+                    furnishing = if (furnishedStatus.contains("Semi", ignoreCase = true)) "Semi-Furnished" else if (furnishedStatus.contains("Un", ignoreCase = true) || furnishedStatus.contains("Bare", ignoreCase = true)) "Bare" else "Fully Furnished",
+                    kitchenType = if (description.contains("dirty", ignoreCase = true) || description.contains("outdoor", ignoreCase = true)) "Outdoor/Dirty Kitchen" else "Indoor/Integral",
+                    utilityBilling = if (description.contains("own meter", ignoreCase = true) || description.contains("meralco", ignoreCase = true)) "Own Meter" else "Sub-metered by Landlord"
                 )
             )
         }
@@ -329,84 +396,54 @@ fun PropertyEntity.getCategorySpecifications(): PropertyCategorySpecifications {
 }
 
 /**
- * Returns prioritized highlight badges/chips to display on Property Cards
- * covers all specifications requested for:
- * 1. Studio & Condominium: Developer Name, Building Name, Tower, Floor Level, Unit Number (option to hide),
- *    Floor Area (sqm), Balcony (Yes/No), Association Dues (Inclusive/Exclusive), Amenities (Pool, Gym, Security, Function Hall, Backup Power), Rules (Pet-friendly).
- * 2. Apartment (Multi-door): Number of Units, Floor Level, Utilities (Separate Meralco Meter, Separate Maynilad/Water Sub-meter),
- *    Parking (Street, Garage, First-come), Layout (Beds, Baths).
- * 3. House & Townhouse: Lot Area (sqm), Floor Area (sqm), Subdivision/Village Name, HOA Dues, Unit Type (Inner, End, Corner),
- *    Floors, Garage Capacity, Maid's Room, Garden/Yard, Security (Gated, Roving Guards).
- * 4. Room (Bedspace / Co-living): Occupancy Type (Solo, Shared, Bedspace with head count), Target Tenant (Female Only, Male Only, Mixed),
- *    Facilities (Shared vs En-suite bath, Cooking rules, Visitors), Inclusions (WiFi, Water, Electricity), Furnishing (Double-deck, single bed, cabinets, aircon/fan).
+ * Returns category specification items for seamless integration into PropertyDetailScreen's Living Specifications list
  */
-fun PropertyEntity.getCategoryHighlightChips(): List<CategoryDetailChip> {
+fun PropertyEntity.getCategorySpecificationItems(): List<CategorySpecificationItem> {
     val specs = getCategorySpecifications()
-    val chips = mutableListOf<CategoryDetailChip>()
+    val items = mutableListOf<CategorySpecificationItem>()
 
-    specs.studioCondo?.let { sc ->
-        if (sc.buildingName.isNotBlank()) {
-            val bld = if (sc.tower.isNotBlank()) "${sc.buildingName} • ${sc.tower}" else sc.buildingName
-            chips.add(CategoryDetailChip("🏢", bld, isPrimary = true))
+    specs.boardingHouse?.let { bh ->
+        items.add(CategorySpecificationItem("Pricing Model", bh.pricingModel, "🏷️"))
+        items.add(CategorySpecificationItem("Room Capacity", bh.roomCapacity, "🛏️"))
+        items.add(CategorySpecificationItem("Tenant Preference", bh.tenantPreference, "👥"))
+        items.add(CategorySpecificationItem("Bathroom Type", bh.bathroomType, "🚿"))
+        if (bh.utilities.isNotEmpty()) {
+            items.add(CategorySpecificationItem("Utilities Setup", bh.utilities.joinToString(", "), "⚡"))
         }
-        if (sc.developerName.isNotBlank()) {
-            chips.add(CategoryDetailChip("🏗️", "Dev: ${sc.developerName}"))
-        }
-        if (sc.floorLevel.isNotBlank()) {
-            chips.add(CategoryDetailChip("🛗", sc.floorLevel))
-        }
-        if (sc.unitNumber.isNotBlank() || sc.hideUnitNumber) {
-            chips.add(CategoryDetailChip("🚪", if (sc.hideUnitNumber) "Unit: Hidden" else "Unit: ${sc.unitNumber}"))
-        }
-        if (sc.floorAreaSqm > 0) {
-            chips.add(CategoryDetailChip("📐", "${sc.floorAreaSqm.toInt()} sqm"))
-        }
-        chips.add(CategoryDetailChip("🌅", if (sc.hasBalcony) "Balcony: Yes" else "Balcony: No"))
-        chips.add(CategoryDetailChip("💳", "Dues: ${sc.associationDuesStatus}"))
-        if (sc.amenities.isNotEmpty()) {
-            chips.add(CategoryDetailChip("🏊", "Amenities: ${sc.amenities.joinToString(", ")}"))
-        }
-        chips.add(CategoryDetailChip("🐾", if (sc.petFriendly) "Pet-Friendly" else "No Pets"))
-        return chips
+        return items
     }
 
     specs.apartment?.let { ap ->
-        chips.add(CategoryDetailChip("🚪", "${ap.numberOfUnits} • ${ap.floorLevel}", isPrimary = true))
-        chips.add(CategoryDetailChip("⚡", ap.electricityMeter))
-        chips.add(CategoryDetailChip("💧", ap.waterMeter))
-        chips.add(CategoryDetailChip("🚗", "Parking: ${ap.parkingType}"))
-        chips.add(CategoryDetailChip("🛏️", "${ap.beds} Bed, ${ap.baths} Bath"))
-        return chips
+        items.add(CategorySpecificationItem("Floor Area", "${ap.totalFloorAreaSqm.toInt()} sqm", "📐"))
+        items.add(CategorySpecificationItem("Bedrooms & Baths", "${ap.bedrooms} Bed, ${ap.bathrooms} Bath", "🚪"))
+        items.add(CategorySpecificationItem("Min. Lease Term", ap.leaseTermMinimum, "📅"))
+        items.add(CategorySpecificationItem("Furnishing", ap.furnishing, "🛋️"))
+        items.add(CategorySpecificationItem("Kitchen Type", ap.kitchenType, "🍳"))
+        items.add(CategorySpecificationItem("Utility Billing", ap.utilityBilling, "⚡"))
+        return items
     }
 
-    specs.houseTownhouse?.let { ht ->
-        if (ht.subdivisionName.isNotBlank()) {
-            chips.add(CategoryDetailChip("🏡", ht.subdivisionName, isPrimary = true))
+    specs.condominium?.let { cd ->
+        items.add(CategorySpecificationItem("Unit Layout", cd.unitLayout, "🏢"))
+        items.add(CategorySpecificationItem("Floor Level", cd.floorLevel, "🛗"))
+        items.add(CategorySpecificationItem("Floor Area", "${cd.totalFloorAreaSqm.toInt()} sqm", "📐"))
+        items.add(CategorySpecificationItem("Association Dues", cd.associationDues, "💳"))
+        items.add(CategorySpecificationItem("Parking Setup", cd.parking, "🚗"))
+        items.add(CategorySpecificationItem("Pet Policy", cd.petPolicy, "🐾"))
+        if (cd.amenities.isNotEmpty()) {
+            items.add(CategorySpecificationItem("Condo Amenities", cd.amenities.joinToString(", "), "🏊"))
         }
-        if (ht.lotAreaSqm > 0 || ht.floorAreaSqm > 0) {
-            chips.add(CategoryDetailChip("📐", "Lot ${ht.lotAreaSqm.toInt()}m² • Flr ${ht.floorAreaSqm.toInt()}m²"))
-        }
-        chips.add(CategoryDetailChip("🏘️", "${ht.unitType} Unit • ${ht.floors}"))
-        chips.add(CategoryDetailChip("💵", "HOA: ${ht.hoaDues}"))
-        chips.add(CategoryDetailChip("🚗", "Garage: ${ht.garageCapacity}"))
-        chips.add(CategoryDetailChip("🧹", "Maid's Room: ${if (ht.hasMaidsRoom) "Yes" else "No"}"))
-        chips.add(CategoryDetailChip("🌳", "Garden/Yard: ${if (ht.hasGardenYard) "Yes" else "No"}"))
-        chips.add(CategoryDetailChip("🛡️", ht.securityType))
-        return chips
+        return items
     }
 
-    specs.roomBedspace?.let { rb ->
-        chips.add(CategoryDetailChip("👥", rb.occupancyType, isPrimary = true))
-        chips.add(CategoryDetailChip("🎯", "Tenant: ${rb.targetTenant}"))
-        chips.add(CategoryDetailChip("🚿", rb.bathFacility))
-        chips.add(CategoryDetailChip("🍳", rb.cookingRules))
-        chips.add(CategoryDetailChip("👥", rb.visitorPolicy))
-        chips.add(CategoryDetailChip("💡", "Incl: ${rb.inclusions.joinToString(", ")}"))
-        if (rb.furnishing.isNotEmpty()) {
-            chips.add(CategoryDetailChip("🛏️", "Furnishing: ${rb.furnishing.joinToString(", ")}"))
-        }
-        return chips
+    specs.townhouse?.let { th ->
+        items.add(CategorySpecificationItem("Lot / Floor Area", "Lot ${th.lotAreaSqm.toInt()}m² • Floor ${th.floorAreaSqm.toInt()}m²", "📐"))
+        items.add(CategorySpecificationItem("Layout", "${th.stories}-Storey • ${th.bedrooms} Bed, ${th.bathrooms} Bath", "🏡"))
+        items.add(CategorySpecificationItem("Carport / Garage", "${th.garageCapacity} Car(s)", "🚗"))
+        items.add(CategorySpecificationItem("Maid's Quarters", if (th.hasMaidsRoom) "Included" else "None", "🧹"))
+        items.add(CategorySpecificationItem("Subdivision Security", if (th.isGatedSubdivision) "Gated Subdivision" else "Open Neighborhood", "🛡️"))
+        return items
     }
 
-    return chips
+    return items
 }

@@ -237,7 +237,7 @@ fun ViewingRequestsScreen(
                             items(savedItems, key = { it.id }) { prop ->
                                 PropertyCard(
                                     property = prop,
-                                    locationDisplay = viewModel.getLocationDisplay(prop),
+                                    locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
                                     imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
                                     isSaved = true,
                                     onSaveToggle = { viewModel.toggleSave(prop.id) },

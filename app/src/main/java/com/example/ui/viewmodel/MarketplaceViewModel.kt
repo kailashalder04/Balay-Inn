@@ -24,6 +24,7 @@ import com.example.data.local.entity.UserEntity
 import com.example.data.local.entity.VerificationDocumentEntity
 import com.example.data.local.entity.ViewingRequestEntity
 import com.example.data.model.PhilippineRentalPropertyCategory
+import com.example.data.model.getCategorySpecifications
 import com.example.data.model.UserRole
 import com.example.data.repository.BalayInnRepository
 import com.example.data.repository.PropertyMatchResult
@@ -91,7 +92,19 @@ data class MarketplaceFilterState(
     val targetMarket: String = "All",
     val utilityRuleFilter: String = "All",
     val leaseDurationFilter: String = "All", // All, Flexible (1-3 mos), Mid-term (4-6 mos), Annual (12+ mos)
-    val moveInDateFilter: String = "All" // All, Immediate / Available Now, Within 15 Days, Within 30 Days, Flexible
+    val moveInDateFilter: String = "All", // All, Immediate / Available Now, Within 15 Days, Within 30 Days, Flexible
+    // Type-specific dynamic filter attributes
+    val boardingPricingModel: String = "All", // All, Per Person/Bed, Per Room
+    val boardingCapacity: String = "All", // All, Single, Double bed, 4-bed bunk, 6-bed bunk
+    val boardingBathroom: String = "All", // All, Private/En-suite, Shared/Communal
+    val apartmentKitchen: String = "All", // All, Indoor/Integral, Outdoor/Dirty Kitchen
+    val apartmentBilling: String = "All", // All, Own Meter, Sub-metered by Landlord
+    val condoLayout: String = "All", // All, Studio, 1BR, 2BR, Loft, Bi-level
+    val condoDues: String = "All", // All, Inclusive in rent, Exclusive/Tenant pays separately
+    val condoParking: String = "All", // All, Included in rent, Available for extra fee
+    val townhouseStories: Int? = null, // 1, 2, 3
+    val townhouseGatedSubdivision: Boolean = false,
+    val townhouseMaidsRoom: Boolean = false
 )
 
 class MarketplaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -482,11 +495,44 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 else -> true
             }
 
+            // Dynamic Type-Specific Specifications Filter
+            val categorySpecs = prop.getCategorySpecifications()
+            val matchesCategorySpecs = when (filter.propertyType) {
+                "Boarding House", "Bed Space / Boarding House" -> {
+                    val bh = categorySpecs.boardingHouse
+                    val matchesPricing = filter.boardingPricingModel == "All" || bh?.pricingModel.equals(filter.boardingPricingModel, ignoreCase = true)
+                    val matchesCap = filter.boardingCapacity == "All" || bh?.roomCapacity.equals(filter.boardingCapacity, ignoreCase = true)
+                    val matchesBath = filter.boardingBathroom == "All" || bh?.bathroomType.equals(filter.boardingBathroom, ignoreCase = true)
+                    matchesPricing && matchesCap && matchesBath
+                }
+                "Apartment", "Apartment / Multi-door Flat" -> {
+                    val ap = categorySpecs.apartment
+                    val matchesKitchen = filter.apartmentKitchen == "All" || ap?.kitchenType.equals(filter.apartmentKitchen, ignoreCase = true)
+                    val matchesBilling = filter.apartmentBilling == "All" || ap?.utilityBilling.equals(filter.apartmentBilling, ignoreCase = true)
+                    matchesKitchen && matchesBilling
+                }
+                "Condominium", "Condominium Unit", "Studio", "Studio Unit" -> {
+                    val cd = categorySpecs.condominium
+                    val matchesLayout = filter.condoLayout == "All" || cd?.unitLayout.equals(filter.condoLayout, ignoreCase = true)
+                    val matchesDues = filter.condoDues == "All" || cd?.associationDues.equals(filter.condoDues, ignoreCase = true)
+                    val matchesPark = filter.condoParking == "All" || cd?.parking.equals(filter.condoParking, ignoreCase = true)
+                    matchesLayout && matchesDues && matchesPark
+                }
+                "Townhouse", "House & Townhouse" -> {
+                    val th = categorySpecs.townhouse
+                    val matchesStories = filter.townhouseStories == null || th?.stories == filter.townhouseStories
+                    val matchesGated = !filter.townhouseGatedSubdivision || (th?.isGatedSubdivision == true)
+                    val matchesMaid = !filter.townhouseMaidsRoom || (th?.hasMaidsRoom == true)
+                    matchesStories && matchesGated && matchesMaid
+                }
+                else -> true
+            }
+
             matchesKeyword && matchesProvince && matchesCity && matchesBarangay && matchesPrice &&
                 matchesType && matchesTargetMarket && matchesUtilityRule &&
                 matchesBeds && matchesFurnished && matchesParking && matchesPets &&
                 matchesVerified && matchesListedBy && matchesAuthorized && matchesBounds && matchesDistance &&
-                matchesGender && matchesMinBeds && matchesLeaseDuration && matchesMoveInDate
+                matchesGender && matchesMinBeds && matchesLeaseDuration && matchesMoveInDate && matchesCategorySpecs
         }.sortedWith(
             when (filter.sortBy) {
                 "PRICE_ASC", "lowest_price" -> compareBy { it.monthlyRent }
@@ -623,6 +669,50 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
 
     fun updateMoveInDate(date: String) {
         _filterState.value = _filterState.value.copy(moveInDateFilter = date)
+    }
+
+    fun updateBoardingPricingModel(value: String) {
+        _filterState.value = _filterState.value.copy(boardingPricingModel = value)
+    }
+
+    fun updateBoardingCapacity(value: String) {
+        _filterState.value = _filterState.value.copy(boardingCapacity = value)
+    }
+
+    fun updateBoardingBathroom(value: String) {
+        _filterState.value = _filterState.value.copy(boardingBathroom = value)
+    }
+
+    fun updateApartmentKitchen(value: String) {
+        _filterState.value = _filterState.value.copy(apartmentKitchen = value)
+    }
+
+    fun updateApartmentBilling(value: String) {
+        _filterState.value = _filterState.value.copy(apartmentBilling = value)
+    }
+
+    fun updateCondoLayout(value: String) {
+        _filterState.value = _filterState.value.copy(condoLayout = value)
+    }
+
+    fun updateCondoDues(value: String) {
+        _filterState.value = _filterState.value.copy(condoDues = value)
+    }
+
+    fun updateCondoParking(value: String) {
+        _filterState.value = _filterState.value.copy(condoParking = value)
+    }
+
+    fun updateTownhouseStories(value: Int?) {
+        _filterState.value = _filterState.value.copy(townhouseStories = value)
+    }
+
+    fun updateTownhouseGated(value: Boolean) {
+        _filterState.value = _filterState.value.copy(townhouseGatedSubdivision = value)
+    }
+
+    fun updateTownhouseMaidsRoom(value: Boolean) {
+        _filterState.value = _filterState.value.copy(townhouseMaidsRoom = value)
     }
 
     fun resetFilters() {
@@ -1497,6 +1587,25 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             prov.isNotBlank() -> prov
             else -> "Philippines"
         }
+    }
+
+    // Specific address helper: Barangay/District, Province only
+    fun getBarangayProvinceDisplay(property: PropertyEntity): String {
+        val bgy = allBarangays.value.find { it.id == property.barangayId }?.name?.trim() ?: ""
+        val prov = allProvinces.value.find { it.id == property.provinceId }?.name?.trim() ?: ""
+        val city = allCities.value.find { it.id == property.cityMunicipalityId }?.name?.trim() ?: ""
+
+        val district = when {
+            bgy.isNotBlank() -> bgy
+            property.neighborhood.isNotBlank() -> property.neighborhood.trim()
+            city.isNotBlank() -> city
+            else -> "Kasambagan"
+        }
+        val province = when {
+            prov.isNotBlank() -> prov
+            else -> "Cebu"
+        }
+        return "$district, $province"
     }
 
     fun getImagesForProperty(propertyId: String): Flow<List<PropertyImageEntity>> =

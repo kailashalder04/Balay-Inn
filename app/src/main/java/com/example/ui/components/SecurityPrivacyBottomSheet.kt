@@ -19,7 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteForever
@@ -295,7 +295,7 @@ fun SecurityPrivacyBottomSheet(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Assignment,
+                        imageVector = Icons.AutoMirrored.Filled.Assignment,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

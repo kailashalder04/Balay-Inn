@@ -20,6 +20,7 @@ import com.example.data.model.PropertyCostHelper
 import com.example.data.model.RoomType
 import com.example.data.model.VerificationChecks
 import com.example.data.model.toBoardingHouseListing
+import com.example.data.model.getCategorySpecificationItems
 import com.example.util.AppSecurityManager
 import com.example.ui.components.BoardingHouseImagePager
 import com.example.ui.components.NearbyDestinationSection
@@ -77,11 +78,15 @@ import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.Bathtub
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Chair
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Flag
@@ -99,7 +104,9 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SmokeFree
 import androidx.compose.material.icons.filled.SquareFoot
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
@@ -107,6 +114,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
@@ -407,124 +415,113 @@ fun PropertyDetailScreen(
                 .padding(innerPadding),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // Photos Carousel / Gallery using BoardingHouseImagePager component
+            // 1. Header Image & Title: Carousel, Property Name, and Location
             item {
-                BoardingHouseImagePager(
-                    images = displayImages,
-                    propertyTitle = cleanTitle,
-                    roomType = prop.propertyType,
-                    onShare = { showExportPostDialog = true },
-                    isSaved = isSaved,
-                    onToggleSave = { viewModel.toggleSave(prop.id) },
-                    onReport = { showReportDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    BoardingHouseImagePager(
+                        images = displayImages,
+                        propertyTitle = cleanTitle,
+                        roomType = prop.propertyType,
+                        onShare = { showExportPostDialog = true },
+                        isSaved = isSaved,
+                        onToggleSave = { viewModel.toggleSave(prop.id) },
+                        onReport = { showReportDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-            // 1. Bed Availability & Gender Rule, followed by Location & Landmark
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Boarding House Real-time Bed Availability & Gender Rule
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isDark) PropertyBoxBgDark else Color.White,
-                            border = BorderStroke(
-                                1.dp,
-                                if (boardingHouse.totalAvailableBeds > 0) {
-                                    if (isDark) SoftGreenDarkBorder else SoftGreenBorder
-                                } else {
-                                    Color(0xFFDC2626)
-                                }
-                            )
+                        // Property Name & Price Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .background(
-                                            if (boardingHouse.totalAvailableBeds > 0) Color(0xFF16A34A) else Color(0xFFDC2626),
-                                             CircleShape
-                                        )
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "${boardingHouse.totalAvailableBeds} of ${boardingHouse.totalCapacity} beds available • ${boardingHouse.lastAvailabilityUpdate}",
-                                    fontSize = 11.sp,
+                                    text = cleanTitle,
+                                    style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (boardingHouse.totalAvailableBeds > 0) {
-                                        if (isDark) SoftGreenDark else Color(0xFF15803D)
-                                    } else {
-                                        Color(0xFFDC2626)
-                                    }
+                                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "$formattedRent / month",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (prop.isPlatformVerified()) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Verified,
+                                            contentDescription = "Verified",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Verified",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
                             }
                         }
 
+                        // Location & Landmark Box
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = if (isDark) PropertyBoxBgDark else Color.White,
-                            border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
+                            border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("detail_map_pin_btn")
                         ) {
-                            Text(
-                                text = boardingHouse.primaryGenderRule.badge,
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) SteelBlueTextDark else SteelBlueText,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    // Combined Location and Landmark in a single clean box below images
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isDark) PropertyBoxBgDark else Color.White,
-                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("detail_map_pin_btn")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.LocationOn,
-                                contentDescription = "Map Pin",
-                                modifier = Modifier.size(16.dp),
-                                tint = SteelBlue
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (landmarkText.isNotBlank()) "$locationDisplay • Near $landmarkText" else locationDisplay,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDark) SteelBlueTextDark else SteelBlueText,
-                                lineHeight = 16.sp,
-                                softWrap = true,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = "Map Pin",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = SteelBlue
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (landmarkText.isNotBlank()) "$locationDisplay • Near $landmarkText" else locationDisplay,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDark) SteelBlueTextDark else SteelBlueText,
+                                    lineHeight = 16.sp,
+                                    softWrap = true,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // 2. Boarding House Main Description
+            // 2. Card 1: Description: A text block for the landlord's subjective notes
             item {
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
                     Text(
                         text = "Description",
                         style = MaterialTheme.typography.titleMedium,
@@ -533,7 +530,7 @@ fun PropertyDetailScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isDark) PropertyBoxBgDark else Color.White
                         ),
@@ -541,24 +538,27 @@ fun PropertyDetailScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                     ) {
                         Text(
-                            text = boardingHouse.fullDescription,
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = boardingHouse.fullDescription.ifBlank { prop.description },
+                            style = MaterialTheme.typography.bodyMedium,
                             color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B),
-                            lineHeight = 24.sp,
+                            lineHeight = 22.sp,
                             modifier = Modifier.padding(16.dp)
                         )
                     }
                 }
             }
 
-            // 3. Room & Bedspace Configurations
+            // 3. Card 2: Unit Specifications: Group Property Type, Floor/Lot Area, Bed/Bath count, and Furnishing status
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-                    // Overview Specs bar
+                    Text(
+                        text = "Unit Specifications",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isDark) PropertyBoxBgDark else Color.White,
@@ -567,186 +567,301 @@ fun PropertyDetailScreen(
                         border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
                         elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceAround
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            SpecColumn(icon = Icons.Default.Bed, label = "Rooms", value = "${boardingHouse.rooms.size} Types")
-                            SpecColumn(icon = Icons.Default.Bathtub, label = "Bathroom", value = "${prop.bathrooms} Bath/CR")
-                            SpecColumn(icon = Icons.Default.Home, label = "Furnished", value = prop.furnishedStatus)
+                            // Row 1: Property Type & Floor/Lot Area
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                UnitSpecItem(
+                                    icon = Icons.Default.Apartment,
+                                    label = "Property Type",
+                                    value = prop.propertyType.ifBlank { "Rental Unit" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                val areaValue = if (prop.floorAreaSqm > 0) {
+                                    "${prop.floorAreaSqm.toInt()} sqm"
+                                } else {
+                                    "Standard"
+                                }
+                                UnitSpecItem(
+                                    icon = Icons.Default.SquareFoot,
+                                    label = "Floor / Lot Area",
+                                    value = areaValue,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            HorizontalDivider(
+                                color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
+                                thickness = 0.8.dp
+                            )
+
+                            // Row 2: Bed / Bath Count & Furnishing Status
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                val bedBathValue = "${prop.bedrooms} Bed${if (prop.bedrooms > 1) "s" else ""} • ${prop.bathrooms} Bath/CR"
+                                UnitSpecItem(
+                                    icon = Icons.Default.Bed,
+                                    label = "Bed / Bath Count",
+                                    value = bedBathValue,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                UnitSpecItem(
+                                    icon = Icons.Default.Chair,
+                                    label = "Furnishing Status",
+                                    value = prop.furnishedStatus.ifBlank { "Unfurnished" },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            // Dynamic category-specific specifications (seamless integration without duplicate standard rows)
+                            val catItems = remember(prop) {
+                                prop.getCategorySpecificationItems().filter { item ->
+                                    !item.label.contains("Type", ignoreCase = true) &&
+                                    !item.label.contains("Furnish", ignoreCase = true) &&
+                                    !item.label.contains("Bed", ignoreCase = true) &&
+                                    !item.label.contains("Area", ignoreCase = true)
+                                }
+                            }
+                            if (catItems.isNotEmpty()) {
+                                HorizontalDivider(
+                                    color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
+                                    thickness = 0.8.dp
+                                )
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    catItems.forEach { item ->
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isDark) Color(0xFF162536) else Color(0xFFF1F5F9),
+                                            border = BorderStroke(0.8.dp, if (isDark) SteelBlue.copy(alpha = 0.5f) else Color(0xFFCBD5E1))
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(item.iconEmoji, fontSize = 11.sp)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "${item.label}: ${item.value}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F263B)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
+                }
+            }
 
+            // 4. Card 3: Amenities & Rules: Group Parking, Building Facilities (Pool/Gym), and Pet/Smoking policies
+            item {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
                     Text(
-                        text = "Room & Bedspace Types (${boardingHouse.rooms.size})",
+                        text = "Amenities & Rules",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    boardingHouse.rooms.forEach { room ->
-                        Card(
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) PropertyBoxBgDark else Color.White,
+                            contentColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
+                        ),
+                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 5.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isDark) PropertyBoxBgDark else Color.White
-                            ),
-                            border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
-                            elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
+                            // Section A: Parking
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Parking",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(vertical = 2.dp)
                                 ) {
-                                    Text(
-                                        text = room.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E),
-                                        modifier = Modifier.weight(1f)
+                                    Icon(
+                                        Icons.Default.DirectionsCar,
+                                        contentDescription = "Parking",
+                                        tint = SteelBlue,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = if (room.genderRule == GenderRule.FEMALE_ONLY) {
-                                            if (isDark) Color(0xFF3B1E2B) else Color(0xFFFCE7F3)
-                                        } else if (room.genderRule == GenderRule.MALE_ONLY) {
-                                            if (isDark) Color(0xFF1E293B) else Color(0xFFE0F2FE)
-                                        } else {
-                                            if (isDark) SoftGreenDarkBg else SoftGreenBg
-                                        },
-                                        border = BorderStroke(
-                                            0.6.dp,
-                                            if (room.genderRule == GenderRule.FEMALE_ONLY) {
-                                                if (isDark) Color(0xFF831843) else Color(0xFFF472B6)
-                                            } else if (room.genderRule == GenderRule.MALE_ONLY) {
-                                                if (isDark) Color(0xFF0369A1) else Color(0xFF38BDF8)
-                                            } else {
-                                                if (isDark) SoftGreenDarkBorder else SoftGreenBorder
-                                            }
-                                        )
-                                    ) {
-                                        Text(
-                                            text = room.genderRule.badge,
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (room.genderRule == GenderRule.FEMALE_ONLY) {
-                                                if (isDark) Color(0xFFF472B6) else Color(0xFF9D174D)
-                                            } else if (room.genderRule == GenderRule.MALE_ONLY) {
-                                                if (isDark) Color(0xFF38BDF8) else Color(0xFF075985)
-                                            } else {
-                                                if (isDark) SoftGreenDark else Color(0xFF1D533A)
-                                            },
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                // Occupancy progress & Rent rate
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .background(if (room.availableBeds > 0) Color(0xFF16A34A) else Color(0xFFDC2626), CircleShape)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "${room.availableBeds} of ${room.totalBeds} beds available",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (room.availableBeds > 0) MaterialTheme.colorScheme.onSurface else Color(0xFFDC2626)
-                                        )
-                                    }
-
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "₱${room.monthlyRent.toInt()} / mo",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        text = if (prop.parkingAvailable) "Parking Available (Garage / Dedicated Slot)" else "No Dedicated Parking (Street Parking Only)",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
                                     )
                                 }
+                            }
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                            HorizontalDivider(
+                                color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
+                                thickness = 0.8.dp
+                            )
 
-                                // Room tags (Aircon, Private CR, Utilities) - Using FlowRow to prevent cutouts
+                            // Section B: Building Facilities (Pool, Gym, Security, Balcony, etc.)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Building Facilities",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                val cleanAmenities = remember(boardingHouse.amenities) {
+                                    val list = boardingHouse.amenities.filter { amenity ->
+                                        !amenity.contains("Sub-meter", ignoreCase = true) &&
+                                        !amenity.contains("Deposit", ignoreCase = true)
+                                    }
+                                    if (list.isNotEmpty()) list else listOf("WiFi Available", "24/7 Security", "Gated Compound")
+                                }
                                 FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    cleanAmenities.forEach { amenity ->
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isDark) PropertyBoxBgDark else Color(0xFFF8FAFC),
+                                            border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(5.dp))
+                                                Text(
+                                                    text = amenity,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (isDark) SteelBlueTextDark else SteelBlueText
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(
+                                color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
+                                thickness = 0.8.dp
+                            )
+
+                            // Section C: Pet & Smoking Policies
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Pet & Smoking Policies",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = if (isDark) Color(0xFF162536) else Color(0xFFF1F5F9),
-                                        border = BorderStroke(0.8.dp, if (isDark) SteelBlue.copy(alpha = 0.6f) else Color(0xFFCBD5E1))
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isDark) PropertyBoxBgDark else Color(0xFFF8FAFC),
+                                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Text(
-                                            text = if (room.hasAircon) "❄️ Aircon" else "💨 Fan Room",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F263B),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Pets,
+                                                contentDescription = "Pet Policy",
+                                                tint = SteelBlue,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Column {
+                                                Text("Pet Policy", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(
+                                                    text = prop.petPolicy.ifBlank { "No Pets Allowed" },
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
+                                                )
+                                            }
+                                        }
                                     }
+
                                     Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = if (isDark) Color(0xFF162536) else Color(0xFFF1F5F9),
-                                        border = BorderStroke(0.8.dp, if (isDark) SteelBlue.copy(alpha = 0.6f) else Color(0xFFCBD5E1))
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isDark) PropertyBoxBgDark else Color(0xFFF8FAFC),
+                                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Text(
-                                            text = if (room.hasPrivateBathroom) "🚿 Private CR" else "🚻 Shared CR",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F263B),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
-                                        )
-                                    }
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = if (isDark) Color(0xFF162536) else Color(0xFFF1F5F9),
-                                        border = BorderStroke(0.8.dp, if (isDark) SteelBlue.copy(alpha = 0.6f) else Color(0xFFCBD5E1))
-                                    ) {
-                                        Text(
-                                            text = "${room.advanceRentMonths} Mo Adv / ₱${room.securityDeposit.toInt()} Dep",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF0F263B),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.SmokeFree,
+                                                contentDescription = "Smoking Policy",
+                                                tint = SteelBlue,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Column {
+                                                Text("Smoking Policy", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(
+                                                    text = "No Smoking Indoors",
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "⚡ Utilities: ${room.utilityDetails}",
-                                    fontSize = 10.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                OutlinedButton(
-                                    onClick = {
-                                        selectedRoomForInquiry = room
-                                        showViewingDialog = true
-                                    },
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
-                                    modifier = Modifier.align(Alignment.End)
-                                ) {
-                                    Text("Apply / Inquire for this Room", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                if (boardingHouse.houseRules.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        boardingHouse.houseRules.forEach { rule ->
+                                            Row(verticalAlignment = Alignment.Top) {
+                                                Text("• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                Text(rule, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -754,95 +869,7 @@ fun PropertyDetailScreen(
                 }
             }
 
-            // 4. Detailed Living Specifications (Focused strictly on living environment, no duplicate fees)
-            item {
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                    Text(
-                        text = "Detailed Specifications",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isDark) PropertyBoxBgDark else Color.White,
-                            contentColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
-                        ),
-                        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
-                        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            boardingHouse.specifications?.let { spec ->
-                                LivingSpecRow(Icons.Default.Bolt, "⚡ Electricity", spec.electricityDetails)
-                                LivingSpecRow(Icons.Default.Bathtub, "💧 Water Supply", spec.waterDetails)
-                                LivingSpecRow(Icons.Default.Wifi, "📶 WiFi & Speed", spec.wifiDetails)
-                                LivingSpecRow(Icons.AutoMirrored.Filled.AltRoute, "🛵 Transit & Road Proximity", spec.roadProximity)
-                                LivingSpecRow(Icons.Default.Home, "🍳 Cooking Facility", spec.cookingRule)
-                                LivingSpecRow(Icons.Default.Bathtub, "🧺 Laundry & Drying Area", spec.laundryRule)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 5. Amenities & House Rules Badges
-            item {
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-                    Text(
-                        text = "Amenities & Compound Features",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val cleanAmenities = remember(boardingHouse.amenities) {
-                        boardingHouse.amenities.filter { amenity ->
-                            !amenity.contains("Sub-meter", ignoreCase = true) &&
-                            !amenity.contains("Fiber WiFi", ignoreCase = true)
-                        }
-                    }
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        cleanAmenities.forEach { amenity ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isDark) PropertyBoxBgDark else Color.White,
-                                border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
-                            ) {
-                                Text(
-                                    text = "✓ $amenity",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isDark) SteelBlueTextDark else SteelBlueText,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "House Rules & Policies",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        boardingHouse.houseRules.forEach { rule ->
-                            Row(verticalAlignment = Alignment.Top) {
-                                Text("• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                Text(rule, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 6. Nearby Destination (TRANSIT, ESSENTIALS, UTILITY)
+            // 5. Explore Neighborhood as it is
             item {
                 NearbyDestinationSection(
                     property = prop,
@@ -850,7 +877,7 @@ fun PropertyDetailScreen(
                 )
             }
 
-            // 5. Host Info
+            // 6. Contact Details as it is
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     Text(
@@ -1558,63 +1585,36 @@ fun PropertyDetailScreen(
 }
 
 @Composable
-private fun SpecColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, contentDescription = null, tint = SteelBlue, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = value,
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.5.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            softWrap = true
-        )
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            softWrap = true
-        )
-    }
-}
-
-@Composable
-private fun LivingSpecRow(
+private fun UnitSpecItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    value: String?,
+    value: String,
     modifier: Modifier = Modifier
 ) {
-    if (value.isNullOrBlank()) return
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.Top
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = SteelBlue,
-            modifier = Modifier
-                .padding(top = 2.dp)
-                .size(15.dp)
+            modifier = Modifier.size(22.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Spacer(modifier = Modifier.width(10.dp))
+        Column {
             Text(
                 text = label,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = value,
-                fontSize = 11.5.sp,
-                lineHeight = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false
             )
         }
     }

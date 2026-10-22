@@ -26,7 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CompareArrows
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.OpenInNew
@@ -81,7 +81,7 @@ fun ComparisonMatrixSheet(
 ) {
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val currencyFormat = remember {
-        NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply {
+        NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply {
             maximumFractionDigits = 0
         }
     }
@@ -128,7 +128,7 @@ fun ComparisonMatrixSheet(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    Icons.Default.CompareArrows,
+                                    Icons.AutoMirrored.Filled.CompareArrows,
                                     contentDescription = null,
                                     tint = SteelBlue,
                                     modifier = Modifier.size(20.dp)
@@ -184,7 +184,7 @@ fun ComparisonMatrixSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            Icons.Default.CompareArrows,
+                            Icons.AutoMirrored.Filled.CompareArrows,
                             contentDescription = null,
                             tint = textSecondary,
                             modifier = Modifier.size(48.dp)

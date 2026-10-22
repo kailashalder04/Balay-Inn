@@ -21,7 +21,7 @@ fun RentCostBreakdownPanel(
     isDark: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply {
+    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply {
         maximumFractionDigits = 0
     }
 

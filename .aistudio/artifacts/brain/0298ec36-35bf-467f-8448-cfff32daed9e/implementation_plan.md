@@ -1,162 +1,149 @@
-# Balay-Inn Production Compliance & Regulatory Integration
+# Property Types Categorized Details & Multi-Step Listing Implementation Plan
 
-Implementation plan for integrating Google Play Store policy requirements and Philippine Data Privacy Act (RA 10173 / NPC) compliance into the Balay-Inn rental platform.
+A unified, state-driven property categorization system that structures rental attributes across **Boarding House**, **Apartment**, **Condominium**, **Studio**, and **Townhouse**. Delivers a multi-step listing form with role-based verification, seamless integration of category specifications on the property detail screen, and dynamic type-specific filters on the search filter sheet.
+
+---
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following compliance priorities were confirmed in Phase 1:
-> - **Google Play Store Compliance**: Priority on Privacy Policy viewer, Data Safety disclosures, Terms of Service agreement, and an explicit Account Deletion Request flow.
-> - **Philippine Regulatory Compliance**: Priority on National Privacy Commission (NPC) Data Privacy Act of 2012 (RA 10173) consent banner and localized rental terms notice.
+> The following product decisions were confirmed during the planning interview:
+> - **Core Property Types**: Boarding House, Apartment, Condominium, Studio, and Townhouse.
+> - **Property Detail Screen**: Integrated seamlessly into the existing specifications list, ensuring uniform typography, Filipino rental clarity, and no redundant boxes.
+> - **Filter Page**: Dynamic category filters that dynamically present type-specific options (e.g., room capacity for boarding houses, floor level/dues for condos, stories/garage for townhouses) whenever that specific property type is selected.
+> - **Posting Workflow**: Multi-step flow featuring:
+>   * Step 1: Role-Based Verification (Owner vs. Authorized Representative vs. Sublessor).
+>   * Step 2: Base Property Information (Location cascading, Property Type, Photos [min 3, max 10], Description, Title).
+>   * Step 3: Conditional Property Specifications (Dynamic form fields driven strictly by selected Property Type).
+>   * Step 4: Review & Publish (Validation of all conditional fields, preview summary, and Room database persistence).
 
 ---
 
 ## 1. Overview & Core Concept
 
-Balay-Inn requires full compliance with both Google Play Developer Program policies and Philippine government regulations before publishing or production deployment:
-
-1. **Google Play Store Policies**:
-   - **Privacy Policy & Data Safety**: Transparent in-app disclosure of personal data collection (name, phone number, location, verification IDs).
-   - **Account Deletion Requirement**: Mandatory in-app option for users (tenants and hosts) to request deletion of their account and associated stored data.
-   - **Terms of Service**: Clear user agreement covering rental inquiry conduct, host listing standards, and verification guidelines.
-
-2. **Philippine Data Privacy Act of 2012 (RA 10173 / NPC)**:
-   - **Explicit Consent**: First-launch consent banner informing users of NPC compliance, user rights (Right to Be Informed, Right to Access, Right to Erasure/Blocking), and contact details for the Data Protection Officer (DPO).
+Balay-Inn caters to diverse Philippine rental setups—from student bedspaces in university belts and urban condo rentals in BPO hubs to multi-door apartments and suburban family townhouses. Because each property type has distinct practical concerns (such as bed capacities and communal bath rules in boarding houses versus association dues and floor levels in condominiums), this feature provides:
+1. **Targeted Onboarding**: Role-based verification ensuring transparency between direct title holders, authorized caretakers/managers, and master tenants.
+2. **Context-Sensitive Data Entry**: Landlords only fill out relevant fields (no irrelevant "garage capacity" for a 1-bed boarding house, and no "bunk bed count" for a luxury townhouse).
+3. **Structured Detail Presentation**: Renters view clearly organized specifications directly alongside standard rental information.
+4. **Precision Search & Filtering**: Renters can filter specifically by the attributes that matter to their property type (e.g., filter apartments by lease term and kitchen type, or condominiums by parking and dues inclusion).
 
 ---
 
 ## 2. User Experience & Visual Design
 
-### Key User Flows & Components
+### Key User Flows
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        App Launch / Dashboard                          │
-│                                                                        │
-│ ┌────────────────────────────────────────────────────────────────────┐ │
-│ │ 🇵🇭 Data Privacy Act (RA 10173) Notice                              │ │
-│ │ Balay-Inn processes your data in compliance with Philippine NPC    │ │
-│ │ guidelines. [Read Privacy Policy] [Read Terms]      [ Accept & Close ] │ │
-│ └────────────────────────────────────────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                      Dashboard / User Profile                          │
-│                                                                        │
-│ ┌────────────────────────────────────────────────────────────────────┐ │
-│ │ 🛡️ Security, Privacy & Legal Suite                                 │ │
-│ │ • Privacy Policy & NPC Disclosures                                 │ │
-│ │ • Data Safety & Contact Masking Status                             │ │
-│ │ • Terms of Service & Host Guidelines                               │ │
-│ │ • ⚠️ Request Account & Data Deletion                              │ │
-│ └────────────────────────────────────────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                  Account Deletion Request Dialog                       │
-│                                                                        │
-│ "Are you sure you want to request account deletion? All personal data,  │
-│ saved properties, and viewing history will be permanently purged."    │
-│                                                                        │
-│                 [ Cancel ]    [ Confirm Account Deletion ]             │
-└────────────────────────────────────────────────────────────────────────┘
-```
+#### A. Multi-Step Property Posting Flow (`PostPropertyScreen`)
+1. **Step Indicator & Header**: Stepper displaying `1. Your Role` → `2. Base Info` → `3. Specifications` → `4. Review & Publish` with progress bar and step transition animation.
+2. **Step 1 — Role-Based Verification**:
+   - Selector chips: `Property Owner`, `Authorized Representative / Caretaker`, `Sublessor / Master Tenant`.
+   - *If Owner*: Ownership title confirmation toggle, PhilSys/Passport/UMID ID verification type, ID number input, and contact preference.
+   - *If Authorized Representative*: Landlord full name, relationship to owner, authorization status confirmation (Yes/No), authorization document/SPA declaration, representative phone.
+   - *If Sublessor*: Master landlord name, written sublease permission toggle, remaining master lease term.
+3. **Step 2 — Base Property Information**:
+   - Geographic cascading location (Province → City/Municipality → Barangay) using Philippine PSA data.
+   - Street address & building name input.
+   - Property Type Selector: Boarding House, Apartment, Condominium, Studio, Townhouse.
+   - Media Upload: Visual photo picker with minimum 3 and maximum 10 enforcement, thumbnail preview, delete buttons, and photo counter badge.
+   - Listing Title & long-form Description with quick Filipino locality helper chips.
+4. **Step 3 — Conditional Property Specifications**:
+   - **Boarding House**: Pricing model toggle (`Per Person/Bed` vs `Per Room`), monthly rent currency input, Room Capacity dropdown (`Single`, `Double bed`, `4-bed bunk`, `6-bed bunk`), Tenant Preference dropdown (`Male Only`, `Female Only`, `Mixed`), Bathroom Type toggle (`Private/En-suite` vs `Shared/Communal`), Utilities checkboxes (`Sub-metered Electricity`, `Sub-metered Water`, `Free Wi-Fi included`).
+   - **Apartment**: Monthly rent, Total floor area (sqm), Bedroom stepper, Bathroom stepper, Lease term minimum dropdown (`6 months`, `1 year`), Furnishing dropdown (`Bare`, `Semi-Furnished`, `Fully Furnished`), Kitchen type toggle (`Indoor/Integral` vs `Outdoor/Dirty Kitchen`), Utility billing toggle (`Own Meter` vs `Sub-metered by Landlord`).
+   - **Condominium / Studio**: Monthly rent, Association dues toggle (`Inclusive in rent` vs `Exclusive / Tenant pays separately`), Unit layout dropdown (`Studio`, `1BR`, `2BR`, `Loft`, `Bi-level`), Total floor area (sqm), Floor level input (e.g., `14th Floor`), Parking dropdown (`Included in rent`, `Available for extra fee`, `None`), Amenities checkboxes (`Pool`, `Gym`, `24/7 Security`, `Balcony`), Pet policy toggle (`Strictly No Pets` vs `Pet-Friendly`).
+   - **Townhouse**: Monthly rent, Lot area (sqm), Floor area (sqm), Number of stories/floors stepper, Bedroom & Bathroom steppers, Carport/garage capacity stepper, Maid's room toggle (`Yes` / `No`), Gated subdivision toggle (`Yes` / `No`).
+5. **Step 4 — Review & Publish**:
+   - Comprehensive card summary reflecting the user's role verification, base info, and property-specific specifications.
+   - "Publish Listing" action validating that all active conditional fields are satisfied before inserting into Room database and redirecting back.
 
-1. **Philippine Data Privacy Act (NPC) Consent Banner**:
-   - Non-intrusive floating card anchored at the bottom of `DashboardScreen` or `TenantHomeScreen`.
-   - Displays clear text regarding RA 10173 compliance with action buttons to view full **Privacy Policy**, **Terms of Service**, and **Accept**.
+#### B. Property Detail Screen (`PropertyDetailScreen`)
+- Seamlessly incorporates the category specifications into the **Detailed Living Specifications** list:
+  * Category badge indicating property type (e.g. `Condominium`, `Boarding House`).
+  * Structured icon-value rows matching the active specifications (e.g., `Room Capacity: 4-bed bunk`, `Bathroom: Shared/Communal`, `Kitchen: Dirty kitchen outdoor`, `HOA Dues: Inclusive in rent`, `Subdivision: Gated with security guards`).
+  * Eliminates clutter and maintains consistent Philippine typography and layout spacing.
 
-2. **Privacy Policy & Legal Dialog Viewer (`PrivacyPolicyDialog.kt`)**:
-   - Scrollable M3 Dialog displaying complete legal sections:
-     - Section 1: Information Collected (Name, Email, Phone, Location, Gov't ID verification documents).
-     - Section 2: Use of Data (Matchmaking tenants with boardings, location privacy masking).
-     - Section 3: Philippine Data Privacy Act Rights (RA 10173 - Right to Access, Correct, Erase).
-     - Section 4: Data Security & Contact Protection (+63 917 *** *567 masking).
-     - Section 5: Data Retention & Purge Policy.
-
-3. **Terms of Service Dialog Viewer (`TermsOfServiceDialog.kt`)**:
-   - Outlines tenant conduct, landlord/host listing rules, deposit notices, and verification obligations.
-
-4. **Account Deletion Flow (`DashboardScreen.kt` & `SecurityPrivacyBottomSheet.kt`)**:
-   - Red prominent "Request Account Deletion" button inside settings/dashboard.
-   - Triggers an M3 AlertDialog explaining the deletion scope (account profile, viewing history, saved items, and posted properties).
-   - Upon confirmation, invokes `MarketplaceViewModel.requestAccountDeletion()`, clearing local session state and navigating back to `LoginScreen` with a success toast.
+#### C. Dynamic Filter Sheet (`ExploreScreen`)
+- In the filter bottom sheet, choosing a specific Property Type reveals a dynamic **Type-Specific Specifications** section:
+  * Selecting **Boarding House** reveals filters for: Pricing Model, Room Capacity, Tenant Preference (Male/Female/Mixed), Bathroom Type (Shared/Private).
+  * Selecting **Apartment** reveals: Furnishing, Lease Term (6 mos / 1 yr), Kitchen Type.
+  * Selecting **Condominium / Studio** reveals: Unit Layout, Assoc Dues (Inclusive vs Exclusive), Parking, Balcony.
+  * Selecting **Townhouse** reveals: Number of Stories, Gated Subdivision filter, Maid's Room.
+- Selecting **All** hides type-specific filters and presents general rental filters.
 
 ---
 
 ## 3. Key Product Decisions & Trade-Offs
 
-- **In-App Interactive Legal Dialogs vs External Web Links**:
-  - *Chosen Approach*: Build fully formatted, scrollable Jetpack Compose M3 dialogs in-app so users can review terms and privacy details directly without requiring an external browser tab, while keeping policy text structured for easy web URL linking during Google Play Console submission.
-- **Immediate Account Purge vs Delayed Processing**:
-  - *Chosen Approach*: Implement an immediate local user data purge in `MarketplaceViewModel` and `BalayInnRepository` when requested, satisfying Google Play's mandatory account deletion requirement without blocking the user.
+- **State-Driven Multi-Step Form vs. Single Long Form**:
+  - *Chosen*: Multi-step form with clear progress indication.
+  - *Why*: Prevents user fatigue, guarantees that Step 1 role verification and Step 2 property type are settled before asking for specific room capacities or association dues.
+  - *Alternative Considered*: Showing all conditional sections dynamically inside one long scrollable page. This caused layout jumps and confusion when users changed property types mid-scroll.
+
+- **Unified Category Specs Serialization**:
+  - *Chosen*: Store the type-specific specifications as a lightweight JSON string (`categorySpecsJson`) in `PropertyEntity` alongside normalized core columns (`bedrooms`, `bathrooms`, `floorAreaSqm`, `petPolicy`, `associationDues`).
+  - *Why*: Allows backward compatibility with existing Room database schema without requiring destructive database migrations, while enabling rich type-safe serialization.
+
+- **Dynamic Filters inside Bottom Sheet**:
+  - *Chosen*: Render type-specific filter chips conditionally inside `ExploreScreen`'s filter bottom sheet based on `filterState.propertyType`.
+  - *Why*: Keeps the filter dialog compact and relevant; renters searching for a studio condo aren't overwhelmed with boarding house bunk-bed filters.
 
 ---
 
-## 4. Technical Architecture & Component Structure
+## 4. Technical Architecture & Data Strategy
 
 ```
-┌───────────────────────────────────────────────────────────────────────┐
-│                           UI Presentation                             │
-│                                                                       │
-│  ┌──────────────────────┐   ┌───────────────────────────────────────┐  │
-│  │ DataPrivacyConsent   │   │     SecurityPrivacyBottomSheet        │  │
-│  │       Banner         │   │   • Data Safety Disclosures           │  │
-│  └──────────┬───────────┘   │   • Account Deletion Request Action   │  │
-│             │               └───────────────────┬───────────────────┘  │
-│             ▼                                   │                      │
-│  ┌──────────────────────────────────────────────▼───────────────────┐  │
-│  │               PrivacyPolicyDialog & TermsDialog                  │  │
-│  └──────────────────────────────────────────────┬───────────────────┘  │
-└─────────────────────────────────────────────────┼─────────────────────┘
-                                                  │
-                                                  ▼
-┌───────────────────────────────────────────────────────────────────────┐
-│                        MarketplaceViewModel                           │
-│                                                                       │
-│  • acceptDataPrivacyConsent()                                         │
-│  • requestAccountDeletion(userId)                                     │
-│  • dataPrivacyConsentAccepted: StateFlow<Boolean>                     │
-└─────────────────────────────────────────────────┬─────────────────────┘
-                                                  │
-                                                  ▼
-┌───────────────────────────────────────────────────────────────────────┐
-│                       Data Layer & Repository                         │
-│                                                                       │
-│  • BalayInnRepository.deleteUserAccount(userId)                       │
-│  • PreferenceDataStore / SharedPrefs (Consent State)                  │
-└───────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                        BALAY-INN ARCHITECTURE                          │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  [Step 1: Role Verification]  ──▶  [Step 2: Base Info]                 │
+│  - Owner (Title, ID verification)   - Location (Cascading PSA)         │
+│  - Representative (Landlord name,   - Property Type Selection          │
+│    authorization confirmation)      - Photos (3 - 10)                  │
+│  - Sublessor (Master lease proof)   - Title & Description              │
+│                 │                                │                     │
+│                 ▼                                ▼                     │
+│  [Step 3: Conditional Specs] ◀───────────────────┘                     │
+│  ├── Boarding House (Beds, pricing model, tenant gender, shared bath)  │
+│  ├── Apartment (Bed/bath steppers, lease term, furnishing, kitchen)   │
+│  ├── Condominium / Studio (Dues inclusion, layout, floor, parking)     │
+│  └── Townhouse (Lot/floor area, stories, garage, gated subdivision)    │
+│                 │                                                      │
+│                 ▼                                                      │
+│  [Step 4: Review & Publish] ──▶ MarketplaceViewModel.postProperty()     │
+│                                           │                            │
+│                                           ▼                            │
+│                              [PropertyDao / Room DB]                   │
+│                              (categorySpecsJson stored)                │
+│                                           │                            │
+│              ┌────────────────────────────┴──────────────────────────┐ │
+│              ▼                                                       ▼ │
+│  [PropertyDetailScreen]                                 [ExploreScreen]│
+│  Integrated Living Specs list                          Dynamic Filter  │
+│  rendering type-specific badges                        Sheet adapting  │
+│  and icon rows                                         to active type  │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Proposed Changes
+### Component & State Mapping
 
-#### New Component & Screen Files
-1. `app/src/main/java/com/example/ui/components/DataPrivacyConsentBanner.kt`:
-   - Interactive consent banner for Philippine Data Privacy Act (RA 10173).
-2. `app/src/main/java/com/example/ui/components/PrivacyPolicyDialog.kt`:
-   - Comprehensive M3 dialog rendering formatted Privacy Policy & NPC compliance text.
-3. `app/src/main/java/com/example/ui/components/TermsOfServiceDialog.kt`:
-   - Formatted Terms of Service dialog.
+1. **`PropertyCategoryDetails.kt` (`data/model/`)**:
+   - Data classes for each conditional type:
+     * `BoardingHouseDetails`: `pricingModel`, `roomCapacity`, `tenantPreference`, `bathroomType`, `utilitiesIncluded`.
+     * `ApartmentDetails`: `floorAreaSqm`, `bedrooms`, `bathrooms`, `leaseTerm`, `furnishing`, `kitchenType`, `utilityBilling`.
+     * `CondominiumDetails`: `associationDuesStatus`, `unitLayout`, `floorAreaSqm`, `floorLevel`, `parking`, `amenities`, `petPolicy`.
+     * `TownhouseDetails`: `lotAreaSqm`, `floorAreaSqm`, `stories`, `bedrooms`, `bathrooms`, `garageCapacity`, `hasMaidsRoom`, `isGatedSubdivision`.
+   - Unified `PropertyCategorySpecifications` container with JSON serialization / deserialization helpers and detail item generators.
 
-#### Modified Files
-1. `app/src/main/java/com/example/ui/components/SecurityPrivacyBottomSheet.kt`:
-   - Add "Google Play Account Deletion Request" section and trigger button.
-   - Add quick links to view Privacy Policy and Terms of Service.
-2. `app/src/main/java/com/example/ui/screens/DashboardScreen.kt`:
-   - Include `DataPrivacyConsentBanner` and Account Deletion trigger with confirmation dialog.
-3. `app/src/main/java/com/example/ui/viewmodel/MarketplaceViewModel.kt`:
-   - Add `dataPrivacyConsentAccepted` state flow.
-   - Add `requestAccountDeletion()` method to handle clearing user state and resetting session.
+2. **`PostPropertyScreen.kt` (`ui/screens/`)**:
+   - Refactored into a 4-step state-driven form (`currentStep` state: 1 to 4).
+   - Step 1: Branching role-based verification UI.
+   - Step 2: Base info, location cascading, photos (min 3 validation).
+   - Step 3: Conditional property specifications switching dynamically via `when (propertyType)`.
+   - Step 4: Review card with Publish button validating conditional state.
 
----
+3. **`PropertyDetailScreen.kt` (`ui/screens/`)**:
+   - Seamlessly deserializes `categorySpecsJson` and injects specific living specification rows into the living details section with appropriate icons.
 
-## Verification Plan
-
-### Automated Build Verification
-- Execute `compile_applet` after implementing code updates to ensure zero compilation or syntax issues.
-
-### CUJ Verification
-1. **Data Privacy Consent Flow**: Launch app, verify the Philippine Data Privacy Act notice appears, open Privacy Policy dialog, accept terms, and verify banner dismisses permanently.
-2. **Account Deletion Request Flow**: Open Dashboard/Settings -> Security & Privacy Suite -> Click "Request Account Deletion", confirm deletion dialog, and verify user session resets to Login screen cleanly.
+4. **`ExploreScreen.kt` & `MarketplaceViewModel.kt`**:
+   - `MarketplaceFilterState`: Add conditional filter fields (`bunkCapacityFilter`, `furnishingFilter`, `leaseTermFilter`, `layoutFilter`, `gatedFilter`, etc.).
+   - Filter sheet dynamically renders the matching filter block when a property type is selected, filtering the property list reactively.

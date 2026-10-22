@@ -933,7 +933,7 @@ fun InteractiveRentalMap(
         ) {
             if (activeProperty != null) {
                 val prop = activeProperty!!
-                val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
+                val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply { maximumFractionDigits = 0 }
                 val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
                 val isSaved = savedPropertyIds.contains(prop.id)
                 val isDark = isSystemInDarkTheme()

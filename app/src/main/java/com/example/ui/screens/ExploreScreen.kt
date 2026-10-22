@@ -577,7 +577,7 @@ fun ExploreScreen(
                             } else {
                                 items(properties, key = { it.id }) { property ->
                                     val isSaved = savedIds.contains(property.id)
-                                    val locationDisplay = viewModel.getLocationDisplay(property)
+                                    val locationDisplay = viewModel.getBarangayProvinceDisplay(property)
 
                                     PropertyCard(
                                         property = property,
@@ -708,7 +708,7 @@ fun ExploreScreen(
                         } else {
                             items(properties, key = { it.id }) { property ->
                                 val isSaved = savedIds.contains(property.id)
-                                val locationDisplay = viewModel.getLocationDisplay(property)
+                                val locationDisplay = viewModel.getBarangayProvinceDisplay(property)
 
                                 PropertyCard(
                                     property = property,
@@ -979,6 +979,203 @@ fun ExploreScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+
+                // Dynamic Type-Specific Filters (Condition-Driven)
+                val isBoarding = filterState.propertyType.contains("Board", ignoreCase = true) || filterState.propertyType.contains("Bed", ignoreCase = true)
+                val isApartment = filterState.propertyType.contains("Apart", ignoreCase = true) || filterState.propertyType.contains("Flat", ignoreCase = true)
+                val isCondo = filterState.propertyType.contains("Condo", ignoreCase = true) || filterState.propertyType.contains("Studio", ignoreCase = true)
+                val isTownhouse = filterState.propertyType.contains("Town", ignoreCase = true) || filterState.propertyType.contains("House", ignoreCase = true)
+
+                if (isBoarding) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "🛏️ Boarding House Specifications",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text("Pricing Model:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Per Person/Bed", "Per Room").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.boardingPricingModel == opt,
+                                onClick = { viewModel.updateBoardingPricingModel(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Room Capacity:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Single", "Double bed", "4-bed bunk", "6-bed bunk").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.boardingCapacity == opt,
+                                onClick = { viewModel.updateBoardingCapacity(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Bathroom Setup:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Private/En-suite", "Shared/Communal").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.boardingBathroom == opt,
+                                onClick = { viewModel.updateBoardingBathroom(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+                } else if (isApartment) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "🚪 Apartment Specifications",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text("Kitchen Setup:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Indoor/Integral", "Outdoor/Dirty Kitchen").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.apartmentKitchen == opt,
+                                onClick = { viewModel.updateApartmentKitchen(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Utility Billing:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Own Meter", "Sub-metered by Landlord").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.apartmentBilling == opt,
+                                onClick = { viewModel.updateApartmentBilling(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+                } else if (isCondo) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "🏢 Condominium & Studio Specifications",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text("Unit Layout:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Studio", "1BR", "2BR", "Loft", "Bi-level").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.condoLayout == opt,
+                                onClick = { viewModel.updateCondoLayout(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Association Dues:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Inclusive in rent", "Exclusive/Tenant pays separately").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.condoDues == opt,
+                                onClick = { viewModel.updateCondoDues(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Parking Arrangement:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("All", "Included in rent", "Available for extra fee").forEach { opt ->
+                            FilterChip(
+                                selected = filterState.condoParking == opt,
+                                onClick = { viewModel.updateCondoParking(opt) },
+                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+                } else if (isTownhouse) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "🏡 Townhouse Specifications",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text("Number of Stories:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = filterState.townhouseStories == null,
+                            onClick = { viewModel.updateTownhouseStories(null) },
+                            label = { Text("All", fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                        )
+                        listOf(1, 2, 3).forEach { st ->
+                            FilterChip(
+                                selected = filterState.townhouseStories == st,
+                                onClick = { viewModel.updateTownhouseStories(st) },
+                                label = { Text("$st-Storey", fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = filterState.townhouseGatedSubdivision,
+                            onClick = { viewModel.updateTownhouseGated(!filterState.townhouseGatedSubdivision) },
+                            label = { Text(if (filterState.townhouseGatedSubdivision) "✓ Gated Subdivision" else "Gated Subdivision", fontSize = 11.5.sp) }
+                        )
+                        FilterChip(
+                            selected = filterState.townhouseMaidsRoom,
+                            onClick = { viewModel.updateTownhouseMaidsRoom(!filterState.townhouseMaidsRoom) },
+                            label = { Text(if (filterState.townhouseMaidsRoom) "✓ Maid's Quarters" else "Maid's Quarters", fontSize = 11.5.sp) }
+                        )
                     }
                 }
 
