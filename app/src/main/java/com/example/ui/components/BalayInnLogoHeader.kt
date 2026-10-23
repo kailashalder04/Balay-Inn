@@ -80,7 +80,7 @@ fun BalayInnLogoHeader(
                     }
                     Text(
                         text = "Rental Marketplace & Transparency",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Medium,
                         color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
                     )

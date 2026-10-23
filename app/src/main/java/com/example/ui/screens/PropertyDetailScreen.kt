@@ -248,6 +248,27 @@ fun PropertyDetailScreen(
         }
     }
 
+    val fullAddress = remember(prop, locationDisplay, landmarkText) {
+        val parts = mutableListOf<String>()
+        val street = prop.streetAddressPrivate.trim()
+        val neighborhood = prop.neighborhood.trim()
+        if (street.isNotBlank() && street != neighborhood) {
+            parts.add(street)
+        }
+        if (neighborhood.isNotBlank() && !locationDisplay.contains(neighborhood, ignoreCase = true)) {
+            parts.add(neighborhood)
+        }
+        if (locationDisplay.isNotBlank()) {
+            parts.add(locationDisplay.trim())
+        }
+        val baseAddress = if (parts.isNotEmpty()) parts.joinToString(", ") else "Philippines"
+        if (landmarkText.isNotBlank() && !baseAddress.contains(landmarkText, ignoreCase = true)) {
+            "$baseAddress • Near $landmarkText"
+        } else {
+            baseAddress
+        }
+    }
+
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
 
@@ -369,59 +390,81 @@ fun PropertyDetailScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Property Name & Price Row
+                        // 1. Property Name & Property Status Tag Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = cleanTitle,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "$formattedRent / month",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            Text(
+                                text = cleanTitle,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            )
+
+                            // Replace Verified tag with property status e.g., Available
+                            val statusUpper = prop.status.uppercase()
+                            val statusLabel = when (statusUpper) {
+                                "ACTIVE", "APPROVED" -> "Available"
+                                "RENTED" -> "Rented"
+                                "PAUSED", "SUSPENDED" -> "Paused"
+                                "PENDING", "UNDER_REVIEW", "PENDING_VERIFICATION" -> "Pending Review"
+                                "DRAFT" -> "Draft"
+                                else -> prop.status.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
                             }
-                            if (prop.isPlatformVerified()) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                            val isAvailable = statusUpper == "ACTIVE" || statusUpper == "APPROVED"
+                            val isRented = statusUpper == "RENTED"
+                            val statusBgColor = when {
+                                isAvailable -> if (isDark) Color(0xFF1B382B) else Color(0xFFE8F5E9)
+                                isRented -> if (isDark) Color(0xFF3E2723) else Color(0xFFFFEBEE)
+                                else -> if (isDark) Color(0xFF3E3516) else Color(0xFFFFF8E1)
+                            }
+                            val statusBorderColor = when {
+                                isAvailable -> if (isDark) Color(0xFF2E7D32) else Color(0xFF81C784)
+                                isRented -> if (isDark) Color(0xFFC62828) else Color(0xFFE57373)
+                                else -> if (isDark) Color(0xFFF57F17) else Color(0xFFFFD54F)
+                            }
+                            val statusTextColor = when {
+                                isAvailable -> if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
+                                isRented -> if (isDark) Color(0xFFEF5350) else Color(0xFFC62828)
+                                else -> if (isDark) Color(0xFFFFD54F) else Color(0xFFF57F17)
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = statusBgColor,
+                                border = BorderStroke(1.dp, statusBorderColor),
+                                modifier = Modifier.testTag("property_status_badge")
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Verified,
-                                            contentDescription = "Verified",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "Verified",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(statusTextColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = statusLabel,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = statusTextColor
+                                    )
                                 }
                             }
                         }
 
-                        // Location & Landmark Box
+                        // 2. Full Address below property name
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = if (isDark) PropertyBoxBgDark else Color.White,
@@ -442,7 +485,7 @@ fun PropertyDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (landmarkText.isNotBlank()) "$locationDisplay • Near $landmarkText" else locationDisplay,
+                                    text = fullAddress,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isDark) SteelBlueTextDark else SteelBlueText,
@@ -451,6 +494,30 @@ fun PropertyDetailScreen(
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
                             }
+                        }
+
+                        // 3. Monthly Rent below full address: numbers in bigger font and "/mo" in small font
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .testTag("detail_monthly_rent_row")
+                        ) {
+                            Text(
+                                text = formattedRent,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                lineHeight = 30.sp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "/mo",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 3.dp)
+                            )
                         }
                     }
                 }
@@ -462,7 +529,8 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Description",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(
@@ -491,7 +559,8 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Unit Specifications",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(
@@ -612,7 +681,8 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Amenities & Rules",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(
@@ -806,21 +876,31 @@ fun PropertyDetailScreen(
                 }
             }
 
-            // 5. Explore Neighborhood as it is
+            // 5. Explore Neighborhood
             item {
-                NearbyDestinationSection(
-                    property = prop,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
-                )
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                    Text(
+                        text = "Explore Neighborhood",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    NearbyDestinationSection(
+                        property = prop,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
-            // 6. Contact Details as it is
+            // 6. Contact Details
             item {
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
                     Text(
                         text = "Host",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(
@@ -1410,7 +1490,7 @@ fun PropertyDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(280.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, lineHeight = 15.sp)
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp, lineHeight = 16.sp)
                     )
                 }
             },

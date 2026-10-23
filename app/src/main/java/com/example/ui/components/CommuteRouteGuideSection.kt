@@ -65,7 +65,12 @@ import com.example.ui.theme.SteelBlueBorder
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueDarkBorder
 import com.example.ui.theme.SteelBlueLightBg
+import com.example.ui.theme.SteelBlueText
+import com.example.ui.theme.SteelBlueTextDark
 import com.example.ui.theme.PropertyBoxBg
+import com.example.ui.theme.PropertyBoxBgDark
+import com.example.ui.theme.PropertyBoxBorder
+import com.example.ui.theme.PropertyBoxBorderDark
 import com.example.data.model.CommuteGuideProvider
 import com.example.data.model.DestinationGroup
 import kotlinx.coroutines.launch
@@ -111,48 +116,20 @@ fun NearbyDestinationSection(
         modifier = modifier
             .fillMaxWidth()
             .testTag("explore_neighbourhood_section"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDark) Color(0xFF1E2E40) else PropertyBoxBg,
-            contentColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+            containerColor = if (isDark) PropertyBoxBgDark else Color.White,
+            contentColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
         ),
-        border = BorderStroke(1.dp, if (isDark) SteelBlue else Color(0xFFCBD5E1))
+        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 18.dp)
+                .padding(16.dp)
         ) {
-            // 1. Header: "➔ Explore Neighbourhood"
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = exploreTeal,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Explore Neighbourhood",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = exploreTeal,
-                        softWrap = true
-                    )
-                }
-            }
-
-            // 2. Tabs: TRANSIT | ESSENTIALS | UTILITY with smooth clickable sliding
+            // Tabs: TRANSIT | ESSENTIALS | UTILITY with smooth clickable sliding
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -171,36 +148,36 @@ fun NearbyDestinationSection(
                                     )
                                 }
                             }
-                            .padding(top = 4.dp)
+                            .padding(top = 2.dp)
                             .testTag("tab_${group.name.lowercase()}")
                     ) {
                         Text(
                             text = group.name,
-                            fontSize = 13.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) exploreTeal else dimTextColor,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else (if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)),
                             letterSpacing = 0.4.sp,
                             softWrap = true
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.9f)
                                 .height(2.5.dp)
-                                .background(if (isSelected) exploreTeal else Color.Transparent)
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
                         )
                     }
                 }
             }
 
-            // Subtle base line below the tabs
+            // Base line below tabs matching other container dividers
             HorizontalDivider(
-                color = dividerColor,
-                thickness = 1.dp,
-                modifier = Modifier.padding(bottom = 14.dp)
+                color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
+                thickness = 0.8.dp,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // 3. Tab Content: Smooth HorizontalPager sliding left to right and vice versa
+            // Tab Content: Smooth HorizontalPager sliding
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth(),
@@ -214,22 +191,21 @@ fun NearbyDestinationSection(
                 if (subcategoryMap.isEmpty()) {
                     Text(
                         text = "No recorded destinations nearby for ${group.title}.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = dimTextColor,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         softWrap = true,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        modifier = Modifier.padding(vertical = 14.dp)
                     )
                 } else {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         subcategoryMap.forEach { (subcategory, places) ->
                             SubcategoryBlock(
                                 subcategory = subcategory,
                                 places = places,
-                                accentColor = exploreTeal,
-                                dividerColor = dividerColor
+                                isDark = isDark
                             )
                         }
                     }
@@ -243,8 +219,7 @@ fun NearbyDestinationSection(
 private fun SubcategoryBlock(
     subcategory: String,
     places: List<CommuteDestination>,
-    accentColor: Color,
-    dividerColor: Color
+    isDark: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -252,7 +227,7 @@ private fun SubcategoryBlock(
             .testTag("subcategory_${subcategory.lowercase().replace(" ", "_")}"),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // Subcategory Title Row with icon in teal
+        // Subcategory Title Row matching the other cards' subheaders
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -260,34 +235,34 @@ private fun SubcategoryBlock(
             Icon(
                 imageVector = getSubcategoryIcon(subcategory),
                 contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(19.dp)
+                tint = SteelBlue,
+                modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = subcategory,
-                fontSize = 15.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = accentColor,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
                 softWrap = true,
                 modifier = Modifier.weight(1f)
             )
         }
 
-        // Thin divider below subcategory title
+        // Thin divider below subcategory title matching other cards
         HorizontalDivider(
-            color = dividerColor,
+            color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
             thickness = 0.8.dp,
             modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
         )
 
-        // Places rows - same text font, weight, and size for Place Name, distance, and time
+        // Places rows - matching text font size & colors with other containers
         places.forEach { place ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp)
+                    .padding(vertical = 4.dp)
                     .testTag("place_row_${place.id}"),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -296,31 +271,29 @@ private fun SubcategoryBlock(
                 Text(
                     text = place.name,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
+                    fontSize = 12.5.sp,
+                    lineHeight = 17.sp,
                     fontWeight = FontWeight.Medium,
-                    color = LocalContentColor.current,
+                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B),
                     softWrap = true,
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 12.dp)
                 )
 
-                // Distance and Time formatted with matching font style and size (13.sp)
+                // Distance and Time formatted matching other badge pills
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    color = if (isDark) PropertyBoxBgDark else Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
                 ) {
                     Text(
                         text = place.formattedDistanceAndTime,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) SteelBlueTextDark else SteelBlueText,
                         softWrap = true,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp)
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                     )
                 }
             }

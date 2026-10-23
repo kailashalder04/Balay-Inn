@@ -239,9 +239,9 @@ fun BoardingHouseImagePager(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(end = 12.dp, top = 10.dp),
+                .padding(end = 14.dp, top = 12.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // 1. Three-dot Overflow Menu (Share and Flag options)
             var menuExpanded by remember { mutableStateOf(false) }

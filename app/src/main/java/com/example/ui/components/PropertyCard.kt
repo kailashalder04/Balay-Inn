@@ -319,9 +319,9 @@ private fun SpecificationItem(
         Spacer(modifier = Modifier.width(3.dp))
         Text(
             text = text,
+            style = MaterialTheme.typography.labelSmall,
             color = Color.White,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 11.sp,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis

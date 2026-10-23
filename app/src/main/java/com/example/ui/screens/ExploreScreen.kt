@@ -185,8 +185,8 @@ fun ExploreScreen(
                                         .fillMaxWidth()
                                         .testTag("search_text_input"),
                                     singleLine = true,
-                                    textStyle = TextStyle(
-                                        fontSize = 13.sp,
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        fontSize = 13.5.sp,
                                         color = MaterialTheme.colorScheme.onSurface
                                     ),
                                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)

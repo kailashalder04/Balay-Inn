@@ -25,6 +25,16 @@ fun RentCostBreakdownPanel(
         maximumFractionDigits = 0
     }
 
+    // Helper to determine whether a service cost is applicable and non-zero/non-free
+    fun isApplicableCost(value: String): Boolean {
+        val lower = value.lowercase().trim()
+        if (lower.isEmpty()) return false
+        if (lower.contains("₱0") || lower.contains("php 0") || lower.contains("0.00") || lower.contains("free") || lower.contains("none")) return false
+        if (lower.contains("no maintenance") || lower.contains("no dedicated") || lower.contains("not applicable") || lower.contains("n/a")) return false
+        if (lower.contains("included in monthly rent") || lower.contains("included in rent") || lower.contains("(included)")) return false
+        return true
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -54,16 +64,30 @@ fun RentCostBreakdownPanel(
             Spacer(modifier = Modifier.height(12.dp))
 
             CostRow("Monthly Base Rent", currencyFormat.format(breakdown.monthlyRent))
-            CostRow("Electricity Billing", breakdown.electricityBilling)
-            CostRow("Water Billing", breakdown.waterBilling)
-            CostRow("Internet / WiFi", breakdown.internetBilling)
-            CostRow("Parking Slot", breakdown.parkingBilling)
-            CostRow("Association / Maintenance Dues", breakdown.maintenanceDues)
+            if (isApplicableCost(breakdown.electricityBilling)) {
+                CostRow("Electricity Billing", breakdown.electricityBilling)
+            }
+            if (isApplicableCost(breakdown.waterBilling)) {
+                CostRow("Water Billing", breakdown.waterBilling)
+            }
+            if (isApplicableCost(breakdown.internetBilling)) {
+                CostRow("Internet / WiFi", breakdown.internetBilling)
+            }
+            if (isApplicableCost(breakdown.parkingBilling)) {
+                CostRow("Parking Slot", breakdown.parkingBilling)
+            }
+            if (isApplicableCost(breakdown.maintenanceDues)) {
+                CostRow("Association / Maintenance Dues", breakdown.maintenanceDues)
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
-            CostRow("Advance Rent (${breakdown.advanceMonths} mo)", currencyFormat.format(breakdown.advanceRentAmount))
-            CostRow("Security Deposit (${breakdown.depositMonths} mo)", currencyFormat.format(breakdown.securityDepositAmount))
+            if (breakdown.advanceMonths > 0 && breakdown.advanceRentAmount > 0) {
+                CostRow("Advance Rent (${breakdown.advanceMonths} mo)", currencyFormat.format(breakdown.advanceRentAmount))
+            }
+            if (breakdown.depositMonths > 0 && breakdown.securityDepositAmount > 0) {
+                CostRow("Security Deposit (${breakdown.depositMonths} mo)", currencyFormat.format(breakdown.securityDepositAmount))
+            }
 
             Spacer(modifier = Modifier.height(6.dp))
             Surface(
