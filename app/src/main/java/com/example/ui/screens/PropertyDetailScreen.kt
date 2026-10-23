@@ -353,6 +353,16 @@ fun PropertyDetailScreen(
                         roomType = prop.propertyType,
                         onBack = onBack,
                         onShare = { showExportPostDialog = true },
+                        isSaved = isSaved,
+                        onToggleSave = {
+                            viewModel.toggleSave(prop.id)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (!isSaved) "Saved to your favorites" else "Removed from favorites"
+                                )
+                            }
+                        },
+                        onReport = { showReportDialog = true },
                         modifier = Modifier.fillMaxWidth()
                     )
 

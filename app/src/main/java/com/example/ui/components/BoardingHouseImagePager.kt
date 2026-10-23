@@ -36,16 +36,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
 import com.example.ui.theme.SteelBlue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -89,7 +91,7 @@ fun BoardingHouseImagePager(
     images: List<String>,
     propertyTitle: String,
     modifier: Modifier = Modifier,
-    height: Dp = 320.dp,
+    height: Dp = 500.dp,
     initialPage: Int = 0,
     roomType: String = "",
     onBack: (() -> Unit)? = null,
@@ -210,84 +212,115 @@ fun BoardingHouseImagePager(
             }
         }
 
-        // Top Controls: Floating Back Button & Room Type Badge (top-left)
-        Row(
+        // Top-left: Floating Back Button
+        if (onBack != null) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(start = 12.dp, top = 10.dp)
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .testTag("detail_back_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        // Top-right Overlay: Three-dot menu on top, Heart icon directly below it
+        Column(
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(start = 12.dp, top = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(end = 12.dp, top = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (onBack != null) {
+            // 1. Three-dot Overflow Menu (Share and Flag options)
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box {
                 IconButton(
-                    onClick = onBack,
+                    onClick = { menuExpanded = true },
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.55f))
-                        .testTag("detail_back_btn")
+                        .testTag("detail_three_dots_menu_btn")
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More Options",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                 }
-            }
 
-            if (roomType.isNotBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.Black.copy(alpha = 0.65f),
-                    border = BorderStroke(1.dp, SteelBlue),
-                    modifier = Modifier.testTag("image_pager_room_type_badge")
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.testTag("detail_overflow_dropdown_menu")
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Bed,
-                            contentDescription = null,
-                            tint = SteelBlue,
-                            modifier = Modifier.size(14.dp)
+                    if (onShare != null) {
+                        DropdownMenuItem(
+                            text = { Text("Share", fontWeight = FontWeight.Medium) },
+                            onClick = {
+                                menuExpanded = false
+                                onShare()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Share,
+                                    contentDescription = "Share",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            modifier = Modifier.testTag("menu_item_share")
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = roomType,
-                            color = Color.White,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold
+                    }
+
+                    if (onReport != null) {
+                        DropdownMenuItem(
+                            text = { Text("Flag", fontWeight = FontWeight.Medium, color = Color(0xFFD32F2F)) },
+                            onClick = {
+                                menuExpanded = false
+                                onReport()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Flag,
+                                    contentDescription = "Flag Listing",
+                                    tint = Color(0xFFD32F2F),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            modifier = Modifier.testTag("menu_item_flag")
                         )
                     }
                 }
             }
-        }
 
-        // Top-right Overlay: Share Button only (heart, flag, and fullscreen icons removed)
-        if (onShare != null) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(end = 12.dp, top = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // 2. Heart Icon for Save/Favorite (below three-dots)
+            if (onToggleSave != null) {
                 IconButton(
-                    onClick = onShare,
+                    onClick = onToggleSave,
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.55f))
-                        .testTag("detail_share_social_btn")
+                        .testTag("detail_heart_favorite_btn")
                 ) {
                     Icon(
-                        Icons.Default.Share,
-                        contentDescription = "Share Listing",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isSaved) "Remove from Saved" else "Save Property",
+                        tint = if (isSaved) Color(0xFFE53935) else Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
