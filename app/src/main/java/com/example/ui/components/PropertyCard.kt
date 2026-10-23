@@ -190,7 +190,7 @@ fun PropertyCard(
                     Text(
                         text = "$formattedRent/mo",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = Color.White,
                         fontSize = 18.5.sp,
                         maxLines = 1,
@@ -204,7 +204,7 @@ fun PropertyCard(
                     Text(
                         text = property.title,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         fontSize = 13.5.sp,
                         maxLines = 1,

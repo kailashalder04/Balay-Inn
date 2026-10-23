@@ -402,7 +402,7 @@ fun TenantHomeScreen(
                             Text(
                                 text = "Your Saved Properties",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Black,
                                 color = if (isDark) Color.White else Color(0xFF0F172A),
                                 maxLines = 1,
                                 softWrap = false
@@ -723,7 +723,7 @@ fun CategoryCarouselHeader(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Black,
                         color = if (isDark) Color.White else Color(0xFF0F172A),
                         maxLines = 1,
                         softWrap = false

@@ -228,7 +228,8 @@ object CommuteGuideProvider {
     }
 
     /**
-     * Returns destinations grouped by Subcategory for a given DestinationGroup (TRANSIT, ESSENTIALS, UTILITY)
+     * Returns destinations grouped by Subcategory for a given DestinationGroup (TRANSIT, ESSENTIALS, UTILITY),
+     * showing a maximum of three places only per sub-category with minimum distance and time.
      */
     fun getDestinationsBySubcategory(
         property: PropertyEntity,
@@ -240,7 +241,13 @@ object CommuteGuideProvider {
         } else {
             all
         }
-        return filtered.groupBy { it.subcategory }
+        return filtered
+            .groupBy { it.subcategory }
+            .mapValues { (_, places) ->
+                places
+                    .sortedWith(compareBy({ it.distanceMeters }, { it.timeToReachMinutes }))
+                    .take(3)
+            }
     }
 
     /**

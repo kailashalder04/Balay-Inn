@@ -138,6 +138,12 @@ class ExampleRobolectricTest {
 
     val subcatMap = com.example.data.model.CommuteGuideProvider.getDestinationsBySubcategory(bcdProp, com.example.data.model.DestinationGroup.TRANSIT)
     org.junit.Assert.assertTrue(subcatMap.isNotEmpty())
+    subcatMap.values.forEach { places ->
+      org.junit.Assert.assertTrue("Subcategory places should be at most 3", places.size <= 3)
+      for (i in 0 until places.size - 1) {
+        org.junit.Assert.assertTrue("Places should be sorted by minimum distance", places[i].distanceMeters <= places[i + 1].distanceMeters)
+      }
+    }
     org.junit.Assert.assertTrue(transitList.first().formattedDistanceAndTime.contains("|"))
 
     val badge = com.example.data.model.CommuteGuideProvider.getQuickCommuteBadge(bcdProp)

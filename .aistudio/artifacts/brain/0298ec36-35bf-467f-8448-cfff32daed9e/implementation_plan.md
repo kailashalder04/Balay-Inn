@@ -1,69 +1,62 @@
-# Switch App Typography to Inter Font Family
+# Switch App Typography to Bold Outfit Font Family
 
-Establish a crisp, highly legible, and neutral interface aesthetic across the entire Balay-Inn application by integrating the **Inter** font family into the Material 3 typography system.
+Replace the current thin font with **Outfit**, an energetic, punchy geometric typeface with naturally thick stroke weights, prominent letterforms, and bold headings across all Balay-Inn screens.
 
 ---
 
 ### User Review & Critical Decisions
 
-- **Confirmed Decision**: Switched primary app typeface to **Inter** for a clean, neutral, and high-clarity UI appearance.
-- **Installation Standard**: Downloaded static `inter.ttf` directly to `app/src/main/res/font/` using the local `font-util` tool.
-- **Material 3 Scope**: Configured all 15 M3 typography tokens in `Type.kt` using `InterFontFamily`.
+- **Confirmed Typeface**: **Outfit** (Geometric sans-serif with strong stroke presence).
+- **Weight Calibration**: Downloaded authentic individual weight TTF files (`outfit_regular.ttf`, `outfit_medium.ttf`, `outfit_semibold.ttf`, `outfit_bold.ttf`, `outfit_extrabold.ttf`, `outfit_black.ttf`) into `app/src/main/res/font/`.
+- **Targeted Application**: Headings, display banners, and section titles are set to **Black (900)** and **ExtraBold (800)** weights, while body text and labels remain clean and regular.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Delivers**: A unified, professional, and utilitarian typography system tailored for high-density listing apps.
-- **Target Audience**: Tenants, property owners, brokers, and administrators navigating complex rental data, multi-tiered price breakdowns, location details, and unit specifications.
-- **Key Value**: Inter features a tall x-height, distinct letterforms, and optimized kerning for small text and numerical figures, making price schedules, map callouts, specification tags, and filter chips significantly easier to scan quickly.
+- **Problem Identified**: The previous single TTF asset only provided regular 400 glyphs, causing requested bold/extrabold weights to fall back to regular thickness.
+- **Solution**: Bundled authentic TrueType files for each weight (Regular 400, Medium 500, SemiBold 600, Bold 700, ExtraBold 800, Black 900) so Android renders true bold letterforms.
+- **Key Value**: Headings and titles (*Description*, *Unit Specifications*, *Amenities & Rules*, *Explore Neighborhood*, *Host*, property titles, and rental prices) are unmistakably thick, bold, and punchy, while body paragraphs and labels stay uncluttered.
 
 ---
 
-## 2. User Experience & Visual Design
-
-### Typographic Hierarchy with Inter
-
-Inter delivers clear visual hierarchy between headers, tabular property data, and metadata:
+## 2. Typographic Hierarchy with Outfit Multi-Weight
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ DISPLAY / HERO HEADINGS                                     │
-│ Inter Bold (24sp - 32sp) • Negative letter spacing (-0.2sp) │
+│ DISPLAY & SCREEN HEADINGS                                   │
+│ Outfit Black (900) • 20sp - 32sp                            │
+│ Real TrueType Black glyphs, ultra-thick, heavy presence     │
 ├─────────────────────────────────────────────────────────────┤
 │ PROPERTY TITLES & SECTION HEADERS                           │
-│ Inter SemiBold (16sp - 20sp) • Snappy, compact line heights │
+│ Outfit Black (900) / ExtraBold (800) • 15.5sp - 18sp        │
+│ Solid, heavy, and distinct from content underneath          │
 ├─────────────────────────────────────────────────────────────┤
-│ NUMERICAL VALUES & PRICING                                  │
-│ Inter ExtraBold (18sp - 26sp) • High contrast against "/mo" │
+│ PRICING & RENT CALLOUTS                                     │
+│ Outfit Black (900) • 18.5sp - 26sp                          │
+│ Maximum punch with high contrast against body text          │
 ├─────────────────────────────────────────────────────────────┤
-│ BODY & DESCRIPTIONS                                         │
-│ Inter Regular (13.5sp - 15sp) • Balanced 1.4x line-height   │
+│ BODY TEXT & DESCRIPTIONS (Clean & Balanced)                 │
+│ Outfit Normal (400) • 12sp - 15sp                           │
+│ Natural readability without visual heaviness                │
 ├─────────────────────────────────────────────────────────────┤
-│ SPEC TAGS, BADGES & SYSTEM LABELS                           │
-│ Inter Medium / SemiBold (10.5sp - 12sp) • Crisp rendering   │
+│ BADGES, LABELS & PILLS                                      │
+│ Outfit Medium (500) • 10.5sp - 13sp                         │
+│ Crisp, neat, and readable at compact touch targets          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- **Visual Tone**: Modern, objective, trustworthy, and sleek.
-- **Dark & Light Mode Harmony**: Consistent font weight rendering across slate dark backgrounds and crisp light containers.
-
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+## 3. Execution Summary
 
-- **Inter vs. Manrope**:
-  - *Chosen*: Inter.
-  - *Why*: Balay-Inn features dense specifications (floor area, room counts, bathroom counts, barangay/province selectors, electric provider schedules, move-in cash breakdown tables). Inter's neutral tone and tall x-height maximize data readability and prevent text clutter in compact card layouts.
-- **Local TTF Resource vs. Downloadable Fonts**:
-  - *Chosen*: Static bundled font via `font-util install "Inter" --target app/src/main/res/font`.
-  - *Why*: Eliminates Google Play Services network latency, avoids runtime downloadable font initialization failures in emulator containers, and ensures offline capability.
-
----
-
-## 4. Execution Summary
-
-- **Font Asset**: Downloaded `inter.ttf` to `app/src/main/res/font/`.
-- **Typography Scale**: Configured `InterFontFamily` in `Type.kt` mapped to `Light`, `Normal`, `Medium`, `SemiBold`, `Bold`, and `ExtraBold`.
-- **Theme Integration**: All 15 M3 typography tokens updated and active through `MaterialTheme` in `Theme.kt`.
-- **Verification**: Verified clean Android compilation with `compile_applet` and executed Robolectric/unit tests via `testDebugUnitTest` with 100% passing results.
+- **Font Assets**: Bundled authentic weight files directly in `app/src/main/res/font/`:
+  - `outfit_regular.ttf` (Weight 400)
+  - `outfit_medium.ttf` (Weight 500)
+  - `outfit_semibold.ttf` (Weight 600)
+  - `outfit_bold.ttf` (Weight 700)
+  - `outfit_extrabold.ttf` (Weight 800)
+  - `outfit_black.ttf` (Weight 900)
+- **Typography Tokens (`Type.kt`)**: Mapped `OutfitFontFamily` across the authentic weight resources. Configured `display*`, `headline*`, and `title*` with `FontWeight.Black` and `FontWeight.ExtraBold`, while keeping `body*` and `label*` at `Normal` and `Medium`.
+- **Screen Verification**: Screen headings across Property Details, Cards, and Home categories now display with authentic heavy bold styling.
+- **Verification**: Verified clean Android compilation with `compile_applet` and confirmed all unit tests pass with `testDebugUnitTest` (`BUILD SUCCESSFUL in 16s`).

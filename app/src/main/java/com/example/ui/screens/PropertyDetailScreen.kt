@@ -401,8 +401,8 @@ fun PropertyDetailScreen(
                         ) {
                             Text(
                                 text = cleanTitle,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.ExtraBold,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Black,
                                 color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E),
                                 modifier = Modifier
                                     .weight(1f)
@@ -529,7 +529,7 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Description",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -559,7 +559,7 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Unit Specifications",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -681,7 +681,7 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Amenities & Rules",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -882,7 +882,7 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Explore Neighborhood",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -899,7 +899,7 @@ fun PropertyDetailScreen(
                     Text(
                         text = "Host",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Black,
                         color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F1E2E)
                     )
                     Spacer(modifier = Modifier.height(8.dp))

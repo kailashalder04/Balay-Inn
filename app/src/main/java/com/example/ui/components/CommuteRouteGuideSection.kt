@@ -221,6 +221,13 @@ private fun SubcategoryBlock(
     places: List<CommuteDestination>,
     isDark: Boolean
 ) {
+    // Show maximum three places only with minimum distance and time
+    val displayPlaces = remember(places) {
+        places
+            .sortedWith(compareBy({ it.distanceMeters }, { it.timeToReachMinutes }))
+            .take(3)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -257,8 +264,8 @@ private fun SubcategoryBlock(
             modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
         )
 
-        // Places rows - matching text font size & colors with other containers
-        places.forEach { place ->
+        // Places rows - showing max 3 places with minimum distance and time
+        displayPlaces.forEach { place ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
