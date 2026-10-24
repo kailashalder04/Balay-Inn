@@ -65,10 +65,13 @@ import com.example.ui.theme.BadgeBlue
 import com.example.ui.theme.BadgeBlueBg
 import com.example.ui.theme.BadgeGreen
 import com.example.ui.theme.BadgeGreenBg
+import com.example.ui.theme.PropertyBoxBg
+import com.example.ui.theme.PropertyBoxBgDark
+import com.example.ui.theme.PropertyBoxBorder
+import com.example.ui.theme.PropertyBoxBorderDark
 import com.example.ui.theme.SoftGreenDark
 import com.example.ui.theme.SoftGreenDarkBg
 import com.example.ui.theme.SteelBlueDarkBg
-import com.example.ui.theme.SteelBlueLightBg
 import com.example.ui.components.VerifiedIcon
 import com.example.ui.components.VerifiedPillBadge
 import com.example.ui.components.isPlatformVerified
@@ -300,7 +303,10 @@ fun RepresentativeHomeScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) PropertyBoxBgDark else PropertyBoxBg
+                    ),
+                    border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
                 ) {
                     Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("No properties assigned to your representative account yet.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -316,6 +322,7 @@ fun RepresentativeHomeScreen(
                 RepresentativePropertyCard(
                     property = prop,
                     locationDisplay = viewModel.getLocationDisplay(prop),
+                    isDark = isDark,
                     onClick = { onNavigateToPropertyDetail(prop.id) },
                     onToggleStatus = {
                         val next = if (prop.status == "ACTIVE") "RENTED" else "ACTIVE"
@@ -482,22 +489,23 @@ fun RepresentativeHomeScreen(
 private fun RepresentativePropertyCard(
     property: PropertyEntity,
     locationDisplay: String,
+    isDark: Boolean,
     onClick: () -> Unit,
     onToggleStatus: () -> Unit
 ) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
     val isActive = property.status == "ACTIVE"
 
-    val isDark = isSystemInDarkTheme()
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isDark) SteelBlueDarkBg else SteelBlueLightBg),
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) PropertyBoxBgDark else PropertyBoxBg
+        ),
+        border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -508,13 +516,21 @@ private fun RepresentativePropertyCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = if (isActive) BadgeGreenBg else Color(0xFFEFF6FF)
+                        color = if (isActive) {
+                            if (isDark) SoftGreenDarkBg else BadgeGreenBg
+                        } else {
+                            if (isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF)
+                        }
                     ) {
                         Text(
                             text = property.status,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isActive) BadgeGreen else Color(0xFF2563EB),
+                            color = if (isActive) {
+                                if (isDark) SoftGreenDark else BadgeGreen
+                            } else {
+                                if (isDark) Color(0xFF60A5FA) else Color(0xFF2563EB)
+                            },
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             maxLines = 1,
                             softWrap = false
@@ -524,7 +540,7 @@ private fun RepresentativePropertyCard(
                     Text(
                         text = "Authorized by Owner",
                         fontSize = 10.sp,
-                        color = BadgeGreen,
+                        color = if (isDark) SoftGreenDark else BadgeGreen,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         softWrap = false

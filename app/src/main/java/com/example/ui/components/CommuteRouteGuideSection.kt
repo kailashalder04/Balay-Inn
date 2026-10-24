@@ -1,12 +1,17 @@
 package com.example.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,14 +22,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AirportShuttle
 import androidx.compose.material.icons.filled.DirectionsBoat
@@ -37,52 +36,50 @@ import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material.icons.filled.Swipe
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.model.CommuteDestination
-import com.example.ui.theme.SteelBlue
-import com.example.ui.theme.SteelBlueBorder
-import com.example.ui.theme.SteelBlueDarkBg
-import com.example.ui.theme.SteelBlueDarkBorder
-import com.example.ui.theme.SteelBlueLightBg
-import com.example.ui.theme.SteelBlueText
-import com.example.ui.theme.SteelBlueTextDark
-import com.example.ui.theme.PropertyBoxBg
+import com.example.data.model.CommuteGuideProvider
+import com.example.data.model.DestinationGroup
 import com.example.ui.theme.PropertyBoxBgDark
 import com.example.ui.theme.PropertyBoxBorder
 import com.example.ui.theme.PropertyBoxBorderDark
-import com.example.data.model.CommuteGuideProvider
-import com.example.data.model.DestinationGroup
-import kotlinx.coroutines.launch
+import com.example.ui.theme.SteelBlue
+import com.example.ui.theme.SteelBlueLight
+import com.example.ui.theme.SteelBlueText
+import com.example.ui.theme.SteelBlueTextDark
+import kotlin.math.abs
 
 /**
- * Explore Neighbourhood / Nearby Destination Section
- * Fully dark-mode and light-mode adaptive:
- * - "➔ Explore Neighbourhood" title with smooth sliding left to right and vice versa
- * - HorizontalPager providing smooth gesture-based sliding and tab navigation
- * - Wrap hidden texts across multiple lines without truncating
- * - 3 Tabs: TRANSIT | ESSENTIALS | UTILITY with smooth active underline tracker
- * - Left/Right navigation chevrons for smooth sliding
+ * Explore Neighborhood / Nearby Destination Section
+ * Matches design specification:
+ * - "Explore Neighborhood" header matching theme
+ * - Three flat tabs: TRANSIT | ESSENTIALS | UTILITY with active steel blue underline indicator
+ * - Smooth horizontal sliding feature across tabs via swipe gestures and tab clicks
+ * - Subcategory rows with steel blue icon, steel blue title, and clean divider line
+ * - Clean, non-hidden place names and right-aligned distance/time format "X.X km|YY mins"
+ * - Compact, elegant layout with no clipped text
  */
 @Composable
 fun CommuteRouteGuideSection(
@@ -104,13 +101,15 @@ fun NearbyDestinationSection(
     if (allDestinations.isEmpty()) return
 
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val exploreTeal = if (isDark) MaterialTheme.colorScheme.primary else SteelBlue
-    val dividerColor = if (isDark) MaterialTheme.colorScheme.outlineVariant else Color(0xFFE2E8F0)
-    val dimTextColor = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
-
+    val steelBlueIndicator = if (isDark) SteelBlueLight else SteelBlue
+    val steelBlueSubheadingText = if (isDark) SteelBlueTextDark else SteelBlueText
+    val steelBlueSubheadingIcon = if (isDark) SteelBlueLight else SteelBlue
+    val tabDividerColor = if (isDark) PropertyBoxBorderDark else Color(0xFFE2E8F0)
     val groups = remember { DestinationGroup.entries.toList() }
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { groups.size })
-    val coroutineScope = rememberCoroutineScope()
+    var selectedGroupIndex by remember { mutableIntStateOf(0) }
+    val selectedGroup = groups[selectedGroupIndex.coerceIn(0, groups.size - 1)]
+
+    var totalDrag by remember { mutableFloatStateOf(0f) }
 
     Card(
         modifier = modifier
@@ -127,86 +126,129 @@ fun NearbyDestinationSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
-            // Tabs: TRANSIT | ESSENTIALS | UTILITY with smooth clickable sliding
+            // 1. Header: Explore Neighborhood
+            Text(
+                text = "Explore Neighborhood",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
+            )
+
+            // 2. Tabs: TRANSIT | ESSENTIALS | UTILITY with Teal Underline
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 groups.forEachIndexed { index, group ->
-                    val isSelected = pagerState.currentPage == index
+                    val isSelected = selectedGroupIndex == index
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .weight(1f)
-                            .clickable {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(
-                                        page = index,
-                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
-                                    )
-                                }
-                            }
+                            .clickable { selectedGroupIndex = index }
                             .padding(top = 2.dp)
                             .testTag("tab_${group.name.lowercase()}")
                     ) {
                         Text(
                             text = group.name,
-                            fontSize = 12.sp,
+                            fontSize = 12.5.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else (if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)),
-                            letterSpacing = 0.4.sp,
-                            softWrap = true
+                            color = if (isSelected) {
+                                if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
+                            } else {
+                                if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                            },
+                            letterSpacing = 0.5.sp
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(7.dp))
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.9f)
+                                .fillMaxWidth()
                                 .height(2.5.dp)
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                .background(if (isSelected) steelBlueIndicator else Color.Transparent)
                         )
                     }
                 }
             }
 
-            // Base line below tabs matching other container dividers
+            // Base Divider under the tab row
             HorizontalDivider(
-                color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
+                color = tabDividerColor,
                 thickness = 0.8.dp,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(bottom = 14.dp)
             )
 
-            // Tab Content: Smooth HorizontalPager sliding
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) { pageIndex ->
-                val group = groups[pageIndex]
-                val subcategoryMap = remember(group, property) {
-                    CommuteGuideProvider.getDestinationsBySubcategory(property, group)
-                }
+            // 3. Tab Content with Smooth Horizontal Sliding Feature
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(selectedGroupIndex) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (totalDrag < -35f && selectedGroupIndex < groups.size - 1) {
+                                    selectedGroupIndex++
+                                } else if (totalDrag > 35f && selectedGroupIndex > 0) {
+                                    selectedGroupIndex--
+                                }
+                                totalDrag = 0f
+                            },
+                            onDragCancel = {
+                                totalDrag = 0f
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                totalDrag += dragAmount
+                                if (abs(totalDrag) > 20f) {
+                                    change.consume()
+                                }
+                            }
+                        )
+                    }
+            ) {
+                AnimatedContent(
+                    targetState = selectedGroup,
+                    transitionSpec = {
+                        val isForward = targetState.ordinal > initialState.ordinal
+                        val enter = slideInHorizontally(animationSpec = tween(280, easing = FastOutSlowInEasing)) { width ->
+                            if (isForward) width else -width
+                        } + fadeIn(tween(220))
+                        val exit = slideOutHorizontally(animationSpec = tween(280, easing = FastOutSlowInEasing)) { width ->
+                            if (isForward) -width else width
+                        } + fadeOut(tween(180))
+                        enter togetherWith exit
+                    },
+                    label = "explore_neighbourhood_sliding",
+                    modifier = Modifier.fillMaxWidth()
+                ) { group ->
+                    val subcategoryMap = remember(group, property) {
+                        CommuteGuideProvider.getDestinationsBySubcategory(property, group)
+                    }
 
-                if (subcategoryMap.isEmpty()) {
-                    Text(
-                        text = "No recorded destinations nearby for ${group.title}.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        softWrap = true,
-                        modifier = Modifier.padding(vertical = 14.dp)
-                    )
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        subcategoryMap.forEach { (subcategory, places) ->
-                            SubcategoryBlock(
-                                subcategory = subcategory,
-                                places = places,
-                                isDark = isDark
-                            )
+                    if (subcategoryMap.isEmpty()) {
+                        Text(
+                            text = "No recorded destinations nearby for ${group.title}.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            subcategoryMap.forEach { (subcategory, places) ->
+                                SubcategoryBlock(
+                                    subcategory = subcategory,
+                                    places = places,
+                                    subheadingTextColor = steelBlueSubheadingText,
+                                    subheadingIconColor = steelBlueSubheadingIcon,
+                                    isDark = isDark
+                                )
+                            }
                         }
                     }
                 }
@@ -219,6 +261,8 @@ fun NearbyDestinationSection(
 private fun SubcategoryBlock(
     subcategory: String,
     places: List<CommuteDestination>,
+    subheadingTextColor: Color,
+    subheadingIconColor: Color,
     isDark: Boolean
 ) {
     // Show maximum three places only with minimum distance and time
@@ -228,13 +272,15 @@ private fun SubcategoryBlock(
             .take(3)
     }
 
+    val subcategoryLineColor = if (isDark) Color(0xFF334155) else Color(0xFFE5E7EB)
+    val itemTextColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF374151)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("subcategory_${subcategory.lowercase().replace(" ", "_")}"),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .testTag("subcategory_${subcategory.lowercase().replace(" ", "_")}")
     ) {
-        // Subcategory Title Row matching the other cards' subheaders
+        // Subcategory Title Row with Steel Blue Icon & Steel Blue Text
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -242,67 +288,58 @@ private fun SubcategoryBlock(
             Icon(
                 imageVector = getSubcategoryIcon(subcategory),
                 contentDescription = null,
-                tint = SteelBlue,
+                tint = subheadingIconColor,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = subcategory,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                softWrap = true,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = subheadingTextColor,
                 modifier = Modifier.weight(1f)
             )
         }
 
-        // Thin divider below subcategory title matching other cards
+        // Full-width subtle horizontal line directly underneath subcategory title
         HorizontalDivider(
-            color = if (isDark) PropertyBoxBorderDark else PropertyBoxBorder,
+            color = subcategoryLineColor,
             thickness = 0.8.dp,
-            modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
+            modifier = Modifier.padding(top = 4.dp, bottom = 6.dp)
         )
 
-        // Places rows - showing max 3 places with minimum distance and time
+        // Places rows - matching image: clean place name on left, formatted distance|time on right
         displayPlaces.forEach { place ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = 3.dp)
                     .testTag("place_row_${place.id}"),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Place Name
+                // Place Name: fully visible without truncation
                 Text(
                     text = place.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 12.5.sp,
+                    fontSize = 13.sp,
                     lineHeight = 17.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B),
+                    fontWeight = FontWeight.Normal,
+                    color = itemTextColor,
                     softWrap = true,
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 12.dp)
                 )
 
-                // Distance and Time formatted matching other badge pills
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (isDark) PropertyBoxBgDark else Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, if (isDark) PropertyBoxBorderDark else PropertyBoxBorder)
-                ) {
-                    Text(
-                        text = place.formattedDistanceAndTime,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isDark) SteelBlueTextDark else SteelBlueText,
-                        softWrap = true,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                    )
-                }
+                // Distance and Time: right aligned, plain text format "7.1 km|20 mins"
+                Text(
+                    text = place.formattedDistanceAndTime,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = itemTextColor,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
@@ -311,11 +348,11 @@ private fun SubcategoryBlock(
 private fun getSubcategoryIcon(subcategory: String): ImageVector {
     val s = subcategory.lowercase()
     return when {
-        s.contains("bus") -> Icons.Default.DirectionsBus
         s.contains("metro") || s.contains("rail") || s.contains("train") -> Icons.Default.DirectionsSubway
+        s.contains("bus") -> Icons.Default.DirectionsBus
         s.contains("jeep") || s.contains("transit") || s.contains("depot") -> Icons.Default.AirportShuttle
         s.contains("port") || s.contains("ferri") || s.contains("wharf") || s.contains("pier") -> Icons.Default.DirectionsBoat
-        s.contains("airport") || s.contains("shuttle") || s.contains("flight") -> Icons.Default.Flight
+        s.contains("airport") || s.contains("flight") -> Icons.Default.Flight
         s.contains("college") || s.contains("universit") -> Icons.Default.School
         s.contains("hospital") || s.contains("medical") || s.contains("clinic") -> Icons.Default.LocalHospital
         s.contains("school") -> Icons.AutoMirrored.Filled.MenuBook

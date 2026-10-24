@@ -5,6 +5,18 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
+ * Helper to normalize furnishing values strictly to Unfurnished, Semi-Furnished, or Fully-Furnished
+ */
+fun normalizeFurnishing(value: String?): String {
+    val lower = value?.lowercase()?.trim() ?: ""
+    return when {
+        lower.contains("semi") -> "Semi-Furnished"
+        lower.contains("unfurnish") || lower.contains("bare") -> "Unfurnished"
+        else -> "Fully-Furnished"
+    }
+}
+
+/**
  * 1. Condition: Boarding House Specifications
  */
 data class BoardingHouseDetails(
@@ -13,7 +25,15 @@ data class BoardingHouseDetails(
     val roomCapacity: String = "4-bed bunk", // "Single", "Double bed", "4-bed bunk", "6-bed bunk"
     val tenantPreference: String = "Mixed", // "Male Only", "Female Only", "Mixed"
     val bathroomType: String = "Shared/Communal", // "Private/En-suite" vs "Shared/Communal"
-    val utilities: List<String> = listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included")
+    val utilities: List<String> = listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included"),
+    val floorAreaSqm: Double = 18.0,
+    val furnishing: String = "Fully-Furnished",
+    val parking: String = "Motorcycle Parking Included",
+    val curfewRule: String = "10:00 PM Gate Lock",
+    val visitorsRule: String = "Lobby Visitors Only",
+    val petPolicy: String = "Strictly No Pets",
+    val cookingRule: String = "Light Cooking Allowed",
+    val leaseTermMinimum: String = "6 months"
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -23,6 +43,14 @@ data class BoardingHouseDetails(
             put("tenantPreference", tenantPreference)
             put("bathroomType", bathroomType)
             put("utilities", JSONArray(utilities))
+            put("floorAreaSqm", floorAreaSqm)
+            put("furnishing", normalizeFurnishing(furnishing))
+            put("parking", parking)
+            put("curfewRule", curfewRule)
+            put("visitorsRule", visitorsRule)
+            put("petPolicy", petPolicy)
+            put("cookingRule", cookingRule)
+            put("leaseTermMinimum", leaseTermMinimum)
         }
     }
 
@@ -39,7 +67,15 @@ data class BoardingHouseDetails(
                 roomCapacity = obj.optString("roomCapacity", "4-bed bunk"),
                 tenantPreference = obj.optString("tenantPreference", "Mixed"),
                 bathroomType = obj.optString("bathroomType", "Shared/Communal"),
-                utilities = if (utils.isNotEmpty()) utils else listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included")
+                utilities = if (utils.isNotEmpty()) utils else listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included"),
+                floorAreaSqm = obj.optDouble("floorAreaSqm", 18.0),
+                furnishing = normalizeFurnishing(obj.optString("furnishing", "Fully-Furnished")),
+                parking = obj.optString("parking", "Motorcycle Parking Included"),
+                curfewRule = obj.optString("curfewRule", "10:00 PM Gate Lock"),
+                visitorsRule = obj.optString("visitorsRule", "Lobby Visitors Only"),
+                petPolicy = obj.optString("petPolicy", "Strictly No Pets"),
+                cookingRule = obj.optString("cookingRule", "Light Cooking Allowed"),
+                leaseTermMinimum = obj.optString("leaseTermMinimum", "6 months")
             )
         }
     }
@@ -54,9 +90,13 @@ data class ApartmentDetails(
     val bedrooms: Int = 1,
     val bathrooms: Int = 1,
     val leaseTermMinimum: String = "1 year", // "6 months", "1 year"
-    val furnishing: String = "Semi-Furnished", // "Bare", "Semi-Furnished", "Fully Furnished"
+    val furnishing: String = "Semi-Furnished", // "Unfurnished", "Semi-Furnished", "Fully-Furnished"
     val kitchenType: String = "Indoor/Integral", // "Indoor/Integral" vs "Outdoor/Dirty Kitchen"
-    val utilityBilling: String = "Own Meter" // "Own Meter" vs "Sub-metered by Landlord"
+    val utilityBilling: String = "Own Meter", // "Own Meter" vs "Sub-metered by Landlord"
+    val parking: String = "Covered Garage Slot",
+    val petPolicy: String = "Pets Allowed",
+    val curfewRule: String = "No Curfew (24/7 Access)",
+    val amenities: List<String> = listOf("Free High-Speed Wi-Fi", "Air Conditioning", "Balcony")
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -65,23 +105,36 @@ data class ApartmentDetails(
             put("bedrooms", bedrooms)
             put("bathrooms", bathrooms)
             put("leaseTermMinimum", leaseTermMinimum)
-            put("furnishing", furnishing)
+            put("furnishing", normalizeFurnishing(furnishing))
             put("kitchenType", kitchenType)
             put("utilityBilling", utilityBilling)
+            put("parking", parking)
+            put("petPolicy", petPolicy)
+            put("curfewRule", curfewRule)
+            put("amenities", JSONArray(amenities))
         }
     }
 
     companion object {
         fun fromJsonObject(obj: JSONObject): ApartmentDetails {
+            val ams = mutableListOf<String>()
+            val arr = obj.optJSONArray("amenities")
+            if (arr != null) {
+                for (i in 0 until arr.length()) ams.add(arr.optString(i))
+            }
             return ApartmentDetails(
                 monthlyRent = obj.optDouble("monthlyRent", 0.0),
                 totalFloorAreaSqm = obj.optDouble("totalFloorAreaSqm", 35.0),
                 bedrooms = obj.optInt("bedrooms", 1),
                 bathrooms = obj.optInt("bathrooms", 1),
                 leaseTermMinimum = obj.optString("leaseTermMinimum", "1 year"),
-                furnishing = obj.optString("furnishing", "Semi-Furnished"),
+                furnishing = normalizeFurnishing(obj.optString("furnishing", "Semi-Furnished")),
                 kitchenType = obj.optString("kitchenType", "Indoor/Integral"),
-                utilityBilling = obj.optString("utilityBilling", "Own Meter")
+                utilityBilling = obj.optString("utilityBilling", "Own Meter"),
+                parking = obj.optString("parking", "Covered Garage Slot"),
+                petPolicy = obj.optString("petPolicy", "Pets Allowed"),
+                curfewRule = obj.optString("curfewRule", "No Curfew (24/7 Access)"),
+                amenities = if (ams.isNotEmpty()) ams else listOf("Free High-Speed Wi-Fi", "Air Conditioning", "Balcony")
             )
         }
     }
@@ -98,7 +151,11 @@ data class CondominiumDetails(
     val floorLevel: String = "8th Floor", // e.g. "14th floor"
     val parking: String = "Available for extra fee", // "Included in rent", "Available for extra fee", "None"
     val amenities: List<String> = listOf("Pool", "Gym", "24/7 Security", "Balcony"),
-    val petPolicy: String = "Pet-Friendly" // "Strictly No Pets" vs "Pet-Friendly"
+    val petPolicy: String = "Pet-Friendly", // "Strictly No Pets" vs "Pet-Friendly"
+    val furnishing: String = "Fully-Furnished",
+    val leaseTermMinimum: String = "1 year",
+    val visitorsRule: String = "24/7 Concierge & Guest Registration",
+    val kitchenType: String = "Equipped Kitchenette"
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -110,6 +167,10 @@ data class CondominiumDetails(
             put("parking", parking)
             put("amenities", JSONArray(amenities))
             put("petPolicy", petPolicy)
+            put("furnishing", normalizeFurnishing(furnishing))
+            put("leaseTermMinimum", leaseTermMinimum)
+            put("visitorsRule", visitorsRule)
+            put("kitchenType", kitchenType)
         }
     }
 
@@ -128,7 +189,11 @@ data class CondominiumDetails(
                 floorLevel = obj.optString("floorLevel", "8th Floor"),
                 parking = obj.optString("parking", "Available for extra fee"),
                 amenities = if (ams.isNotEmpty()) ams else listOf("Pool", "Gym", "24/7 Security"),
-                petPolicy = obj.optString("petPolicy", "Pet-Friendly")
+                petPolicy = obj.optString("petPolicy", "Pet-Friendly"),
+                furnishing = normalizeFurnishing(obj.optString("furnishing", "Fully-Furnished")),
+                leaseTermMinimum = obj.optString("leaseTermMinimum", "1 year"),
+                visitorsRule = obj.optString("visitorsRule", "24/7 Concierge & Guest Registration"),
+                kitchenType = obj.optString("kitchenType", "Equipped Kitchenette")
             )
         }
     }
@@ -146,7 +211,12 @@ data class TownhouseDetails(
     val bathrooms: Int = 2,
     val garageCapacity: Int = 2,
     val hasMaidsRoom: Boolean = false, // Maid's Room / Service Quarters Included?
-    val isGatedSubdivision: Boolean = true // Located inside a gated subdivision?
+    val isGatedSubdivision: Boolean = true, // Located inside a gated subdivision?
+    val furnishing: String = "Semi-Furnished",
+    val petPolicy: String = "Pet-Friendly",
+    val associationDues: String = "Inclusive in rent",
+    val leaseTermMinimum: String = "1 year",
+    val kitchenType: String = "Indoor Kitchen + Dirty Kitchen"
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -159,6 +229,11 @@ data class TownhouseDetails(
             put("garageCapacity", garageCapacity)
             put("hasMaidsRoom", hasMaidsRoom)
             put("isGatedSubdivision", isGatedSubdivision)
+            put("furnishing", normalizeFurnishing(furnishing))
+            put("petPolicy", petPolicy)
+            put("associationDues", associationDues)
+            put("leaseTermMinimum", leaseTermMinimum)
+            put("kitchenType", kitchenType)
         }
     }
 
@@ -173,7 +248,12 @@ data class TownhouseDetails(
                 bathrooms = obj.optInt("bathrooms", 2),
                 garageCapacity = obj.optInt("garageCapacity", 2),
                 hasMaidsRoom = obj.optBoolean("hasMaidsRoom", false),
-                isGatedSubdivision = obj.optBoolean("isGatedSubdivision", true)
+                isGatedSubdivision = obj.optBoolean("isGatedSubdivision", true),
+                furnishing = normalizeFurnishing(obj.optString("furnishing", "Semi-Furnished")),
+                petPolicy = obj.optString("petPolicy", "Pet-Friendly"),
+                associationDues = obj.optString("associationDues", "Inclusive in rent"),
+                leaseTermMinimum = obj.optString("leaseTermMinimum", "1 year"),
+                kitchenType = obj.optString("kitchenType", "Indoor Kitchen + Dirty Kitchen")
             )
         }
     }
@@ -386,7 +466,7 @@ fun PropertyEntity.getCategorySpecifications(): PropertyCategorySpecifications {
                     bedrooms = if (bedrooms > 0) bedrooms else 1,
                     bathrooms = if (bathrooms > 0) bathrooms else 1,
                     leaseTermMinimum = "1 year",
-                    furnishing = if (furnishedStatus.contains("Semi", ignoreCase = true)) "Semi-Furnished" else if (furnishedStatus.contains("Un", ignoreCase = true) || furnishedStatus.contains("Bare", ignoreCase = true)) "Bare" else "Fully Furnished",
+                    furnishing = normalizeFurnishing(furnishedStatus),
                     kitchenType = if (description.contains("dirty", ignoreCase = true) || description.contains("outdoor", ignoreCase = true)) "Outdoor/Dirty Kitchen" else "Indoor/Integral",
                     utilityBilling = if (description.contains("own meter", ignoreCase = true) || description.contains("meralco", ignoreCase = true)) "Own Meter" else "Sub-metered by Landlord"
                 )

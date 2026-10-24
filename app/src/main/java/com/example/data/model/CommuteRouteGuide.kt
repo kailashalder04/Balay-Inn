@@ -99,8 +99,8 @@ object CommuteGuideProvider {
         RawLandmark("bcd_tr_north", "Bacolod North Bus Terminal", DestinationGroup.TRANSIT, "Buses", 10.7022, 122.9621, "Banago-Bata or Ceres Liner Feeder", LandmarkCategory.TRANSIT),
         RawLandmark("bcd_tr_south", "Bacolod South Bus Terminal", DestinationGroup.TRANSIT, "Buses", 10.6592, 122.9502, "Libertad-Lopez Jaena Jeepney", LandmarkCategory.TRANSIT),
         RawLandmark("bcd_tr_central", "Central Market Jeepney Depot", DestinationGroup.TRANSIT, "Jeepney & Transit Depots", 10.6685, 122.9490, "Central Market Loop Jeepney", LandmarkCategory.TRANSIT),
-        RawLandmark("bcd_tr_bredco", "Banago Wharf & BREDCO Sea Port", DestinationGroup.TRANSIT, "Ports & Ferries", 10.6860, 122.9370, "Banago-Libertad Jeepney", LandmarkCategory.TRANSIT),
-        RawLandmark("bcd_tr_airport", "Bacolod-Silay Airport Shuttle", DestinationGroup.TRANSIT, "Airports & Shuttles", 10.6780, 122.9520, "Silay Shuttle Van / Modern PUV", LandmarkCategory.TRANSIT),
+        RawLandmark("bcd_tr_bredco", "Banago Wharf & BREDCO Sea Port", DestinationGroup.TRANSIT, "Airports & Shipping Ports", 10.6860, 122.9370, "Banago-Libertad Jeepney", LandmarkCategory.TRANSIT),
+        RawLandmark("bcd_tr_airport", "Bacolod-Silay Airport Shuttle", DestinationGroup.TRANSIT, "Airports & Shipping Ports", 10.6780, 122.9520, "Silay Shuttle Van / Modern PUV", LandmarkCategory.TRANSIT),
 
         // 2. ESSENTIALS
         RawLandmark("bcd_es_usls", "University of St. La Salle (USLS)", DestinationGroup.ESSENTIALS, "Colleges & Universities", 10.6789, 122.9618, "Shopping-La Salle or Bata Jeepney", LandmarkCategory.UNIVERSITY),
@@ -128,8 +128,8 @@ object CommuteGuideProvider {
         RawLandmark("ceb_tr_south_bus", "Cebu South Bus Terminal (CSBT)", DestinationGroup.TRANSIT, "Buses", 10.3015, 123.8940, "09C or 10H Jeepney", LandmarkCategory.TRANSIT),
         RawLandmark("ceb_tr_it_park", "Cebu I.T. Park Transport Terminal", DestinationGroup.TRANSIT, "Jeepney & Transit Depots", 10.3305, 123.9070, "17B, 17D, 04L Jeep / Modern PUV", LandmarkCategory.TRANSIT),
         RawLandmark("ceb_tr_ayala_term", "Ayala Center Public Transport Terminal", DestinationGroup.TRANSIT, "Jeepney & Transit Depots", 10.3185, 123.9065, "14D, 13C, or 06H Jeepney", LandmarkCategory.TRANSIT),
-        RawLandmark("ceb_tr_pier1", "Cebu Pier 1 Passenger Ferry Terminal", DestinationGroup.TRANSIT, "Ports & Ferries", 10.2930, 123.9050, "12I, 02B or Pier Tricycle", LandmarkCategory.TRANSIT),
-        RawLandmark("ceb_tr_mcia", "Mactan-Cebu International Airport (MCIA)", DestinationGroup.TRANSIT, "Airports & Shuttles", 10.3120, 123.9780, "MyBus Express Direct Line", LandmarkCategory.TRANSIT),
+        RawLandmark("ceb_tr_pier1", "Cebu Pier 1 Passenger Ferry Terminal", DestinationGroup.TRANSIT, "Airports & Shipping Ports", 10.2930, 123.9050, "12I, 02B or Pier Tricycle", LandmarkCategory.TRANSIT),
+        RawLandmark("ceb_tr_mcia", "Mactan-Cebu International Airport (MCIA)", DestinationGroup.TRANSIT, "Airports & Shipping Ports", 10.3120, 123.9780, "MyBus Express Direct Line", LandmarkCategory.TRANSIT),
 
         // 2. ESSENTIALS
         RawLandmark("ceb_es_usc_tc", "University of San Carlos (USC Talamban)", DestinationGroup.ESSENTIALS, "Colleges & Universities", 10.3541, 123.9114, "13C or 62B Jeepney", LandmarkCategory.UNIVERSITY),
@@ -157,8 +157,8 @@ object CommuteGuideProvider {
         RawLandmark("boh_tr_dao", "Dao Integrated Bus Terminal", DestinationGroup.TRANSIT, "Buses", 9.6644, 123.8741, "Dao-bound Tricycle / Multicab", LandmarkCategory.TRANSIT),
         RawLandmark("boh_tr_cpg_term", "CPG Avenue Tricycle & Jeepney Depot", DestinationGroup.TRANSIT, "Jeepney & Transit Depots", 9.6460, 123.8560, "CPG Avenue Tricycle", LandmarkCategory.TRANSIT),
         RawLandmark("boh_tr_panglao_hub", "Panglao Town Transport Hub", DestinationGroup.TRANSIT, "Jeepney & Transit Depots", 9.5780, 123.7480, "Panglao-Tagbilaran Jeepney Line", LandmarkCategory.TRANSIT),
-        RawLandmark("boh_tr_port", "Tagbilaran FastCraft Port", DestinationGroup.TRANSIT, "Ports & Ferries", 9.6542, 123.8486, "Port Tricycle Line", LandmarkCategory.TRANSIT),
-        RawLandmark("boh_tr_bpia", "Bohol-Panglao Airport", DestinationGroup.TRANSIT, "Airports & Shuttles", 9.5667, 123.7667, "Southern Star Airport Bus", LandmarkCategory.TRANSIT),
+        RawLandmark("boh_tr_port", "Tagbilaran FastCraft Port", DestinationGroup.TRANSIT, "Airports & Shipping Ports", 9.6542, 123.8486, "Port Tricycle Line", LandmarkCategory.TRANSIT),
+        RawLandmark("boh_tr_bpia", "Bohol-Panglao Airport", DestinationGroup.TRANSIT, "Airports & Shipping Ports", 9.5667, 123.7667, "Southern Star Airport Bus", LandmarkCategory.TRANSIT),
 
         // 2. ESSENTIALS
         RawLandmark("boh_es_hnu", "Holy Name University (HNU Dampas)", DestinationGroup.ESSENTIALS, "Colleges & Universities", 9.6608, 123.8703, "Tagbilaran Tricycle Line", LandmarkCategory.UNIVERSITY),
@@ -333,8 +333,7 @@ object CommuteGuideProvider {
             val detectedSubcat = when (detectedGroup) {
                 DestinationGroup.TRANSIT -> {
                     when {
-                        landmarkNameLower.contains("port") || landmarkNameLower.contains("ferry") -> "Ports & Ferries"
-                        landmarkNameLower.contains("airport") -> "Airports & Shuttles"
+                        landmarkNameLower.contains("port") || landmarkNameLower.contains("ferry") || landmarkNameLower.contains("airport") || landmarkNameLower.contains("shipping") -> "Airports & Shipping Ports"
                         landmarkNameLower.contains("bus") -> "Buses"
                         else -> "Jeepney & Transit Depots"
                     }

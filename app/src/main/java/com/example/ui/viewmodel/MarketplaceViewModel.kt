@@ -395,7 +395,9 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             val matchesBeds = filter.bedrooms == null || prop.bedrooms == filter.bedrooms
 
             // Furnished
-            val matchesFurnished = filter.furnishedStatus == "All" || prop.furnishedStatus.equals(filter.furnishedStatus, ignoreCase = true)
+            val matchesFurnished = filter.furnishedStatus == "All" || 
+                prop.furnishedStatus.equals(filter.furnishedStatus, ignoreCase = true) ||
+                com.example.data.model.normalizeFurnishing(prop.furnishedStatus).equals(com.example.data.model.normalizeFurnishing(filter.furnishedStatus), ignoreCase = true)
 
             // Parking
             val matchesParking = !filter.parkingRequired || prop.parkingAvailable

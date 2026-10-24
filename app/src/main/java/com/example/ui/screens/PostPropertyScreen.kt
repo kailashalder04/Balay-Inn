@@ -16,6 +16,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -107,6 +108,69 @@ import java.text.NumberFormat
 import java.util.Locale
 import java.util.UUID
 
+class BhFormState {
+    var pricingModel by mutableStateOf("Per Person/Bed")
+    var monthlyRentStr by mutableStateOf("2500")
+    var floorAreaStr by mutableStateOf("18")
+    var roomCapacity by mutableStateOf("4-bed bunk")
+    var tenantPreference by mutableStateOf("Mixed")
+    var bathroomType by mutableStateOf("Shared/Communal")
+    var furnishing by mutableStateOf("Fully-Furnished")
+    var parking by mutableStateOf("Motorcycle Parking Included")
+    var curfew by mutableStateOf("10:00 PM Gate Lock")
+    var visitors by mutableStateOf("Lobby Visitors Only")
+    var petPolicy by mutableStateOf("Strictly No Pets")
+    var cooking by mutableStateOf("Light Cooking Allowed")
+    var leaseTerm by mutableStateOf("6 months")
+    val utilities = mutableStateListOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included")
+}
+
+class AptFormState {
+    var monthlyRentStr by mutableStateOf("12000")
+    var floorAreaStr by mutableStateOf("42")
+    var bedrooms by mutableIntStateOf(1)
+    var bathrooms by mutableIntStateOf(1)
+    var leaseTermMin by mutableStateOf("1 year")
+    var furnishing by mutableStateOf("Semi-Furnished")
+    var kitchenType by mutableStateOf("Indoor/Integral")
+    var utilityBilling by mutableStateOf("Own Meter")
+    var parking by mutableStateOf("Covered Garage Slot")
+    var petPolicy by mutableStateOf("Pets Allowed")
+    var curfew by mutableStateOf("No Curfew (24/7 Access)")
+}
+
+class CondoFormState {
+    var monthlyRentStr by mutableStateOf("22000")
+    var assocDuesStatus by mutableStateOf("Inclusive in rent")
+    var unitLayout by mutableStateOf("Studio")
+    var floorAreaStr by mutableStateOf("28")
+    var floorLevel by mutableStateOf("14th Floor")
+    var parking by mutableStateOf("Available for extra fee")
+    val amenities = mutableStateListOf("Pool", "Gym", "24/7 Security")
+    var petPolicy by mutableStateOf("Pet-Friendly")
+    var furnishing by mutableStateOf("Fully-Furnished")
+    var leaseTerm by mutableStateOf("1 year")
+    var visitors by mutableStateOf("24/7 Concierge & Guest Registration")
+    var kitchen by mutableStateOf("Equipped Kitchenette")
+}
+
+class TownhouseFormState {
+    var monthlyRentStr by mutableStateOf("30000")
+    var lotAreaStr by mutableStateOf("120")
+    var floorAreaStr by mutableStateOf("95")
+    var stories by mutableIntStateOf(2)
+    var bedrooms by mutableIntStateOf(3)
+    var bathrooms by mutableIntStateOf(2)
+    var garageCapacity by mutableIntStateOf(2)
+    var hasMaidsRoom by mutableStateOf(false)
+    var isGatedSubdivision by mutableStateOf(true)
+    var furnishing by mutableStateOf("Semi-Furnished")
+    var petPolicy by mutableStateOf("Pet-Friendly")
+    var assocDues by mutableStateOf("Inclusive in rent")
+    var leaseTerm by mutableStateOf("1 year")
+    var kitchen by mutableStateOf("Indoor Kitchen + Dirty Kitchen")
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PostPropertyScreen(
@@ -180,46 +244,12 @@ fun PostPropertyScreen(
     }
 
     // -------------------------------------------------------------
-    // STEP 3: CONDITIONAL SPECIFICATIONS STATES
+    // STEP 3: CONDITIONAL SPECIFICATIONS STATES (Universal Categories)
     // -------------------------------------------------------------
-    // Condition 1: Boarding House
-    var bhPricingModel by remember { mutableStateOf("Per Person/Bed") } // "Per Person/Bed" vs "Per Room"
-    var bhMonthlyRentStr by remember { mutableStateOf("2500") }
-    var bhRoomCapacity by remember { mutableStateOf("4-bed bunk") } // "Single", "Double bed", "4-bed bunk", "6-bed bunk"
-    var bhTenantPreference by remember { mutableStateOf("Mixed") } // "Male Only", "Female Only", "Mixed"
-    var bhBathroomType by remember { mutableStateOf("Shared/Communal") } // "Private/En-suite" vs "Shared/Communal"
-    val bhUtilities = remember { mutableStateListOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included") }
-
-    // Condition 2: Apartment
-    var aptMonthlyRentStr by remember { mutableStateOf("12000") }
-    var aptFloorAreaStr by remember { mutableStateOf("42") }
-    var aptBedrooms by remember { mutableIntStateOf(1) }
-    var aptBathrooms by remember { mutableIntStateOf(1) }
-    var aptLeaseTermMin by remember { mutableStateOf("1 year") } // "6 months", "1 year"
-    var aptFurnishing by remember { mutableStateOf("Semi-Furnished") } // "Bare", "Semi-Furnished", "Fully Furnished"
-    var aptKitchenType by remember { mutableStateOf("Indoor/Integral") } // "Indoor/Integral" vs "Outdoor/Dirty Kitchen"
-    var aptUtilityBilling by remember { mutableStateOf("Own Meter") } // "Own Meter" vs "Sub-metered by Landlord"
-
-    // Condition 3: Condominium & Studio
-    var condoMonthlyRentStr by remember { mutableStateOf("22000") }
-    var condoAssocDuesStatus by remember { mutableStateOf("Inclusive in rent") } // "Inclusive in rent" vs "Exclusive / Tenant pays separately"
-    var condoUnitLayout by remember { mutableStateOf("Studio") } // "Studio", "1BR", "2BR", "Loft", "Bi-level"
-    var condoFloorAreaStr by remember { mutableStateOf("28") }
-    var condoFloorLevel by remember { mutableStateOf("14th Floor") }
-    var condoParking by remember { mutableStateOf("Available for extra fee") } // "Included in rent", "Available for extra fee", "None"
-    val condoAmenities = remember { mutableStateListOf("Pool", "Gym", "24/7 Security") }
-    var condoPetPolicy by remember { mutableStateOf("Pet-Friendly") } // "Strictly No Pets" vs "Pet-Friendly"
-
-    // Condition 4: Townhouse
-    var thMonthlyRentStr by remember { mutableStateOf("30000") }
-    var thLotAreaStr by remember { mutableStateOf("120") }
-    var thFloorAreaStr by remember { mutableStateOf("95") }
-    var thStories by remember { mutableIntStateOf(2) }
-    var thBedrooms by remember { mutableIntStateOf(3) }
-    var thBathrooms by remember { mutableIntStateOf(2) }
-    var thGarageCapacity by remember { mutableIntStateOf(2) }
-    var thHasMaidsRoom by remember { mutableStateOf(false) }
-    var thIsGatedSubdivision by remember { mutableStateOf(true) }
+    val bhState = remember { BhFormState() }
+    val aptState = remember { AptFormState() }
+    val condoState = remember { CondoFormState() }
+    val thState = remember { TownhouseFormState() }
 
     Scaffold(
         topBar = {
@@ -365,83 +395,17 @@ fun PostPropertyScreen(
                     )
                     3 -> Step3ConditionalSpecifications(
                         propertyType = selectedPropertyType,
-                        // Boarding House
-                        bhPricingModel = bhPricingModel,
-                        onBhPricingModelChange = { bhPricingModel = it },
-                        bhMonthlyRentStr = bhMonthlyRentStr,
-                        onBhMonthlyRentChange = { bhMonthlyRentStr = it },
-                        bhRoomCapacity = bhRoomCapacity,
-                        onBhRoomCapacityChange = { bhRoomCapacity = it },
-                        bhTenantPreference = bhTenantPreference,
-                        onBhTenantPreferenceChange = { bhTenantPreference = it },
-                        bhBathroomType = bhBathroomType,
-                        onBhBathroomTypeChange = { bhBathroomType = it },
-                        bhUtilities = bhUtilities,
-                        onToggleBhUtility = { u ->
-                            if (bhUtilities.contains(u)) bhUtilities.remove(u) else bhUtilities.add(u)
-                        },
-                        // Apartment
-                        aptMonthlyRentStr = aptMonthlyRentStr,
-                        onAptMonthlyRentChange = { aptMonthlyRentStr = it },
-                        aptFloorAreaStr = aptFloorAreaStr,
-                        onAptFloorAreaChange = { aptFloorAreaStr = it },
-                        aptBedrooms = aptBedrooms,
-                        onAptBedroomsChange = { aptBedrooms = it },
-                        aptBathrooms = aptBathrooms,
-                        onAptBathroomsChange = { aptBathrooms = it },
-                        aptLeaseTermMin = aptLeaseTermMin,
-                        onAptLeaseTermMinChange = { aptLeaseTermMin = it },
-                        aptFurnishing = aptFurnishing,
-                        onAptFurnishingChange = { aptFurnishing = it },
-                        aptKitchenType = aptKitchenType,
-                        onAptKitchenTypeChange = { aptKitchenType = it },
-                        aptUtilityBilling = aptUtilityBilling,
-                        onAptUtilityBillingChange = { aptUtilityBilling = it },
-                        // Condo & Studio
-                        condoMonthlyRentStr = condoMonthlyRentStr,
-                        onCondoMonthlyRentChange = { condoMonthlyRentStr = it },
-                        condoAssocDuesStatus = condoAssocDuesStatus,
-                        onCondoAssocDuesStatusChange = { condoAssocDuesStatus = it },
-                        condoUnitLayout = condoUnitLayout,
-                        onCondoUnitLayoutChange = { condoUnitLayout = it },
-                        condoFloorAreaStr = condoFloorAreaStr,
-                        onCondoFloorAreaChange = { condoFloorAreaStr = it },
-                        condoFloorLevel = condoFloorLevel,
-                        onCondoFloorLevelChange = { condoFloorLevel = it },
-                        condoParking = condoParking,
-                        onCondoParkingChange = { condoParking = it },
-                        condoAmenities = condoAmenities,
-                        onToggleCondoAmenity = { a ->
-                            if (condoAmenities.contains(a)) condoAmenities.remove(a) else condoAmenities.add(a)
-                        },
-                        condoPetPolicy = condoPetPolicy,
-                        onCondoPetPolicyChange = { condoPetPolicy = it },
-                        // Townhouse
-                        thMonthlyRentStr = thMonthlyRentStr,
-                        onThMonthlyRentChange = { thMonthlyRentStr = it },
-                        thLotAreaStr = thLotAreaStr,
-                        onThLotAreaChange = { thLotAreaStr = it },
-                        thFloorAreaStr = thFloorAreaStr,
-                        onThFloorAreaChange = { thFloorAreaStr = it },
-                        thStories = thStories,
-                        onThStoriesChange = { thStories = it },
-                        thBedrooms = thBedrooms,
-                        onThBedroomsChange = { thBedrooms = it },
-                        thBathrooms = thBathrooms,
-                        onThBathroomsChange = { thBathrooms = it },
-                        thGarageCapacity = thGarageCapacity,
-                        onThGarageCapacityChange = { thGarageCapacity = it },
-                        thHasMaidsRoom = thHasMaidsRoom,
-                        onThHasMaidsRoomChange = { thHasMaidsRoom = it },
-                        thIsGatedSubdivision = thIsGatedSubdivision,
-                        onThIsGatedSubdivisionChange = { thIsGatedSubdivision = it },
+                        bhState = bhState,
+                        aptState = aptState,
+                        condoState = condoState,
+                        thState = thState,
                         onBack = { currentStep = 2 },
                         onNext = {
                             val rent = when (selectedPropertyType) {
-                                "Boarding House" -> bhMonthlyRentStr.toDoubleOrNull() ?: 0.0
-                                "Apartment" -> aptMonthlyRentStr.toDoubleOrNull() ?: 0.0
-                                "Condominium", "Studio" -> condoMonthlyRentStr.toDoubleOrNull() ?: 0.0
-                                else -> thMonthlyRentStr.toDoubleOrNull() ?: 0.0
+                                "Boarding House" -> bhState.monthlyRentStr.toDoubleOrNull() ?: 0.0
+                                "Apartment" -> aptState.monthlyRentStr.toDoubleOrNull() ?: 0.0
+                                "Condo", "Condominium", "Studio" -> condoState.monthlyRentStr.toDoubleOrNull() ?: 0.0
+                                else -> thState.monthlyRentStr.toDoubleOrNull() ?: 0.0
                             }
                             if (rent <= 0.0) {
                                 scope.launch { snackbarHostState.showSnackbar("Please enter a valid monthly rent amount.") }
@@ -457,24 +421,10 @@ fun PostPropertyScreen(
                         description = listingDescription,
                         streetAddress = streetAddress,
                         photoCount = uploadedPhotos.size,
-                        // Specs summary data
-                        bhPricingModel = bhPricingModel,
-                        bhRent = bhMonthlyRentStr.toDoubleOrNull() ?: 0.0,
-                        bhCapacity = bhRoomCapacity,
-                        bhBathroom = bhBathroomType,
-                        aptRent = aptMonthlyRentStr.toDoubleOrNull() ?: 0.0,
-                        aptBeds = aptBedrooms,
-                        aptBaths = aptBathrooms,
-                        aptFurnishing = aptFurnishing,
-                        condoRent = condoMonthlyRentStr.toDoubleOrNull() ?: 0.0,
-                        condoLayout = condoUnitLayout,
-                        condoFloor = condoFloorLevel,
-                        condoDues = condoAssocDuesStatus,
-                        thRent = thMonthlyRentStr.toDoubleOrNull() ?: 0.0,
-                        thStories = thStories,
-                        thBedrooms = thBedrooms,
-                        thGarage = thGarageCapacity,
-                        thGated = thIsGatedSubdivision,
+                        bhState = bhState,
+                        aptState = aptState,
+                        condoState = condoState,
+                        thState = thState,
                         onBack = { currentStep = 3 },
                         onPublish = {
                             // Construct typed specs
@@ -498,92 +448,143 @@ fun PostPropertyScreen(
                                 "Boarding House" -> PropertyCategorySpecifications(
                                     category = "Boarding House",
                                     boardingHouse = BoardingHouseDetails(
-                                        pricingModel = bhPricingModel,
-                                        monthlyRent = bhMonthlyRentStr.toDoubleOrNull() ?: 2500.0,
-                                        roomCapacity = bhRoomCapacity,
-                                        tenantPreference = bhTenantPreference,
-                                        bathroomType = bhBathroomType,
-                                        utilities = bhUtilities.toList()
+                                        pricingModel = bhState.pricingModel,
+                                        monthlyRent = bhState.monthlyRentStr.toDoubleOrNull() ?: 2500.0,
+                                        roomCapacity = bhState.roomCapacity,
+                                        tenantPreference = bhState.tenantPreference,
+                                        bathroomType = bhState.bathroomType,
+                                        utilities = bhState.utilities.toList(),
+                                        floorAreaSqm = bhState.floorAreaStr.toDoubleOrNull() ?: 18.0,
+                                        furnishing = bhState.furnishing,
+                                        parking = bhState.parking,
+                                        curfewRule = bhState.curfew,
+                                        visitorsRule = bhState.visitors,
+                                        petPolicy = bhState.petPolicy,
+                                        cookingRule = bhState.cooking,
+                                        leaseTermMinimum = bhState.leaseTerm
                                     ),
                                     roleVerification = roleVerification
                                 )
                                 "Apartment" -> PropertyCategorySpecifications(
                                     category = "Apartment",
                                     apartment = ApartmentDetails(
-                                        monthlyRent = aptMonthlyRentStr.toDoubleOrNull() ?: 12000.0,
-                                        totalFloorAreaSqm = aptFloorAreaStr.toDoubleOrNull() ?: 42.0,
-                                        bedrooms = aptBedrooms,
-                                        bathrooms = aptBathrooms,
-                                        leaseTermMinimum = aptLeaseTermMin,
-                                        furnishing = aptFurnishing,
-                                        kitchenType = aptKitchenType,
-                                        utilityBilling = aptUtilityBilling
+                                        monthlyRent = aptState.monthlyRentStr.toDoubleOrNull() ?: 12000.0,
+                                        totalFloorAreaSqm = aptState.floorAreaStr.toDoubleOrNull() ?: 42.0,
+                                        bedrooms = aptState.bedrooms,
+                                        bathrooms = aptState.bathrooms,
+                                        leaseTermMinimum = aptState.leaseTermMin,
+                                        furnishing = aptState.furnishing,
+                                        kitchenType = aptState.kitchenType,
+                                        utilityBilling = aptState.utilityBilling,
+                                        parking = aptState.parking,
+                                        petPolicy = aptState.petPolicy,
+                                        curfewRule = aptState.curfew
                                     ),
                                     roleVerification = roleVerification
                                 )
-                                "Condominium", "Studio" -> PropertyCategorySpecifications(
+                                "Condo", "Condominium", "Studio" -> PropertyCategorySpecifications(
                                     category = selectedPropertyType,
                                     condominium = CondominiumDetails(
-                                        monthlyRent = condoMonthlyRentStr.toDoubleOrNull() ?: 22000.0,
-                                        associationDues = condoAssocDuesStatus,
-                                        unitLayout = condoUnitLayout,
-                                        totalFloorAreaSqm = condoFloorAreaStr.toDoubleOrNull() ?: 28.0,
-                                        floorLevel = condoFloorLevel,
-                                        parking = condoParking,
-                                        amenities = condoAmenities.toList(),
-                                        petPolicy = condoPetPolicy
+                                        monthlyRent = condoState.monthlyRentStr.toDoubleOrNull() ?: 22000.0,
+                                        associationDues = condoState.assocDuesStatus,
+                                        unitLayout = condoState.unitLayout,
+                                        totalFloorAreaSqm = condoState.floorAreaStr.toDoubleOrNull() ?: 28.0,
+                                        floorLevel = condoState.floorLevel,
+                                        parking = condoState.parking,
+                                        amenities = condoState.amenities.toList(),
+                                        petPolicy = condoState.petPolicy,
+                                        furnishing = condoState.furnishing,
+                                        leaseTermMinimum = condoState.leaseTerm,
+                                        visitorsRule = condoState.visitors,
+                                        kitchenType = condoState.kitchen
                                     ),
                                     roleVerification = roleVerification
                                 )
                                 else -> PropertyCategorySpecifications(
                                     category = "Townhouse",
                                     townhouse = TownhouseDetails(
-                                        monthlyRent = thMonthlyRentStr.toDoubleOrNull() ?: 30000.0,
-                                        lotAreaSqm = thLotAreaStr.toDoubleOrNull() ?: 120.0,
-                                        floorAreaSqm = thFloorAreaStr.toDoubleOrNull() ?: 95.0,
-                                        stories = thStories,
-                                        bedrooms = thBedrooms,
-                                        bathrooms = thBathrooms,
-                                        garageCapacity = thGarageCapacity,
-                                        hasMaidsRoom = thHasMaidsRoom,
-                                        isGatedSubdivision = thIsGatedSubdivision
+                                        monthlyRent = thState.monthlyRentStr.toDoubleOrNull() ?: 30000.0,
+                                        lotAreaSqm = thState.lotAreaStr.toDoubleOrNull() ?: 120.0,
+                                        floorAreaSqm = thState.floorAreaStr.toDoubleOrNull() ?: 95.0,
+                                        stories = thState.stories,
+                                        bedrooms = thState.bedrooms,
+                                        bathrooms = thState.bathrooms,
+                                        garageCapacity = thState.garageCapacity,
+                                        hasMaidsRoom = thState.hasMaidsRoom,
+                                        isGatedSubdivision = thState.isGatedSubdivision,
+                                        furnishing = thState.furnishing,
+                                        petPolicy = thState.petPolicy,
+                                        associationDues = thState.assocDues,
+                                        leaseTermMinimum = thState.leaseTerm,
+                                        kitchenType = thState.kitchen
                                     ),
                                     roleVerification = roleVerification
                                 )
                             }
 
                             val rent = when (selectedPropertyType) {
-                                "Boarding House" -> bhMonthlyRentStr.toDoubleOrNull() ?: 2500.0
-                                "Apartment" -> aptMonthlyRentStr.toDoubleOrNull() ?: 12000.0
-                                "Condominium", "Studio" -> condoMonthlyRentStr.toDoubleOrNull() ?: 22000.0
-                                else -> thMonthlyRentStr.toDoubleOrNull() ?: 30000.0
+                                "Boarding House" -> bhState.monthlyRentStr.toDoubleOrNull() ?: 2500.0
+                                "Apartment" -> aptState.monthlyRentStr.toDoubleOrNull() ?: 12000.0
+                                "Condo", "Condominium", "Studio" -> condoState.monthlyRentStr.toDoubleOrNull() ?: 22000.0
+                                else -> thState.monthlyRentStr.toDoubleOrNull() ?: 30000.0
                             }
 
                             val beds = when (selectedPropertyType) {
-                                "Apartment" -> aptBedrooms
-                                "Townhouse" -> thBedrooms
-                                "Condominium", "Studio" -> if (condoUnitLayout == "Studio") 0 else if (condoUnitLayout == "2BR") 2 else 1
+                                "Apartment" -> aptState.bedrooms
+                                "Townhouse" -> thState.bedrooms
+                                "Condo", "Condominium", "Studio" -> if (condoState.unitLayout == "Studio") 0 else if (condoState.unitLayout == "2BR") 2 else 1
                                 else -> 1
                             }
 
                             val baths = when (selectedPropertyType) {
-                                "Apartment" -> aptBathrooms
-                                "Townhouse" -> thBathrooms
+                                "Apartment" -> aptState.bathrooms
+                                "Townhouse" -> thState.bathrooms
                                 else -> 1
                             }
 
                             val area = when (selectedPropertyType) {
-                                "Apartment" -> aptFloorAreaStr.toDoubleOrNull() ?: 42.0
-                                "Condominium", "Studio" -> condoFloorAreaStr.toDoubleOrNull() ?: 28.0
-                                "Townhouse" -> thFloorAreaStr.toDoubleOrNull() ?: 95.0
-                                else -> 20.0
+                                "Apartment" -> aptState.floorAreaStr.toDoubleOrNull() ?: 42.0
+                                "Condo", "Condominium", "Studio" -> condoState.floorAreaStr.toDoubleOrNull() ?: 28.0
+                                "Townhouse" -> thState.floorAreaStr.toDoubleOrNull() ?: 95.0
+                                else -> bhState.floorAreaStr.toDoubleOrNull() ?: 18.0
                             }
 
-                            val dues = if (selectedPropertyType.contains("Condo") && condoAssocDuesStatus.contains("Exclusive")) 2000.0 else 0.0
+                            val dues = when (selectedPropertyType) {
+                                "Condo", "Condominium", "Studio" -> if (condoState.assocDuesStatus.contains("Exclusive")) 2000.0 else 0.0
+                                "Townhouse" -> if (thState.assocDues.contains("Exclusive")) 1500.0 else 0.0
+                                else -> 0.0
+                            }
+
+                            val furnished = when (selectedPropertyType) {
+                                "Apartment" -> aptState.furnishing
+                                "Condo", "Condominium", "Studio" -> condoState.furnishing
+                                "Townhouse" -> thState.furnishing
+                                else -> bhState.furnishing
+                            }
+
+                            val parking = when (selectedPropertyType) {
+                                "Condo", "Condominium", "Studio" -> !condoState.parking.contains("None")
+                                "Townhouse" -> thState.garageCapacity > 0
+                                "Apartment" -> !aptState.parking.contains("None")
+                                else -> !bhState.parking.contains("None")
+                            }
+
+                            val pets = when (selectedPropertyType) {
+                                "Condo", "Condominium", "Studio" -> condoState.petPolicy
+                                "Townhouse" -> thState.petPolicy
+                                "Apartment" -> aptState.petPolicy
+                                else -> bhState.petPolicy
+                            }
+
+                            val internetIncluded = when (selectedPropertyType) {
+                                "Boarding House" -> bhState.utilities.contains("Free Wi-Fi included")
+                                "Condo", "Condominium", "Studio" -> condoState.amenities.contains("24/7 Security") || condoState.amenities.contains("WiFi")
+                                else -> true
+                            }
 
                             viewModel.postProperty(
                                 title = listingTitle,
-                                description = listingDescription.ifBlank { "Clean, secure Philippine rental listing with authorized representation and verified amenities." },
+                                description = listingDescription.ifBlank { "Clean, secure Philippine rental listing with verified universal specifications." },
                                 type = selectedPropertyType,
                                 rent = rent,
                                 provinceId = selectedProvinceId,
@@ -598,11 +599,11 @@ fun PostPropertyScreen(
                                 beds = beds,
                                 baths = baths,
                                 area = area,
-                                furnished = if (selectedPropertyType == "Apartment") aptFurnishing else "Furnished",
-                                parking = if (selectedPropertyType == "Condominium") !condoParking.contains("None") else true,
-                                pets = if (selectedPropertyType == "Condominium") condoPetPolicy else "Pets Allowed",
+                                furnished = furnished,
+                                parking = parking,
+                                pets = pets,
                                 dues = dues,
-                                internetIncluded = bhUtilities.contains("Free Wi-Fi included") || condoAmenities.contains("24/7 Security"),
+                                internetIncluded = internetIncluded,
                                 relationship = userRole,
                                 isAuthorized = if (userRole == "Property owner") true else (isAuthorizedByOwner == "Yes"),
                                 amenities = listOf("Air Conditioning", "WiFi", "24/7 Security"),
@@ -1175,7 +1176,7 @@ private fun Step2BasePropertyInformation(
                     val types = listOf(
                         "Boarding House" to "🛏️",
                         "Apartment" to "🚪",
-                        "Condominium" to "🏢",
+                        "Condo" to "🏢",
                         "Studio" to "🛋️",
                         "Townhouse" to "🏡"
                     )
@@ -1346,72 +1347,10 @@ private fun Step2BasePropertyInformation(
 @Composable
 private fun Step3ConditionalSpecifications(
     propertyType: String,
-    // Boarding House
-    bhPricingModel: String,
-    onBhPricingModelChange: (String) -> Unit,
-    bhMonthlyRentStr: String,
-    onBhMonthlyRentChange: (String) -> Unit,
-    bhRoomCapacity: String,
-    onBhRoomCapacityChange: (String) -> Unit,
-    bhTenantPreference: String,
-    onBhTenantPreferenceChange: (String) -> Unit,
-    bhBathroomType: String,
-    onBhBathroomTypeChange: (String) -> Unit,
-    bhUtilities: List<String>,
-    onToggleBhUtility: (String) -> Unit,
-    // Apartment
-    aptMonthlyRentStr: String,
-    onAptMonthlyRentChange: (String) -> Unit,
-    aptFloorAreaStr: String,
-    onAptFloorAreaChange: (String) -> Unit,
-    aptBedrooms: Int,
-    onAptBedroomsChange: (Int) -> Unit,
-    aptBathrooms: Int,
-    onAptBathroomsChange: (Int) -> Unit,
-    aptLeaseTermMin: String,
-    onAptLeaseTermMinChange: (String) -> Unit,
-    aptFurnishing: String,
-    onAptFurnishingChange: (String) -> Unit,
-    aptKitchenType: String,
-    onAptKitchenTypeChange: (String) -> Unit,
-    aptUtilityBilling: String,
-    onAptUtilityBillingChange: (String) -> Unit,
-    // Condo & Studio
-    condoMonthlyRentStr: String,
-    onCondoMonthlyRentChange: (String) -> Unit,
-    condoAssocDuesStatus: String,
-    onCondoAssocDuesStatusChange: (String) -> Unit,
-    condoUnitLayout: String,
-    onCondoUnitLayoutChange: (String) -> Unit,
-    condoFloorAreaStr: String,
-    onCondoFloorAreaChange: (String) -> Unit,
-    condoFloorLevel: String,
-    onCondoFloorLevelChange: (String) -> Unit,
-    condoParking: String,
-    onCondoParkingChange: (String) -> Unit,
-    condoAmenities: List<String>,
-    onToggleCondoAmenity: (String) -> Unit,
-    condoPetPolicy: String,
-    onCondoPetPolicyChange: (String) -> Unit,
-    // Townhouse
-    thMonthlyRentStr: String,
-    onThMonthlyRentChange: (String) -> Unit,
-    thLotAreaStr: String,
-    onThLotAreaChange: (String) -> Unit,
-    thFloorAreaStr: String,
-    onThFloorAreaChange: (String) -> Unit,
-    thStories: Int,
-    onThStoriesChange: (Int) -> Unit,
-    thBedrooms: Int,
-    onThBedroomsChange: (Int) -> Unit,
-    thBathrooms: Int,
-    onThBathroomsChange: (Int) -> Unit,
-    thGarageCapacity: Int,
-    onThGarageCapacityChange: (Int) -> Unit,
-    thHasMaidsRoom: Boolean,
-    onThHasMaidsRoomChange: (Boolean) -> Unit,
-    thIsGatedSubdivision: Boolean,
-    onThIsGatedSubdivisionChange: (Boolean) -> Unit,
+    bhState: BhFormState,
+    aptState: AptFormState,
+    condoState: CondoFormState,
+    thState: TownhouseFormState,
     onBack: () -> Unit,
     onNext: () -> Unit
 ) {
@@ -1444,313 +1383,469 @@ private fun Step3ConditionalSpecifications(
             }
         }
 
-        // DYNAMIC SPECIFICATIONS CARD DEPENDING ON SELECTED PROPERTY TYPE
+        // =====================================================================
+        // UNIVERSAL HEADING 1: UNIT SPECIFICATIONS
+        // =====================================================================
         item {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
+            FormSectionCard(
+                title = "Unit Specifications"
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    when (propertyType) {
-                        "Boarding House" -> {
-                            // Condition 1: Boarding House
-                            Text("Boarding House Setup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
-                            // Pricing Model Toggle
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Pricing Model *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    listOf("Per Person/Bed", "Per Room").forEach { model ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(selected = bhPricingModel == model, onClick = { onBhPricingModelChange(model) })
-                                            Text(model, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            OutlinedTextField(
-                                value = bhMonthlyRentStr,
-                                onValueChange = onBhMonthlyRentChange,
-                                label = { Text("Monthly Rent (PHP) *") },
-                                placeholder = { Text("2500") },
-                                modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-
-                            SearchableDropdownField(
-                                label = "Room Capacity",
-                                selectedText = bhRoomCapacity,
-                                items = listOf("Single", "Double bed", "4-bed bunk", "6-bed bunk"),
-                                onItemSelected = onBhRoomCapacityChange
-                            )
-
-                            SearchableDropdownField(
-                                label = "Tenant Preference",
-                                selectedText = bhTenantPreference,
-                                items = listOf("Male Only", "Female Only", "Mixed"),
-                                onItemSelected = onBhTenantPreferenceChange
-                            )
-
-                            // Bathroom Type Toggle
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Bathroom Type *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    listOf("Private/En-suite", "Shared/Communal").forEach { bType ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(selected = bhBathroomType == bType, onClick = { onBhBathroomTypeChange(bType) })
-                                            Text(bType, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Utilities Checkboxes
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Utilities & Amenities Included:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included").forEach { util ->
-                                    val isChecked = bhUtilities.contains(util)
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth().clickable { onToggleBhUtility(util) }
-                                    ) {
-                                        Checkbox(checked = isChecked, onCheckedChange = { onToggleBhUtility(util) })
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(util, fontSize = 12.sp)
+                when (propertyType) {
+                    "Boarding House" -> {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Pricing Model *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                listOf("Per Person/Bed", "Per Room").forEach { model ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(
+                                            selected = bhState.pricingModel == model,
+                                            onClick = { bhState.pricingModel = model }
+                                        )
+                                        Text(model, fontSize = 12.sp)
                                     }
                                 }
                             }
                         }
 
-                        "Apartment" -> {
-                            // Condition 2: Apartment
-                            Text("Apartment Living Specifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        OutlinedTextField(
+                            value = bhState.monthlyRentStr,
+                            onValueChange = { bhState.monthlyRentStr = it },
+                            label = { Text("Monthly Rent (PHP) *") },
+                            placeholder = { Text("2500") },
+                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
+                            shape = RoundedCornerShape(10.dp)
+                        )
 
-                            OutlinedTextField(
-                                value = aptMonthlyRentStr,
-                                onValueChange = onAptMonthlyRentChange,
-                                label = { Text("Monthly Rent (PHP) *") },
-                                placeholder = { Text("12000") },
-                                modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
-                                shape = RoundedCornerShape(10.dp)
+                        OutlinedTextField(
+                            value = bhState.floorAreaStr,
+                            onValueChange = { bhState.floorAreaStr = it },
+                            label = { Text("Room Floor Area (sq.m)") },
+                            placeholder = { Text("18") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        ChipSelectGroup(
+                            label = "Room Capacity",
+                            options = listOf("Single occupancy", "2-bed bunk", "4-bed bunk", "6-bed bunk"),
+                            selected = bhState.roomCapacity,
+                            onSelected = { bhState.roomCapacity = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Bathroom Setup",
+                            options = listOf("Shared/Communal", "Private en-suite"),
+                            selected = bhState.bathroomType,
+                            onSelected = { bhState.bathroomType = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Furnishing Level",
+                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
+                            selected = bhState.furnishing,
+                            onSelected = { bhState.furnishing = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Tenant Preference",
+                            options = listOf("Mixed", "Female Only", "Male Only", "Students Only"),
+                            selected = bhState.tenantPreference,
+                            onSelected = { bhState.tenantPreference = it }
+                        )
+                    }
+
+                    "Apartment" -> {
+                        OutlinedTextField(
+                            value = aptState.monthlyRentStr,
+                            onValueChange = { aptState.monthlyRentStr = it },
+                            label = { Text("Monthly Rent (PHP) *") },
+                            placeholder = { Text("12000") },
+                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = aptState.floorAreaStr,
+                            onValueChange = { aptState.floorAreaStr = it },
+                            label = { Text("Total Floor Area (sq.m)") },
+                            placeholder = { Text("42") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CounterStepper(
+                                label = "Bedrooms",
+                                value = aptState.bedrooms,
+                                onValueChange = { aptState.bedrooms = it },
+                                modifier = Modifier.weight(1f)
                             )
-
-                            OutlinedTextField(
-                                value = aptFloorAreaStr,
-                                onValueChange = onAptFloorAreaChange,
-                                label = { Text("Total Floor Area (sqm) *") },
-                                placeholder = { Text("42") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
+                            CounterStepper(
+                                label = "Bathrooms",
+                                value = aptState.bathrooms,
+                                onValueChange = { aptState.bathrooms = it },
+                                modifier = Modifier.weight(1f)
                             )
-
-                            // Steppers for Bedrooms and Bathrooms
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                CounterStepper(
-                                    label = "Bedrooms",
-                                    value = aptBedrooms,
-                                    onValueChange = onAptBedroomsChange,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                CounterStepper(
-                                    label = "Bathrooms",
-                                    value = aptBathrooms,
-                                    onValueChange = onAptBathroomsChange,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-
-                            SearchableDropdownField(
-                                label = "Lease Term Minimum",
-                                selectedText = aptLeaseTermMin,
-                                items = listOf("6 months", "1 year"),
-                                onItemSelected = onAptLeaseTermMinChange
-                            )
-
-                            SearchableDropdownField(
-                                label = "Furnishing",
-                                selectedText = aptFurnishing,
-                                items = listOf("Bare", "Semi-Furnished", "Fully Furnished"),
-                                onItemSelected = onAptFurnishingChange
-                            )
-
-                            // Kitchen Type Toggle
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Kitchen Type *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    listOf("Indoor/Integral", "Outdoor/Dirty Kitchen").forEach { kType ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(selected = aptKitchenType == kType, onClick = { onAptKitchenTypeChange(kType) })
-                                            Text(kType, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Utility Billing Toggle
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Utility Billing *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    listOf("Own Meter", "Sub-metered by Landlord").forEach { bType ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(selected = aptUtilityBilling == bType, onClick = { onAptUtilityBillingChange(bType) })
-                                            Text(bType, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
                         }
 
-                        "Condominium", "Studio" -> {
-                            // Condition 3: Condominium & Studio
-                            Text("Condominium & Studio Specifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        ChipSelectGroup(
+                            label = "Furnishing Level",
+                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
+                            selected = aptState.furnishing,
+                            onSelected = { aptState.furnishing = it }
+                        )
 
+                        ChipSelectGroup(
+                            label = "Kitchen Setup",
+                            options = listOf("Indoor/Integral", "Studio Kitchenette", "Dirty Kitchen (Outdoor)"),
+                            selected = aptState.kitchenType,
+                            onSelected = { aptState.kitchenType = it }
+                        )
+                    }
+
+                    "Condo", "Condominium", "Studio" -> {
+                        OutlinedTextField(
+                            value = condoState.monthlyRentStr,
+                            onValueChange = { condoState.monthlyRentStr = it },
+                            label = { Text("Monthly Rent (PHP) *") },
+                            placeholder = { Text("22000") },
+                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        ChipSelectGroup(
+                            label = "Unit Layout",
+                            options = listOf("Studio", "1-Bedroom", "2-Bedroom", "3-Bedroom", "Penthouse / Loft"),
+                            selected = condoState.unitLayout,
+                            onSelected = { condoState.unitLayout = it }
+                        )
+
+                        OutlinedTextField(
+                            value = condoState.floorAreaStr,
+                            onValueChange = { condoState.floorAreaStr = it },
+                            label = { Text("Floor Area (sq.m)") },
+                            placeholder = { Text("28") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = condoState.floorLevel,
+                            onValueChange = { condoState.floorLevel = it },
+                            label = { Text("Floor Level / Unit Position") },
+                            placeholder = { Text("14th Floor, Tower 1") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        ChipSelectGroup(
+                            label = "Furnishing Level",
+                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
+                            selected = condoState.furnishing,
+                            onSelected = { condoState.furnishing = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Kitchen Setup",
+                            options = listOf("Equipped Kitchenette", "Full Modular Kitchen", "Open Concept Kitchen"),
+                            selected = condoState.kitchen,
+                            onSelected = { condoState.kitchen = it }
+                        )
+                    }
+
+                    else -> { // Townhouse
+                        OutlinedTextField(
+                            value = thState.monthlyRentStr,
+                            onValueChange = { thState.monthlyRentStr = it },
+                            label = { Text("Monthly Rent (PHP) *") },
+                            placeholder = { Text("30000") },
+                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
                             OutlinedTextField(
-                                value = condoMonthlyRentStr,
-                                onValueChange = onCondoMonthlyRentChange,
-                                label = { Text("Monthly Rent (PHP) *") },
-                                placeholder = { Text("22000") },
-                                modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
+                                value = thState.lotAreaStr,
+                                onValueChange = { thState.lotAreaStr = it },
+                                label = { Text("Lot Area (sq.m)") },
+                                placeholder = { Text("120") },
+                                modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(10.dp)
                             )
-
-                            // Association Dues Toggle
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Association Dues *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    listOf("Inclusive in rent", "Exclusive / Tenant pays separately").forEach { dType ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(selected = condoAssocDuesStatus == dType, onClick = { onCondoAssocDuesStatusChange(dType) })
-                                            Text(dType, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            SearchableDropdownField(
-                                label = "Unit Layout",
-                                selectedText = condoUnitLayout,
-                                items = listOf("Studio", "1BR", "2BR", "Loft", "Bi-level"),
-                                onItemSelected = onCondoUnitLayoutChange
-                            )
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                OutlinedTextField(
-                                    value = condoFloorAreaStr,
-                                    onValueChange = onCondoFloorAreaChange,
-                                    label = { Text("Total Floor Area (sqm) *") },
-                                    placeholder = { Text("28") },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                OutlinedTextField(
-                                    value = condoFloorLevel,
-                                    onValueChange = onCondoFloorLevelChange,
-                                    label = { Text("Floor Level *") },
-                                    placeholder = { Text("14th Floor") },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                            }
-
-                            SearchableDropdownField(
-                                label = "Parking",
-                                selectedText = condoParking,
-                                items = listOf("Included in rent", "Available for extra fee", "None"),
-                                onItemSelected = onCondoParkingChange
-                            )
-
-                            // Amenities Checkboxes
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Amenities Included:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    listOf("Pool", "Gym", "24/7 Security", "Balcony").forEach { am ->
-                                        val isChecked = condoAmenities.contains(am)
-                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onToggleCondoAmenity(am) }) {
-                                            Checkbox(checked = isChecked, onCheckedChange = { onToggleCondoAmenity(am) })
-                                            Text(am, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Pet Policy Toggle
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Pet Policy *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    listOf("Strictly No Pets", "Pet-Friendly").forEach { pType ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(selected = condoPetPolicy == pType, onClick = { onCondoPetPolicyChange(pType) })
-                                            Text(pType, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        else -> {
-                            // Condition 4: Townhouse
-                            Text("Townhouse Specifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
                             OutlinedTextField(
-                                value = thMonthlyRentStr,
-                                onValueChange = onThMonthlyRentChange,
-                                label = { Text("Monthly Rent (PHP) *") },
-                                placeholder = { Text("30000") },
-                                modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
+                                value = thState.floorAreaStr,
+                                onValueChange = { thState.floorAreaStr = it },
+                                label = { Text("Floor Area (sq.m)") },
+                                placeholder = { Text("95") },
+                                modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(10.dp)
                             )
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                OutlinedTextField(
-                                    value = thLotAreaStr,
-                                    onValueChange = onThLotAreaChange,
-                                    label = { Text("Lot Area (sqm) *") },
-                                    placeholder = { Text("120") },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                OutlinedTextField(
-                                    value = thFloorAreaStr,
-                                    onValueChange = onThFloorAreaChange,
-                                    label = { Text("Floor Area (sqm) *") },
-                                    placeholder = { Text("95") },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                            }
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                CounterStepper(label = "Stories/Floors", value = thStories, onValueChange = onThStoriesChange, modifier = Modifier.weight(1f))
-                                CounterStepper(label = "Carport/Garage", value = thGarageCapacity, onValueChange = onThGarageCapacityChange, modifier = Modifier.weight(1f))
-                            }
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                CounterStepper(label = "Bedrooms", value = thBedrooms, onValueChange = onThBedroomsChange, modifier = Modifier.weight(1f))
-                                CounterStepper(label = "Bathrooms", value = thBathrooms, onValueChange = onThBathroomsChange, modifier = Modifier.weight(1f))
-                            }
-
-                            // Maid's Room Toggle
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Maid's Room / Service Quarters Included?", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Switch(checked = thHasMaidsRoom, onCheckedChange = onThHasMaidsRoomChange)
-                            }
-
-                            // Gated Subdivision Toggle
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Located inside a gated subdivision?", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Switch(checked = thIsGatedSubdivision, onCheckedChange = onThIsGatedSubdivisionChange)
-                            }
                         }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CounterStepper(
+                                label = "Stories",
+                                value = thState.stories,
+                                onValueChange = { thState.stories = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            CounterStepper(
+                                label = "Bedrooms",
+                                value = thState.bedrooms,
+                                onValueChange = { thState.bedrooms = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            CounterStepper(
+                                label = "Bathrooms",
+                                value = thState.bathrooms,
+                                onValueChange = { thState.bathrooms = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Maid's / Helper Room Included?", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Switch(
+                                checked = thState.hasMaidsRoom,
+                                onCheckedChange = { thState.hasMaidsRoom = it }
+                            )
+                        }
+
+                        ChipSelectGroup(
+                            label = "Furnishing Level",
+                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
+                            selected = thState.furnishing,
+                            onSelected = { thState.furnishing = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Kitchen Setup",
+                            options = listOf("Indoor Kitchen + Dirty Kitchen", "Single Modern Kitchen", "Enclosed Chef's Kitchen"),
+                            selected = thState.kitchen,
+                            onSelected = { thState.kitchen = it }
+                        )
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // UNIVERSAL HEADING 2: AMENITIES & FACILITIES
+        // =====================================================================
+        item {
+            FormSectionCard(
+                title = "Amenities & Facilities"
+            ) {
+                when (propertyType) {
+                    "Boarding House" -> {
+                        ChipSelectGroup(
+                            label = "Vehicle Parking",
+                            options = listOf("Motorcycle Parking Included", "Street Parking Only", "No Parking", "Paid Car Parking"),
+                            selected = bhState.parking,
+                            onSelected = { bhState.parking = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Kitchen & Cooking Access",
+                            options = listOf("No Cooking", "Light Cooking Allowed", "Full Shared Kitchen Access"),
+                            selected = bhState.cooking,
+                            onSelected = { bhState.cooking = it }
+                        )
+
+                        MultiChipSelectGroup(
+                            label = "Utilities & Amenities Included",
+                            options = listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included", "Filtered Drinking Water", "CCTV Security", "Study Lounge"),
+                            selectedItems = bhState.utilities,
+                            onToggle = { item ->
+                                if (bhState.utilities.contains(item)) bhState.utilities.remove(item)
+                                else bhState.utilities.add(item)
+                            }
+                        )
+                    }
+
+                    "Apartment" -> {
+                        ChipSelectGroup(
+                            label = "Utility Billing Setup",
+                            options = listOf("Own Meter", "Sub-metered", "Fixed Rate"),
+                            selected = aptState.utilityBilling,
+                            onSelected = { aptState.utilityBilling = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Vehicle Parking",
+                            options = listOf("Covered Garage Slot", "Street Parking", "Motorcycle Only", "No Parking"),
+                            selected = aptState.parking,
+                            onSelected = { aptState.parking = it }
+                        )
+                    }
+
+                    "Condo", "Condominium", "Studio" -> {
+                        ChipSelectGroup(
+                            label = "Vehicle Parking",
+                            options = listOf("Dedicated Parking Slot Included", "Available for extra fee", "No Parking Slot"),
+                            selected = condoState.parking,
+                            onSelected = { condoState.parking = it }
+                        )
+
+                        MultiChipSelectGroup(
+                            label = "Building Amenities & Facilities",
+                            options = listOf("Pool", "Gym", "24/7 Security", "Function Room", "Sky Deck", "Backup Generator"),
+                            selectedItems = condoState.amenities,
+                            onToggle = { item ->
+                                if (condoState.amenities.contains(item)) condoState.amenities.remove(item)
+                                else condoState.amenities.add(item)
+                            }
+                        )
+                    }
+
+                    else -> { // Townhouse
+                        CounterStepper(
+                            label = "Garage / Carport Capacity (Cars)",
+                            value = thState.garageCapacity,
+                            onValueChange = { thState.garageCapacity = it }
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Located inside a gated subdivision?", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Switch(
+                                checked = thState.isGatedSubdivision,
+                                onCheckedChange = { thState.isGatedSubdivision = it }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // UNIVERSAL HEADING 3: RULES & LEASE TERMS
+        // =====================================================================
+        item {
+            FormSectionCard(
+                title = "Rules & Lease Terms"
+            ) {
+                when (propertyType) {
+                    "Boarding House" -> {
+                        ChipSelectGroup(
+                            label = "Curfew & Gate Access",
+                            options = listOf("No Curfew (24/7 Access)", "10:00 PM Gate Lock", "11:00 PM Gate Lock"),
+                            selected = bhState.curfew,
+                            onSelected = { bhState.curfew = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Visitor Policy",
+                            options = listOf("Visitors Allowed Anytime", "Lobby Visitors Only", "Strictly No Visitors"),
+                            selected = bhState.visitors,
+                            onSelected = { bhState.visitors = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Pet Policy",
+                            options = listOf("Strictly No Pets", "Small Pets Allowed", "Pets Allowed"),
+                            selected = bhState.petPolicy,
+                            onSelected = { bhState.petPolicy = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Minimum Lease Requirement",
+                            options = listOf("1 month", "3 months", "6 months", "1 year"),
+                            selected = bhState.leaseTerm,
+                            onSelected = { bhState.leaseTerm = it }
+                        )
+                    }
+
+                    "Apartment" -> {
+                        ChipSelectGroup(
+                            label = "Minimum Lease Requirement",
+                            options = listOf("6 months", "1 year", "2 years"),
+                            selected = aptState.leaseTermMin,
+                            onSelected = { aptState.leaseTermMin = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Pet Policy",
+                            options = listOf("Pets Allowed", "No Pets Allowed", "Cats Only", "Small Dogs Allowed"),
+                            selected = aptState.petPolicy,
+                            onSelected = { aptState.petPolicy = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Curfew / Access",
+                            options = listOf("No Curfew (24/7 Access)", "Main Gate Locked at 11PM"),
+                            selected = aptState.curfew,
+                            onSelected = { aptState.curfew = it }
+                        )
+                    }
+
+                    "Condo", "Condominium", "Studio" -> {
+                        ChipSelectGroup(
+                            label = "Condo / Association Dues",
+                            options = listOf("Inclusive in rent", "Exclusive (Paid separately)", "Included with dues receipt"),
+                            selected = condoState.assocDuesStatus,
+                            onSelected = { condoState.assocDuesStatus = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Minimum Lease Requirement",
+                            options = listOf("6 months", "1 year", "2 years"),
+                            selected = condoState.leaseTerm,
+                            onSelected = { condoState.leaseTerm = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Pet Policy",
+                            options = listOf("Pet-Friendly", "Small Pets with Admin Permit", "Strictly No Pets"),
+                            selected = condoState.petPolicy,
+                            onSelected = { condoState.petPolicy = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Visitor & Guest Registration",
+                            options = listOf("24/7 Concierge & Guest Registration", "Guest ID Required at Lobby", "Restricted Visitors"),
+                            selected = condoState.visitors,
+                            onSelected = { condoState.visitors = it }
+                        )
+                    }
+
+                    else -> { // Townhouse
+                        ChipSelectGroup(
+                            label = "Village / HOA Dues",
+                            options = listOf("Inclusive in rent", "Exclusive (Paid to HOA)", "No HOA Dues"),
+                            selected = thState.assocDues,
+                            onSelected = { thState.assocDues = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Minimum Lease Requirement",
+                            options = listOf("1 year", "2 years"),
+                            selected = thState.leaseTerm,
+                            onSelected = { thState.leaseTerm = it }
+                        )
+
+                        ChipSelectGroup(
+                            label = "Pet Policy",
+                            options = listOf("Pet-Friendly", "Pets Allowed with Security Deposit", "Strictly No Pets"),
+                            selected = thState.petPolicy,
+                            onSelected = { thState.petPolicy = it }
+                        )
                     }
                 }
             }
@@ -1784,7 +1879,106 @@ private fun Step3ConditionalSpecifications(
 }
 
 // -----------------------------------------------------------------------------
-// STEP 4: SUBMISSION STATE (REVIEW & PUBLISH)
+// HELPER FORM COMPONENTS
+// -----------------------------------------------------------------------------
+@Composable
+private fun FormSectionCard(
+    title: String,
+    subtitle: String? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder(),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            content()
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipSelectGroup(
+    label: String,
+    options: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            options.forEach { option ->
+                FilterChip(
+                    selected = selected == option,
+                    onClick = { onSelected(option) },
+                    label = { Text(option, fontSize = 11.5.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MultiChipSelectGroup(
+    label: String,
+    options: List<String>,
+    selectedItems: List<String>,
+    onToggle: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            options.forEach { option ->
+                val isSelected = selectedItems.contains(option)
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onToggle(option) },
+                    label = { Text(option, fontSize = 11.5.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// STEP 4: SUBMISSION STATE (REVIEW & PUBLISH - UNIVERSAL HEADINGS)
 // -----------------------------------------------------------------------------
 @Composable
 private fun Step4ReviewAndPublish(
@@ -1794,23 +1988,10 @@ private fun Step4ReviewAndPublish(
     description: String,
     streetAddress: String,
     photoCount: Int,
-    bhPricingModel: String,
-    bhRent: Double,
-    bhCapacity: String,
-    bhBathroom: String,
-    aptRent: Double,
-    aptBeds: Int,
-    aptBaths: Int,
-    aptFurnishing: String,
-    condoRent: Double,
-    condoLayout: String,
-    condoFloor: String,
-    condoDues: String,
-    thRent: Double,
-    thStories: Int,
-    thBedrooms: Int,
-    thGarage: Int,
-    thGated: Boolean,
+    bhState: BhFormState,
+    aptState: AptFormState,
+    condoState: CondoFormState,
+    thState: TownhouseFormState,
     onBack: () -> Unit,
     onPublish: () -> Unit
 ) {
@@ -1819,10 +2000,10 @@ private fun Step4ReviewAndPublish(
     }
 
     val finalRent = when (propertyType) {
-        "Boarding House" -> bhRent
-        "Apartment" -> aptRent
-        "Condominium", "Studio" -> condoRent
-        else -> thRent
+        "Boarding House" -> bhState.monthlyRentStr.toDoubleOrNull() ?: 0.0
+        "Apartment" -> aptState.monthlyRentStr.toDoubleOrNull() ?: 0.0
+        "Condo", "Condominium", "Studio" -> condoState.monthlyRentStr.toDoubleOrNull() ?: 0.0
+        else -> thState.monthlyRentStr.toDoubleOrNull() ?: 0.0
     }
 
     LazyColumn(
@@ -1840,7 +2021,7 @@ private fun Step4ReviewAndPublish(
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Review your listing details before publishing to Balay-Inn renters.",
+                text = "Review your listing details organized under the Three Universal Headings.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1872,28 +2053,137 @@ private fun Step4ReviewAndPublish(
                     ReviewDetailRow("Property Type", propertyType)
                     ReviewDetailRow("Address", streetAddress)
                     ReviewDetailRow("Photos Uploaded", "$photoCount verified photos")
+                }
+            }
+        }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("Type-Specific Specifications", fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = MaterialTheme.colorScheme.primary)
+        // 1. UNIT SPECIFICATIONS CARD
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Unit Specifications",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                     when (propertyType) {
                         "Boarding House" -> {
-                            ReviewDetailRow("Pricing Model", bhPricingModel)
-                            ReviewDetailRow("Room Capacity", bhCapacity)
-                            ReviewDetailRow("Bathroom Setup", bhBathroom)
+                            ReviewDetailRow("Pricing Model", bhState.pricingModel)
+                            ReviewDetailRow("Floor Area", "${bhState.floorAreaStr} sq.m")
+                            ReviewDetailRow("Room Capacity", bhState.roomCapacity)
+                            ReviewDetailRow("Bathroom Setup", bhState.bathroomType)
+                            ReviewDetailRow("Furnishing Level", bhState.furnishing)
+                            ReviewDetailRow("Tenant Preference", bhState.tenantPreference)
                         }
                         "Apartment" -> {
-                            ReviewDetailRow("Rooms", "$aptBeds Bed, $aptBaths Bath")
-                            ReviewDetailRow("Furnishing", aptFurnishing)
+                            ReviewDetailRow("Floor Area", "${aptState.floorAreaStr} sq.m")
+                            ReviewDetailRow("Rooms", "${aptState.bedrooms} Bed, ${aptState.bathrooms} Bath")
+                            ReviewDetailRow("Furnishing Level", aptState.furnishing)
+                            ReviewDetailRow("Kitchen Setup", aptState.kitchenType)
                         }
-                        "Condominium", "Studio" -> {
-                            ReviewDetailRow("Layout", "$condoLayout ($condoFloor)")
-                            ReviewDetailRow("Assoc Dues", condoDues)
+                        "Condo", "Condominium", "Studio" -> {
+                            ReviewDetailRow("Unit Layout", condoState.unitLayout)
+                            ReviewDetailRow("Floor Area", "${condoState.floorAreaStr} sq.m")
+                            ReviewDetailRow("Floor Level", condoState.floorLevel)
+                            ReviewDetailRow("Furnishing Level", condoState.furnishing)
+                            ReviewDetailRow("Kitchen Setup", condoState.kitchen)
                         }
-                        else -> {
-                            ReviewDetailRow("Structure", "$thStories-Storey, $thBedrooms Bed")
-                            ReviewDetailRow("Carport / Garage", "$thGarage Car(s)")
-                            ReviewDetailRow("Gated Subdivision", if (thGated) "Yes" else "No")
+                        else -> { // Townhouse
+                            ReviewDetailRow("Lot & Floor Area", "${thState.lotAreaStr} sqm lot / ${thState.floorAreaStr} sqm floor")
+                            ReviewDetailRow("Structure", "${thState.stories} Stories, ${thState.bedrooms} Beds, ${thState.bathrooms} Baths")
+                            ReviewDetailRow("Maid's Room", if (thState.hasMaidsRoom) "Yes" else "No")
+                            ReviewDetailRow("Furnishing Level", thState.furnishing)
+                            ReviewDetailRow("Kitchen Setup", thState.kitchen)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. AMENITIES & FACILITIES CARD
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Amenities & Facilities",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    when (propertyType) {
+                        "Boarding House" -> {
+                            ReviewDetailRow("Vehicle Parking", bhState.parking)
+                            ReviewDetailRow("Kitchen Access", bhState.cooking)
+                            ReviewDetailRow("Utilities / Inclusions", if (bhState.utilities.isEmpty()) "None selected" else bhState.utilities.joinToString(", "))
+                        }
+                        "Apartment" -> {
+                            ReviewDetailRow("Vehicle Parking", aptState.parking)
+                            ReviewDetailRow("Utility Billing", aptState.utilityBilling)
+                        }
+                        "Condo", "Condominium", "Studio" -> {
+                            ReviewDetailRow("Vehicle Parking", condoState.parking)
+                            ReviewDetailRow("Building Amenities", if (condoState.amenities.isEmpty()) "None selected" else condoState.amenities.joinToString(", "))
+                        }
+                        else -> { // Townhouse
+                            ReviewDetailRow("Garage Capacity", "${thState.garageCapacity} Car Slot(s)")
+                            ReviewDetailRow("Gated Subdivision", if (thState.isGatedSubdivision) "Yes" else "No")
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. RULES & LEASE TERMS CARD
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Rules & Lease Terms",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    when (propertyType) {
+                        "Boarding House" -> {
+                            ReviewDetailRow("Curfew Rule", bhState.curfew)
+                            ReviewDetailRow("Visitor Policy", bhState.visitors)
+                            ReviewDetailRow("Pet Policy", bhState.petPolicy)
+                            ReviewDetailRow("Minimum Lease", bhState.leaseTerm)
+                        }
+                        "Apartment" -> {
+                            ReviewDetailRow("Minimum Lease", aptState.leaseTermMin)
+                            ReviewDetailRow("Pet Policy", aptState.petPolicy)
+                            ReviewDetailRow("Curfew / Access", aptState.curfew)
+                        }
+                        "Condo", "Condominium", "Studio" -> {
+                            ReviewDetailRow("HOA / Condo Dues", condoState.assocDuesStatus)
+                            ReviewDetailRow("Minimum Lease", condoState.leaseTerm)
+                            ReviewDetailRow("Pet Policy", condoState.petPolicy)
+                            ReviewDetailRow("Visitor Rules", condoState.visitors)
+                        }
+                        else -> { // Townhouse
+                            ReviewDetailRow("HOA / Village Dues", thState.assocDues)
+                            ReviewDetailRow("Minimum Lease", thState.leaseTerm)
+                            ReviewDetailRow("Pet Policy", thState.petPolicy)
                         }
                     }
                 }

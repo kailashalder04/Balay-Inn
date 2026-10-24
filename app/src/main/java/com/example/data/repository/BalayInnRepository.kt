@@ -105,6 +105,9 @@ class BalayInnRepository(context: Context) {
                 geoDao.insertProvinces(MarketplaceDataSeed.provinces)
                 geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities + MarketplaceDataSeed.bacolodCities)
                 geoDao.insertBarangays(MarketplaceDataSeed.generateBarangays())
+                val validIds = PropertyDataSeed.sampleProperties.map { it.id }
+                propDao.deletePropertiesNotIn(validIds)
+                propDao.deletePropertyImagesNotIn(validIds)
                 propDao.insertProperties(PropertyDataSeed.sampleProperties)
                 propDao.insertImages(PropertyDataSeed.sampleImages)
             } catch (_: Exception) {}
