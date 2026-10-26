@@ -867,6 +867,183 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun continueAsGuest() {
+        viewModelScope.launch {
+            repository.switchUser(UserEntity.GUEST_USER)
+        }
+    }
+
+    fun registerMinimalUser(
+        email: String,
+        password: String,
+        onSuccess: (UserEntity) -> Unit,
+        onError: ((String) -> Unit)? = null
+    ) {
+        val cleanEmail = email.trim().lowercase()
+        val defaultName = cleanEmail.substringBefore("@")
+            .split(".", "_", "-")
+            .joinToString(" ") { word -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } }
+            .ifBlank { "Balay-Inn Explorer" }
+
+        registerUser(
+            fullName = defaultName,
+            email = cleanEmail,
+            phone = "",
+            role = "TENANT",
+            relationshipToProperty = "Tenant",
+            password = password,
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    fun registerOrLoginWithGoogleSso(
+        email: String = "kailashalder04@gmail.com",
+        fullName: String = "Kailash Alder",
+        onSuccess: (UserEntity) -> Unit,
+        onError: ((String) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim().lowercase()
+            val existing = allUsers.value.find { it.email.lowercase() == cleanEmail }
+            if (existing != null) {
+                repository.switchUser(existing)
+                onSuccess(existing)
+            } else {
+                val newUser = UserEntity(
+                    id = "usr_google_${System.currentTimeMillis() % 1000000}",
+                    fullName = fullName.trim().ifBlank { "Google User" },
+                    email = cleanEmail,
+                    phone = "",
+                    role = "TENANT",
+                    relationshipToProperty = "Tenant",
+                    isAuthorizedByOwner = true,
+                    verificationLevel = 1,
+                    phoneVerified = false,
+                    emailVerified = true,
+                    identitySubmitted = false,
+                    professionalVerified = false
+                )
+                repository.registerUser(newUser)
+                onSuccess(newUser)
+            }
+        }
+    }
+
+    fun registerOrLoginWithFacebookSso(
+        email: String = "kailash.alder@facebook.com",
+        fullName: String = "Kailash Alder",
+        onSuccess: (UserEntity) -> Unit,
+        onError: ((String) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim().lowercase()
+            val existing = allUsers.value.find { it.email.lowercase() == cleanEmail }
+            if (existing != null) {
+                repository.switchUser(existing)
+                onSuccess(existing)
+            } else {
+                val newUser = UserEntity(
+                    id = "usr_fb_${System.currentTimeMillis() % 1000000}",
+                    fullName = fullName.trim().ifBlank { "Facebook User" },
+                    email = cleanEmail,
+                    phone = "",
+                    role = "TENANT",
+                    relationshipToProperty = "Tenant",
+                    isAuthorizedByOwner = true,
+                    verificationLevel = 1,
+                    phoneVerified = false,
+                    emailVerified = true,
+                    identitySubmitted = false,
+                    professionalVerified = false
+                )
+                repository.registerUser(newUser)
+                onSuccess(newUser)
+            }
+        }
+    }
+
+    fun loginWithMagicLink(
+        email: String,
+        onSuccess: (UserEntity) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim().lowercase()
+            if (cleanEmail.isBlank() || !cleanEmail.contains("@")) {
+                onError("Please enter a valid email address.")
+                return@launch
+            }
+            val existing = allUsers.value.find { it.email.lowercase() == cleanEmail }
+            if (existing != null) {
+                repository.switchUser(existing)
+                onSuccess(existing)
+            } else {
+                val defaultName = cleanEmail.substringBefore("@")
+                    .split(".", "_", "-")
+                    .joinToString(" ") { word -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } }
+                    .ifBlank { "Balay-Inn User" }
+                val newUser = UserEntity(
+                    id = "usr_magic_${System.currentTimeMillis() % 1000000}",
+                    fullName = defaultName,
+                    email = cleanEmail,
+                    phone = "",
+                    role = "TENANT",
+                    relationshipToProperty = "Tenant",
+                    isAuthorizedByOwner = true,
+                    verificationLevel = 1,
+                    phoneVerified = false,
+                    emailVerified = true,
+                    identitySubmitted = false,
+                    professionalVerified = false
+                )
+                repository.registerUser(newUser)
+                onSuccess(newUser)
+            }
+        }
+    }
+
+    fun loginWithSmsOtp(
+        phone: String,
+        otpCode: String,
+        onSuccess: (UserEntity) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val cleanPhone = phone.trim()
+            if (cleanPhone.length < 7) {
+                onError("Please enter a valid Philippine mobile number.")
+                return@launch
+            }
+            if (otpCode.trim().length != 6) {
+                onError("Please enter the 6-digit OTP code.")
+                return@launch
+            }
+            val existing = allUsers.value.find { it.phone.replace(" ", "") == cleanPhone.replace(" ", "") }
+            if (existing != null) {
+                repository.switchUser(existing)
+                onSuccess(existing)
+            } else {
+                val newUser = UserEntity(
+                    id = "usr_otp_${System.currentTimeMillis() % 1000000}",
+                    fullName = "Verified Mobile User",
+                    email = "user.${cleanPhone.takeLast(4)}@balayinn.app",
+                    phone = cleanPhone,
+                    role = "TENANT",
+                    relationshipToProperty = "Tenant",
+                    isAuthorizedByOwner = true,
+                    verificationLevel = 1,
+                    phoneVerified = true,
+                    emailVerified = false,
+                    identitySubmitted = false,
+                    professionalVerified = false
+                )
+                repository.registerUser(newUser)
+                onSuccess(newUser)
+            }
+        }
+    }
+
     fun registerWithGmailId(
         gmailId: String,
         fullName: String? = null,

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,15 +32,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -81,11 +86,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.local.entity.UserEntity
 import com.example.ui.components.BahayKuboShieldLogo
+import com.example.ui.components.EmailInlineFeedback
+import com.example.ui.components.PasswordStrengthMeter
+import com.example.ui.components.calculatePasswordStrength
+import com.example.ui.components.validateEmail
 import com.example.ui.viewmodel.MarketplaceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,9 +105,10 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToOnboarding: (String) -> Unit,
     onContinueAsGuest: () -> Unit,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Sign In, 1: Create Account
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Sign In, 1: Sign Up, 2: Passwordless
     val allUsers by viewModel.allUsers.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
 
@@ -108,21 +119,31 @@ fun LoginScreen(
     var loginError by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    // Sign Up form fields
-    var regFullName by remember { mutableStateOf("") }
+    // Passwordless fields (Magic Link & SMS OTP)
+    var passwordlessMode by remember { mutableIntStateOf(0) } // 0: Email Magic Link, 1: SMS OTP
+    var magicEmail by remember { mutableStateOf("joshua.alcantara@gmail.com") }
+    var isMagicLinkSent by remember { mutableStateOf(false) }
+    var magicLinkStatusMsg by remember { mutableStateOf<String?>(null) }
+
+    var otpPhone by remember { mutableStateOf("+63 917 123 4567") }
+    var otpInputCode by remember { mutableStateOf("") }
+    var isOtpSent by remember { mutableStateOf(false) }
+    var otpStatusMsg by remember { mutableStateOf<String?>(null) }
+
+    // Minimal Create Account fields (Progressive Profiling: email + password only)
     var regEmail by remember { mutableStateOf("") }
-    var regPhone by remember { mutableStateOf("+63 9") }
-    var regRole by remember { mutableStateOf("TENANT") } // TENANT, PROPERTY_OWNER, REAL_ESTATE_BROKER
     var regPassword by remember { mutableStateOf("") }
     var isRegPasswordVisible by remember { mutableStateOf(false) }
-    var regConfirmPassword by remember { mutableStateOf("") }
     var regError by remember { mutableStateOf<String?>(null) }
-    // Gmail SSO Registration fields
-    var showGmailDialog by remember { mutableStateOf(false) }
-    var gmailInput by remember { mutableStateOf("kailashalder04@gmail.com") }
-    var gmailNameInput by remember { mutableStateOf("Kailash Alder") }
-    var gmailRoleInput by remember { mutableStateOf("TENANT") }
-    var gmailError by remember { mutableStateOf<String?>(null) }
+
+    // SSO Quick Confirmation Dialogs
+    var showGoogleSsoDialog by remember { mutableStateOf(false) }
+    var googleAccountEmail by remember { mutableStateOf("kailashalder04@gmail.com") }
+    var googleAccountName by remember { mutableStateOf("Kailash Alder") }
+
+    var showFacebookSsoDialog by remember { mutableStateOf(false) }
+    var facebookAccountEmail by remember { mutableStateOf("kailash.alder@facebook.com") }
+    var facebookAccountName by remember { mutableStateOf("Kailash Alder") }
 
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
@@ -158,12 +179,31 @@ fun LoginScreen(
                     .padding(horizontal = 18.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 1. Soft Gradient Header with Logo & Brand Emblem
+                // Top Navigation Bar with Back Button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag("login_back_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                // 1. Brand Logo Header
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 16.dp),
-                    shape = RoundedCornerShape(28.dp),
+                        .padding(top = 8.dp, bottom = 14.dp),
+                    shape = RoundedCornerShape(26.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
@@ -178,7 +218,7 @@ fun LoginScreen(
                                         Color(0xFFD97706).copy(alpha = 0.35f)
                                     )
                                 ),
-                                shape = RoundedCornerShape(28.dp)
+                                shape = RoundedCornerShape(26.dp)
                             )
                             .border(
                                 BorderStroke(
@@ -190,37 +230,29 @@ fun LoginScreen(
                                         )
                                     )
                                 ),
-                                shape = RoundedCornerShape(28.dp)
+                                shape = RoundedCornerShape(26.dp)
                             )
-                            .padding(vertical = 20.dp, horizontal = 16.dp),
+                            .padding(vertical = 18.dp, horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             BahayKuboShieldLogo(
-                                size = 110.dp,
-                                badgeCornerRadius = 30.dp,
+                                size = 96.dp,
+                                badgeCornerRadius = 26.dp,
                                 showGradientBackground = true
                             )
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             Text(
                                 text = "Balay-Inn",
-                                fontSize = 38.sp,
+                                fontSize = 34.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
                                 letterSpacing = (-1).sp
                             )
 
-                            Text(
-                                text = "Welcome Home",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFBBF24), // Warm Amber Light
-                                letterSpacing = 0.5.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -229,13 +261,13 @@ fun LoginScreen(
                                 Icon(
                                     Icons.Default.Shield,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(13.dp),
                                     tint = Color(0xFFFBBF24)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Philippine Verified Rental Marketplace",
-                                    fontSize = 12.5.sp,
+                                    text = "Verified Rentals",
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.White.copy(alpha = 0.9f)
                                 )
@@ -248,7 +280,7 @@ fun LoginScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 14.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
@@ -262,59 +294,7 @@ fun LoginScreen(
                             .padding(18.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Google / Gmail SSO Quick Action Card
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                                .clickable { showGmailDialog = true }
-                                .testTag("gmail_sso_card"),
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            border = BorderStroke(1.5.dp, Color(0xFFEA4335).copy(alpha = 0.5f))
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFEA4335)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("G", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Register with Gmail ID",
-                                        fontSize = 13.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "1-Tap sign-up with Google account & database sync",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = "Register with Gmail",
-                                    tint = Color(0xFFEA4335),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        // Auth Tab Selector (Sign In vs Create Account)
+                        // Primary Tabs: Sign In | Sign Up | Passwordless
                         TabRow(
                             selectedTabIndex = selectedTab,
                             containerColor = Color.Transparent,
@@ -337,7 +317,7 @@ fun LoginScreen(
                                     Text(
                                         "Sign In",
                                         fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 14.sp
+                                        fontSize = 13.5.sp
                                     )
                                 },
                                 modifier = Modifier.testTag("tab_sign_in")
@@ -347,28 +327,44 @@ fun LoginScreen(
                                 onClick = { selectedTab = 1 },
                                 text = {
                                     Text(
-                                        "Create Account",
+                                        "Sign Up",
                                         fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 14.sp
+                                        fontSize = 13.5.sp
                                     )
                                 },
                                 modifier = Modifier.testTag("tab_create_account")
                             )
+                            Tab(
+                                selected = selectedTab == 2,
+                                onClick = { selectedTab = 2 },
+                                text = {
+                                    Text(
+                                        "Passwordless",
+                                        fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 13.5.sp
+                                    )
+                                },
+                                modifier = Modifier.testTag("tab_passwordless")
+                            )
                         }
 
-                        // TAB 0: SIGN IN
+                        // ==========================================
+                        // TAB 0: STANDARD SIGN IN
+                        // ==========================================
                         if (selectedTab == 0) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
+                                val loginEmailValidation = validateEmail(loginEmail)
+
                                 OutlinedTextField(
                                     value = loginEmail,
                                     onValueChange = {
                                         loginEmail = it
                                         loginError = null
                                     },
-                                    label = { Text("Email Address") },
+                                    label = { Text("Email") },
                                     leadingIcon = {
                                         Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     },
@@ -379,6 +375,8 @@ fun LoginScreen(
                                         .testTag("login_email_input"),
                                     shape = RoundedCornerShape(12.dp)
                                 )
+
+                                EmailInlineFeedback(state = loginEmailValidation)
 
                                 OutlinedTextField(
                                     value = loginPassword,
@@ -406,6 +404,7 @@ fun LoginScreen(
                                             isSubmitting = true
                                             viewModel.loginWithEmail(
                                                 email = loginEmail,
+                                                password = loginPassword,
                                                 onSuccess = {
                                                     isSubmitting = false
                                                     onLoginSuccess()
@@ -419,13 +418,6 @@ fun LoginScreen(
                                     }),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onFocusChanged { focusState ->
-                                            if (focusState.isFocused) {
-                                                coroutineScope.launch {
-                                                    scrollState.animateScrollTo(scrollState.maxValue)
-                                                }
-                                            }
-                                        }
                                         .testTag("login_password_input"),
                                     shape = RoundedCornerShape(12.dp)
                                 )
@@ -442,7 +434,7 @@ fun LoginScreen(
                                 Button(
                                     onClick = {
                                         if (loginEmail.isBlank()) {
-                                            loginError = "Please enter your email"
+                                            loginError = "Enter your email"
                                             return@Button
                                         }
                                         isSubmitting = true
@@ -462,7 +454,7 @@ fun LoginScreen(
                                     enabled = !isSubmitting,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(50.dp)
+                                        .height(48.dp)
                                         .testTag("login_submit_btn"),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -470,26 +462,25 @@ fun LoginScreen(
                                     if (isSubmitting) {
                                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                                     } else {
-                                        Text("Sign In to Balay-Inn", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Text("Sign In", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
 
-                                // 1-Tap Quick Demo Personas
+                                // Quick Demo Personas
                                 Text(
-                                    text = "Or Quick-Login With Demo Profiles:",
+                                    text = "Demo Profiles",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
                                 val demoProfiles = listOf(
-                                    Triple("usr_tenant_1", "Joshua Alcantara", "Tenant • Looking in Cebu IT Park"),
-                                    Triple("usr_owner_1", "Donato Yap", "Landlord • Bohol & Cebu Units"),
-                                    Triple("usr_broker_marco", "Marco Villanueva, REB", "Licensed Broker • Verified PRC"),
-                                    Triple("usr_admin_1", "Compliance Admin", "Staff • Moderation & Audit")
+                                    Triple("usr_tenant_1", "Joshua Alcantara", "Tenant"),
+                                    Triple("usr_owner_1", "Donato Yap", "Landlord"),
+                                    Triple("usr_broker_marco", "Marco Villanueva", "Broker"),
+                                    Triple("usr_caretaker_mark", "Kuya Mark", "Caretaker")
                                 )
 
                                 demoProfiles.forEach { (userId, name, desc) ->
@@ -504,17 +495,17 @@ fun LoginScreen(
                                                 }
                                             }
                                             .testTag("demo_profile_${userId}"),
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                                     ) {
                                         Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(34.dp)
+                                                    .size(28.dp)
                                                     .clip(CircleShape)
                                                     .background(MaterialTheme.colorScheme.primaryContainer),
                                                 contentAlignment = Alignment.Center
@@ -523,65 +514,274 @@ fun LoginScreen(
                                                     Icons.Default.Person,
                                                     contentDescription = null,
                                                     tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(18.dp)
+                                                    modifier = Modifier.size(16.dp)
                                                 )
                                             }
-                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                val profileNameFontSize = when {
-                                                    name.length > 25 -> 11.5.sp
-                                                    name.length > 18 -> 12.5.sp
-                                                    else -> 13.5.sp
-                                                }
                                                 Text(
                                                     text = name,
-                                                    fontSize = profileNameFontSize,
+                                                    fontSize = 12.5.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1,
-                                                    softWrap = false
+                                                    maxLines = 1
                                                 )
                                                 Text(
                                                     text = desc,
                                                     fontSize = 10.sp,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                    softWrap = false
+                                                    maxLines = 1
                                                 )
                                             }
                                             Icon(
                                                 Icons.Default.CheckCircle,
                                                 contentDescription = "Switch to user",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(15.dp)
                                             )
                                         }
                                     }
                                 }
                             }
-                        } else {
-                            // TAB 1: CREATE ACCOUNT
+                        }
+
+                        // ==========================================
+                        // TAB 2: PASSWORDLESS AUTH (MAGIC LINK / OTP)
+                        // ==========================================
+                        else if (selectedTab == 2) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                OutlinedTextField(
-                                    value = regFullName,
-                                    onValueChange = {
-                                        regFullName = it
-                                        regError = null
-                                    },
-                                    label = { Text("Full Legal Name") },
-                                    placeholder = { Text("e.g. Maria Teresa Santos") },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    },
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("signup_name_input"),
-                                    shape = RoundedCornerShape(12.dp)
+                                // Mode Toggle: Email Magic Link vs SMS OTP
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { passwordlessMode = 0 },
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (passwordlessMode == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        border = BorderStroke(1.dp, if (passwordlessMode == 0) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Default.MarkEmailRead, contentDescription = null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Magic Link", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { passwordlessMode = 1 },
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (passwordlessMode == 1) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        border = BorderStroke(1.dp, if (passwordlessMode == 1) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("SMS Code", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                if (passwordlessMode == 0) {
+                                    // Option A: Email Magic Link
+                                    val magicEmailValidation = validateEmail(magicEmail)
+
+                                    OutlinedTextField(
+                                        value = magicEmail,
+                                        onValueChange = {
+                                            magicEmail = it
+                                            magicLinkStatusMsg = null
+                                            isMagicLinkSent = false
+                                        },
+                                        label = { Text("Email") },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                        modifier = Modifier.fillMaxWidth().testTag("magic_email_input"),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+
+                                    EmailInlineFeedback(state = magicEmailValidation)
+
+                                    if (!isMagicLinkSent) {
+                                        Button(
+                                            onClick = {
+                                                if (magicEmail.isBlank() || !magicEmail.contains("@")) {
+                                                    magicLinkStatusMsg = "Enter a valid email"
+                                                    return@Button
+                                                }
+                                                isMagicLinkSent = true
+                                                magicLinkStatusMsg = "Magic link sent to $magicEmail"
+                                            },
+                                            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("send_magic_link_btn"),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                        ) {
+                                            Icon(Icons.Default.MarkEmailRead, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Send Link", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        }
+                                    } else {
+                                        // Magic Link Delivered State Card
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = Color(0xFFD1FAE5),
+                                            border = BorderStroke(1.dp, Color(0xFF10B981))
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF047857), modifier = Modifier.size(18.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("Link sent", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF047857))
+                                                }
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Tap to sign in:",
+                                                    fontSize = 11.5.sp,
+                                                    color = Color(0xFF065F46)
+                                                )
+                                                Spacer(modifier = Modifier.height(10.dp))
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.loginWithMagicLink(
+                                                            email = magicEmail,
+                                                            onSuccess = { onLoginSuccess() },
+                                                            onError = { err -> magicLinkStatusMsg = err }
+                                                        )
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth().height(40.dp).testTag("verify_magic_link_btn"),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
+                                                ) {
+                                                    Text("Open Link & Sign In", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Option B: SMS OTP
+                                    OutlinedTextField(
+                                        value = otpPhone,
+                                        onValueChange = {
+                                            otpPhone = it
+                                            otpStatusMsg = null
+                                        },
+                                        label = { Text("Mobile Number") },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.PhoneIphone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                        modifier = Modifier.fillMaxWidth().testTag("otp_phone_input"),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+
+                                    if (!isOtpSent) {
+                                        Button(
+                                            onClick = {
+                                                isOtpSent = true
+                                                otpInputCode = "849201" // Pre-fill sample OTP for instant demo
+                                                otpStatusMsg = "Code sent to $otpPhone"
+                                            },
+                                            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("send_otp_btn"),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                        ) {
+                                            Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Send Code", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        }
+                                    } else {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = Color(0xFFFEF3C7),
+                                                border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(14.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text("Demo Code: 849201", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                                }
+                                            }
+
+                                            OutlinedTextField(
+                                                value = otpInputCode,
+                                                onValueChange = { otpInputCode = it.take(6) },
+                                                label = { Text("6-Digit Code") },
+                                                leadingIcon = {
+                                                    Icon(Icons.Default.Key, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                },
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                modifier = Modifier.fillMaxWidth().testTag("otp_code_input"),
+                                                shape = RoundedCornerShape(12.dp)
+                                            )
+
+                                            Button(
+                                                onClick = {
+                                                    viewModel.loginWithSmsOtp(
+                                                        phone = otpPhone,
+                                                        otpCode = otpInputCode,
+                                                        onSuccess = { onLoginSuccess() },
+                                                        onError = { err -> otpStatusMsg = err }
+                                                    )
+                                                },
+                                                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("verify_otp_btn"),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                            ) {
+                                                Text("Sign In", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            }
+                                        }
+                                    }
+
+                                    otpStatusMsg?.let { msg ->
+                                        Text(msg, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 4.dp))
+                                    }
+                                }
+                            }
+                        }
+
+                        // ==========================================
+                        // TAB 2: MINIMAL SIGN UP
+                        // ==========================================
+                        else {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = "Email and password only.",
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 2.dp)
                                 )
+
+                                val regEmailValidation = validateEmail(regEmail)
+                                val regPasswordStrength = calculatePasswordStrength(regPassword)
 
                                 OutlinedTextField(
                                     value = regEmail,
@@ -589,88 +789,20 @@ fun LoginScreen(
                                         regEmail = it
                                         regError = null
                                     },
-                                    label = { Text("Email Address") },
-                                    placeholder = { Text("e.g. maria.santos@gmail.com") },
+                                    label = { Text("Email") },
+                                    placeholder = { Text("name@example.com") },
                                     leadingIcon = {
                                         Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     },
                                     singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("signup_email_input"),
                                     shape = RoundedCornerShape(12.dp)
                                 )
 
-                                OutlinedTextField(
-                                    value = regPhone,
-                                    onValueChange = {
-                                        regPhone = it
-                                        regError = null
-                                    },
-                                    label = { Text("Philippine Mobile Number") },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("signup_phone_input"),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-
-                                // Role Selector Chips
-                                Text(
-                                    text = "I want to join Balay-Inn as a:",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    val roles = listOf(
-                                        Triple("TENANT", "Tenant", "Renter"),
-                                        Triple("PROPERTY_OWNER", "Landlord", "Owner"),
-                                        Triple("REAL_ESTATE_BROKER", "Broker", "Licensed")
-                                    )
-
-                                    roles.forEach { (roleKey, title, sub) ->
-                                        val isSelected = regRole == roleKey
-                                        Surface(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clickable { regRole = roleKey }
-                                                .testTag("role_select_$roleKey"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                            border = BorderStroke(
-                                                1.dp,
-                                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                                            )
-                                        ) {
-                                            Column(
-                                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally
-                                            ) {
-                                                Text(
-                                                    text = title,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Text(
-                                                    text = sub,
-                                                    fontSize = 9.sp,
-                                                    color = if (isSelected) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+                                EmailInlineFeedback(state = regEmailValidation)
 
                                 OutlinedTextField(
                                     value = regPassword,
@@ -678,7 +810,7 @@ fun LoginScreen(
                                         regPassword = it
                                         regError = null
                                     },
-                                    label = { Text("Create Password") },
+                                    label = { Text("Password") },
                                     leadingIcon = {
                                         Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     },
@@ -692,19 +824,15 @@ fun LoginScreen(
                                     },
                                     visualTransformation = if (isRegPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                     singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onFocusChanged { focusState ->
-                                            if (focusState.isFocused) {
-                                                coroutineScope.launch {
-                                                    scrollState.animateScrollTo(scrollState.maxValue)
-                                                }
-                                            }
-                                        }
                                         .testTag("signup_password_input"),
                                     shape = RoundedCornerShape(12.dp)
                                 )
+
+                                // Real-Time Inline Password Strength Indicator
+                                PasswordStrengthMeter(strength = regPasswordStrength)
 
                                 AnimatedVisibility(visible = regError != null) {
                                     Text(
@@ -717,24 +845,19 @@ fun LoginScreen(
 
                                 Button(
                                     onClick = {
-                                        if (regFullName.isBlank() || regEmail.isBlank()) {
-                                            regError = "Please enter your name and email."
+                                        if (regEmail.isBlank() || !regEmail.contains("@")) {
+                                            regError = "Enter a valid email"
                                             return@Button
                                         }
-                                        if (!regEmail.contains("@")) {
-                                            regError = "Please enter a valid email address."
+                                        if (regPassword.length < 6) {
+                                            regError = "Password must be at least 6 characters"
                                             return@Button
                                         }
-                                        viewModel.registerUser(
-                                            fullName = regFullName,
+                                        viewModel.registerMinimalUser(
                                             email = regEmail,
-                                            phone = regPhone,
-                                            role = regRole,
-                                            relationshipToProperty = if (regRole == "TENANT") "Tenant" else if (regRole == "PROPERTY_OWNER") "Property owner" else "Licensed broker",
                                             password = regPassword,
-                                            onSuccess = {
-                                                // Take new user directly to tailored Onboarding flow!
-                                                onNavigateToOnboarding(regRole)
+                                            onSuccess = { newUser ->
+                                                onLoginSuccess()
                                             },
                                             onError = { err ->
                                                 regError = err
@@ -743,24 +866,115 @@ fun LoginScreen(
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(50.dp)
+                                        .height(48.dp)
                                         .testTag("signup_submit_btn"),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                 ) {
-                                    Text("Create Account & Start Onboarding", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Create Account", fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
+                                }
+                            }
+                        }
+
+                        // Divider with text: or connect with
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 18.dp, bottom = 14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(1.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            )
+                            Text(
+                                text = "  or connect with  ",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(1.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            )
+                        }
+
+                        // Round Badges for Google and Facebook at bottom
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Google Official Round Badge
+                            Surface(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .clickable { showGoogleSsoDialog = true }
+                                    .testTag("sso_google_round_badge")
+                                    .testTag("sso_google_button"),
+                                shape = CircleShape,
+                                color = Color.White,
+                                border = BorderStroke(1.2.dp, Color(0xFFDADCE0)),
+                                shadowElevation = 3.dp
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_google_logo),
+                                        contentDescription = "Sign in with Google",
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(28.dp))
+
+                            // Facebook Official Round Badge
+                            Surface(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .clickable { showFacebookSsoDialog = true }
+                                    .testTag("sso_facebook_round_badge")
+                                    .testTag("sso_facebook_button"),
+                                shape = CircleShape,
+                                color = Color(0xFF1877F2),
+                                border = BorderStroke(1.2.dp, Color(0xFF1877F2)),
+                                shadowElevation = 3.dp
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_facebook_logo),
+                                        contentDescription = "Sign in with Facebook",
+                                        modifier = Modifier.size(52.dp)
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                // 3. Guest browse affordance
+                // 3. Guest browse affordance (Offer Guest Access)
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp)
-                        .clickable { onContinueAsGuest() }
+                        .clickable {
+                            viewModel.continueAsGuest()
+                            onContinueAsGuest()
+                        }
                         .testTag("continue_as_guest_btn"),
                     shape = RoundedCornerShape(16.dp),
                     color = Color.White.copy(alpha = 0.12f),
@@ -774,8 +988,8 @@ fun LoginScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Browse Marketplace as Guest",
-                            fontSize = 13.5.sp,
+                            "Continue as Guest",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
@@ -792,127 +1006,134 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Gmail SSO Dialog
-            if (showGmailDialog) {
+            // Google 1-Tap SSO Dialog
+            if (showGoogleSsoDialog) {
                 AlertDialog(
-                    onDismissRequest = { showGmailDialog = false },
+                    onDismissRequest = { showGoogleSsoDialog = false },
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFEA4335)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("G", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Register with Gmail ID", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_google_logo),
+                                contentDescription = "Google",
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Google Sign-In", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = "Enter your Gmail address to register and link with Balay-Inn cloud database & notification server.",
+                                text = "Sign in with Google account:",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             OutlinedTextField(
-                                value = gmailInput,
-                                onValueChange = {
-                                    gmailInput = it
-                                    gmailError = null
-                                },
-                                label = { Text("Gmail Address") },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFFEA4335))
-                                },
+                                value = googleAccountEmail,
+                                onValueChange = { googleAccountEmail = it },
+                                label = { Text("Email") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp)
                             )
 
                             OutlinedTextField(
-                                value = gmailNameInput,
-                                onValueChange = {
-                                    gmailNameInput = it
-                                    gmailError = null
-                                },
-                                label = { Text("Full Name") },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                },
+                                value = googleAccountName,
+                                onValueChange = { googleAccountName = it },
+                                label = { Text("Name") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp)
                             )
-
-                            Text(
-                                text = "Select Account Role:",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                listOf("TENANT" to "Tenant", "PROPERTY_OWNER" to "Landlord", "REAL_ESTATE_BROKER" to "Broker").forEach { (rKey, label) ->
-                                    val sel = gmailRoleInput == rKey
-                                    Surface(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable { gmailRoleInput = rKey },
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                        border = BorderStroke(1.dp, if (sel) MaterialTheme.colorScheme.primary else Color.LightGray)
-                                    ) {
-                                        Text(
-                                            text = label,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (sel) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            textAlign = TextAlign.Center,
-                                            modifier = Modifier.padding(vertical = 8.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            gmailError?.let { err ->
-                                Text(err, color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
-                            }
                         }
                     },
                     confirmButton = {
                         Button(
                             onClick = {
-                                if (gmailInput.isBlank() || !gmailInput.contains("@")) {
-                                    gmailError = "Please enter a valid Gmail address."
-                                    return@Button
-                                }
-                                viewModel.registerWithGmailId(
-                                    gmailId = gmailInput,
-                                    fullName = gmailNameInput,
-                                    role = gmailRoleInput,
+                                viewModel.registerOrLoginWithGoogleSso(
+                                    email = googleAccountEmail,
+                                    fullName = googleAccountName,
                                     onSuccess = {
-                                        showGmailDialog = false
-                                        onNavigateToOnboarding(gmailRoleInput)
-                                    },
-                                    onError = { err ->
-                                        gmailError = err
+                                        showGoogleSsoDialog = false
+                                        onLoginSuccess()
                                     }
                                 )
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA4335))
                         ) {
-                            Text("Register & Connect", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Continue", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showGmailDialog = false }) {
+                        TextButton(onClick = { showGoogleSsoDialog = false }) {
+                            Text("Cancel", fontSize = 13.sp)
+                        }
+                    }
+                )
+            }
+
+            // Facebook 1-Tap SSO Dialog
+            if (showFacebookSsoDialog) {
+                AlertDialog(
+                    onDismissRequest = { showFacebookSsoDialog = false },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_facebook_logo),
+                                contentDescription = "Facebook",
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Facebook Sign-In", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = "Sign in with Facebook account:",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            OutlinedTextField(
+                                value = facebookAccountEmail,
+                                onValueChange = { facebookAccountEmail = it },
+                                label = { Text("Email") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+
+                            OutlinedTextField(
+                                value = facebookAccountName,
+                                onValueChange = { facebookAccountName = it },
+                                label = { Text("Name") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.registerOrLoginWithFacebookSso(
+                                    email = facebookAccountEmail,
+                                    fullName = facebookAccountName,
+                                    onSuccess = {
+                                        showFacebookSsoDialog = false
+                                        onLoginSuccess()
+                                    }
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2))
+                        ) {
+                            Text("Continue", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showFacebookSsoDialog = false }) {
                             Text("Cancel", fontSize = 13.sp)
                         }
                     }

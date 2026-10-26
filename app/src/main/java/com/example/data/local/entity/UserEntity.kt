@@ -31,4 +31,24 @@ data class UserEntity(
 ) {
     val canonicalRole: com.example.data.model.UserRole
         get() = com.example.data.model.UserRole.fromRoleString(role)
+
+    val isGuest: Boolean
+        get() = id == "usr_guest" || role.equals("GUEST", ignoreCase = true)
+
+    companion object {
+        val GUEST_USER = UserEntity(
+            id = "usr_guest",
+            fullName = "Guest Explorer",
+            email = "guest@balayinn.app",
+            phone = "",
+            role = "GUEST",
+            relationshipToProperty = "Guest Explorer",
+            isAuthorizedByOwner = false,
+            verificationLevel = 0,
+            phoneVerified = false,
+            emailVerified = false,
+            identitySubmitted = false,
+            professionalVerified = false
+        )
+    }
 }

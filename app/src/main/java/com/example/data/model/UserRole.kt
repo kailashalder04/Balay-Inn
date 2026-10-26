@@ -40,7 +40,7 @@ enum class UserRole {
         fun fromRoleString(role: String?): UserRole {
             if (role == null) return TENANT
             return when (role.uppercase().trim()) {
-                "TENANT" -> TENANT
+                "TENANT", "GUEST" -> TENANT
                 "LANDLORD", "PROPERTY_OWNER", "OWNER" -> LANDLORD
                 "REPRESENTATIVE", "AUTHORIZED_REPRESENTATIVE", "FAMILY_MEMBER",
                 "CARETAKER", "PROPERTY_MANAGER", "REAL_ESTATE_BROKER",

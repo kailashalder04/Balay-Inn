@@ -131,6 +131,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.rememberModalBottomSheetState
 import com.example.ui.components.ComparisonMatrixSheet
+import com.example.ui.components.GuestAuthPromptDialog
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -182,12 +183,15 @@ fun PropertyDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val currentUser by viewModel.currentUser.collectAsState()
+
     // Dialog States
     var showViewingDialog by remember { mutableStateOf(false) }
     var showChatDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
     var showExportPostDialog by remember { mutableStateOf(false) }
     var showComparisonMatrix by remember { mutableStateOf(false) }
+    var guestActionPromptReason by remember { mutableStateOf<String?>(null) }
 
     if (property == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -343,7 +347,13 @@ fun PropertyDetailScreen(
                         }
 
                         Button(
-                            onClick = { showViewingDialog = true },
+                            onClick = {
+                                if (currentUser.isGuest) {
+                                    guestActionPromptReason = "Sign in to schedule viewings."
+                                } else {
+                                    showViewingDialog = true
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = if (isNarrow) 14.dp else 20.dp, vertical = 10.dp),
@@ -377,11 +387,15 @@ fun PropertyDetailScreen(
                         onShare = { showExportPostDialog = true },
                         isSaved = isSaved,
                         onToggleSave = {
-                            viewModel.toggleSave(prop.id)
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    if (!isSaved) "Saved to your favorites" else "Removed from favorites"
-                                )
+                            if (currentUser.isGuest) {
+                                guestActionPromptReason = "Sign in to save properties."
+                            } else {
+                                viewModel.toggleSave(prop.id)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (!isSaved) "Saved to your favorites" else "Removed from favorites"
+                                    )
+                                }
                             }
                         },
                         onReport = { showReportDialog = true },
@@ -691,18 +705,28 @@ fun PropertyDetailScreen(
                                                     text = if (!isPhoneRevealed) "🔒 Tap to Reveal Contact" else hostInfo.contactChannel,
                                                     fontSize = 10.5.sp,
                                                     color = if (!isPhoneRevealed) SteelBlue else (if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)),
-                                                    modifier = Modifier.clickable { if (!isPhoneRevealed) viewModel.toggleRevealPhone(prop.id) }
+                                                    modifier = Modifier.clickable {
+                                                        if (currentUser.isGuest) {
+                                                            guestActionPromptReason = "Sign in to reveal host contact."
+                                                        } else {
+                                                            if (!isPhoneRevealed) viewModel.toggleRevealPhone(prop.id)
+                                                        }
+                                                    }
                                                 )
                                             }
                                         }
 
                                         OutlinedButton(
                                             onClick = {
-                                                try {
-                                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${hostInfo.phone}"))
-                                                    context.startActivity(intent)
-                                                } catch (e: Exception) {
-                                                    // graceful fallback
+                                                if (currentUser.isGuest) {
+                                                    guestActionPromptReason = "Sign in to call host."
+                                                } else {
+                                                    try {
+                                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${hostInfo.phone}"))
+                                                        context.startActivity(intent)
+                                                    } catch (e: Exception) {
+                                                        // graceful fallback
+                                                    }
                                                 }
                                             },
                                             shape = RoundedCornerShape(8.dp),
@@ -721,7 +745,13 @@ fun PropertyDetailScreen(
 
                             // Message option placed INSIDE Host Name Box
                             Button(
-                                onClick = { showChatDialog = true },
+                                onClick = {
+                                    if (currentUser.isGuest) {
+                                        guestActionPromptReason = "Sign in to message host."
+                                    } else {
+                                        showChatDialog = true
+                                    }
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
@@ -1275,6 +1305,23 @@ fun PropertyDetailScreen(
                 if (id != prop.id) {
                     onNavigateToProperty(id)
                 }
+            }
+        )
+    }
+
+    guestActionPromptReason?.let { reason ->
+        GuestAuthPromptDialog(
+            reason = reason,
+            onDismiss = { guestActionPromptReason = null },
+            onSignInWithEmail = {
+                guestActionPromptReason = null
+                onBack()
+            },
+            onGoogleSso = {
+                viewModel.registerOrLoginWithGoogleSso(onSuccess = {})
+            },
+            onFacebookSso = {
+                viewModel.registerOrLoginWithFacebookSso(onSuccess = {})
             }
         )
     }

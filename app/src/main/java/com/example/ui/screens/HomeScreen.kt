@@ -35,6 +35,7 @@ fun HomeScreen(
                 onNavigateToExplore = onNavigateToExplore,
                 onNavigateToPropertyDetail = onNavigateToPropertyDetail,
                 onNavigateToVerificationCenter = onNavigateToVerificationCenter,
+                onNavigateToLogin = onNavigateToLogin,
                 modifier = modifier
             )
         }

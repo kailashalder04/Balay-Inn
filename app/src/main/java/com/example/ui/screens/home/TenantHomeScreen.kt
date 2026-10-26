@@ -40,6 +40,7 @@ import com.example.data.local.entity.PropertyEntity
 import com.example.data.local.entity.UserEntity
 import com.example.ui.components.BalayInnLogoHeader
 import com.example.ui.components.ComparisonMatrixSheet
+import com.example.ui.components.GuestAuthPromptDialog
 import com.example.ui.components.PropertyCard
 import com.example.ui.components.VerifiedIcon
 import com.example.ui.components.VerifiedPillBadge
@@ -57,6 +58,7 @@ fun TenantHomeScreen(
     onNavigateToExplore: () -> Unit,
     onNavigateToPropertyDetail: (String) -> Unit,
     onNavigateToVerificationCenter: () -> Unit,
+    onNavigateToLogin: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDark by viewModel.isDarkMode.collectAsState()
@@ -72,6 +74,7 @@ fun TenantHomeScreen(
     val comparedProperties by viewModel.comparedProperties.collectAsState()
     val comparedPropertyIds = remember(comparedProperties) { comparedProperties.map { it.id }.toSet() }
     var showComparisonMatrix by remember { mutableStateOf(false) }
+    var guestActionPromptReason by remember { mutableStateOf<String?>(null) }
 
     val categoryConfigs = remember {
         listOf(
@@ -165,42 +168,53 @@ fun TenantHomeScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = SoftGreenBg,
-                                border = BorderStroke(0.8.dp, SoftGreenBorder)
+                                color = if (currentUser.isGuest) Color(0xFFFEF3C7) else SoftGreenBg,
+                                border = BorderStroke(0.8.dp, if (currentUser.isGuest) Color(0xFFF59E0B) else SoftGreenBorder)
                             ) {
                                 Text(
-                                    text = "Level ${currentUser.verificationLevel} Verified Renter",
+                                    text = if (currentUser.isGuest) "Guest Explorer Mode" else "Level ${currentUser.verificationLevel} Verified Renter",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = SoftGreenDark,
+                                    color = if (currentUser.isGuest) Color(0xFF92400E) else SoftGreenDark,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                     maxLines = 1,
                                     softWrap = false
                                 )
                             }
 
-                            IconButton(
-                                onClick = onNavigateToVerificationCenter,
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .background(
-                                        if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9),
-                                        CircleShape
+                            if (currentUser.isGuest) {
+                                Button(
+                                    onClick = onNavigateToLogin,
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(30.dp).testTag("guest_hero_signin_btn")
+                                ) {
+                                    Text("Sign In", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = onNavigateToVerificationCenter,
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .background(
+                                            if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Security,
+                                        contentDescription = "Verification Center",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Security,
-                                    contentDescription = "Verification Center",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                }
                             }
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Mabuhay!",
+                            text = if (currentUser.isGuest) "Mabuhay, Explorer!" else "Mabuhay!",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -217,7 +231,7 @@ fun TenantHomeScreen(
                         }
 
                         Text(
-                            text = currentUser.fullName,
+                            text = if (currentUser.isGuest) "Find Your Next Home" else currentUser.fullName,
                             fontSize = tenantNameFontSize,
                             fontWeight = FontWeight.ExtraBold,
                             color = if (isDark) Color.White else Color(0xFF0F172A),
@@ -229,7 +243,11 @@ fun TenantHomeScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "Rent verified, budget-friendly rooms & dorms across Cebu, Bohol, and Bacolod with zero hidden fees.",
+                            text = if (currentUser.isGuest) {
+                                "Explore verified rental listings, dorms & apartments across the Philippines. Sign in anytime to bookmark favorites or message hosts."
+                            } else {
+                                "Rent verified, budget-friendly rooms & dorms across Cebu, Bohol, and Bacolod with zero hidden fees."
+                            },
                             fontSize = 12.5.sp,
                             color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569),
                             lineHeight = 18.sp
@@ -347,6 +365,13 @@ fun TenantHomeScreen(
                             comparedPropertyIds = comparedPropertyIds,
                             viewModel = viewModel,
                             onNavigateToPropertyDetail = onNavigateToPropertyDetail,
+                            onSaveToggle = { prop ->
+                                if (currentUser.isGuest) {
+                                    guestActionPromptReason = "Sign in to save properties."
+                                } else {
+                                    viewModel.toggleSave(prop.id)
+                                }
+                            },
                             isDark = isDark,
                             testTag = "category_carousel_${config.id.lowercase().replace(" ", "_")}"
                         )
@@ -380,6 +405,13 @@ fun TenantHomeScreen(
                         comparedPropertyIds = comparedPropertyIds,
                         viewModel = viewModel,
                         onNavigateToPropertyDetail = onNavigateToPropertyDetail,
+                        onSaveToggle = { prop ->
+                            if (currentUser.isGuest) {
+                                guestActionPromptReason = "Sign in to save properties."
+                            } else {
+                                viewModel.toggleSave(prop.id)
+                            }
+                        },
                         isDark = isDark,
                         testTag = "category_carousel_other"
                     )
@@ -418,7 +450,13 @@ fun TenantHomeScreen(
                         locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
                         imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
                         isSaved = true,
-                        onSaveToggle = { viewModel.toggleSave(prop.id) },
+                        onSaveToggle = {
+                            if (currentUser.isGuest) {
+                                guestActionPromptReason = "Sign in to save properties."
+                            } else {
+                                viewModel.toggleSave(prop.id)
+                            }
+                        },
                         isCompared = prop.id in comparedPropertyIds,
                         onCompareToggle = { viewModel.toggleCompare(prop) },
                         onClick = {
@@ -503,6 +541,23 @@ fun TenantHomeScreen(
             onNavigateToDetail = { id ->
                 showComparisonMatrix = false
                 onNavigateToPropertyDetail(id)
+            }
+        )
+    }
+
+    guestActionPromptReason?.let { reason ->
+        GuestAuthPromptDialog(
+            reason = reason,
+            onDismiss = { guestActionPromptReason = null },
+            onSignInWithEmail = {
+                guestActionPromptReason = null
+                onNavigateToLogin()
+            },
+            onGoogleSso = {
+                viewModel.registerOrLoginWithGoogleSso(onSuccess = {})
+            },
+            onFacebookSso = {
+                viewModel.registerOrLoginWithFacebookSso(onSuccess = {})
             }
         )
     }
@@ -776,6 +831,7 @@ fun CategoryPropertySnapRow(
     comparedPropertyIds: Set<String>,
     viewModel: MarketplaceViewModel,
     onNavigateToPropertyDetail: (String) -> Unit,
+    onSaveToggle: (PropertyEntity) -> Unit,
     isDark: Boolean,
     testTag: String
 ) {
@@ -800,7 +856,7 @@ fun CategoryPropertySnapRow(
                 locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
                 imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
                 isSaved = prop.id in savedPropIds,
-                onSaveToggle = { viewModel.toggleSave(prop.id) },
+                onSaveToggle = { onSaveToggle(prop) },
                 isCompared = prop.id in comparedPropertyIds,
                 onCompareToggle = { viewModel.toggleCompare(prop) },
                 onClick = {

@@ -74,10 +74,12 @@ import com.example.ui.screens.LegalPolicyScreen
 import com.example.ui.screens.PolicyTab
 import com.example.ui.screens.VerificationCenterScreen
 import com.example.ui.screens.ViewingRequestsScreen
+import com.example.ui.screens.WelcomeScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.MarketplaceViewModel
 
 sealed class AppScreen {
+    object Welcome : AppScreen()
     object Home : AppScreen()
     object Explore : AppScreen()
     object Notifications : AppScreen()
@@ -113,8 +115,8 @@ class MainActivity : ComponentActivity() {
 fun BalayInnApp(
     viewModel: MarketplaceViewModel = viewModel()
 ) {
-    val backStack = remember { mutableStateListOf<AppScreen>(AppScreen.Home) }
-    val currentScreen = backStack.lastOrNull() ?: AppScreen.Home
+    val backStack = remember { mutableStateListOf<AppScreen>(AppScreen.Welcome) }
+    val currentScreen = backStack.lastOrNull() ?: AppScreen.Welcome
 
     fun navigateTo(screen: AppScreen) {
         if (screen is AppScreen.Home || screen is AppScreen.Explore || screen is AppScreen.Viewings ||
@@ -160,7 +162,7 @@ fun BalayInnApp(
             }
         }
     ) { innerPadding ->
-        val screenPadding = if (currentScreen is AppScreen.PropertyDetail) {
+        val screenPadding = if (currentScreen is AppScreen.PropertyDetail || currentScreen is AppScreen.Welcome) {
             PaddingValues(0.dp)
         } else {
             innerPadding
@@ -265,12 +267,19 @@ fun BalayInnApp(
                         onBack = { navigateBack() }
                     )
                 }
+                is AppScreen.Welcome -> {
+                    WelcomeScreen(
+                        onGetStarted = { navigateTo(AppScreen.Login) },
+                        onContinueAsGuest = { navigateTo(AppScreen.Home) }
+                    )
+                }
                 is AppScreen.Login -> {
                     LoginScreen(
                         viewModel = viewModel,
                         onLoginSuccess = { navigateTo(AppScreen.Home) },
                         onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) },
-                        onContinueAsGuest = { navigateTo(AppScreen.Home) }
+                        onContinueAsGuest = { navigateTo(AppScreen.Home) },
+                        onBack = { navigateBack() }
                     )
                 }
                 is AppScreen.Onboarding -> {
