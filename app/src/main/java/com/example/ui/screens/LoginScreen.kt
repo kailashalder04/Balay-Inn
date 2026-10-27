@@ -86,6 +86,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -235,36 +236,30 @@ fun LoginScreen(
                             .padding(vertical = 18.dp, horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            BahayKuboShieldLogo(
-                                size = 96.dp,
-                                badgeCornerRadius = 26.dp,
-                                showGradientBackground = true
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = "Balay-Inn",
-                                fontSize = 34.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                letterSpacing = (-1).sp
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_balay_inn_wordmark_mint),
+                                contentDescription = "Balay-Inn",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.68f)
+                                    .height(56.dp)
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     Icons.Default.Shield,
                                     contentDescription = null,
                                     modifier = Modifier.size(13.dp),
-                                    tint = Color(0xFFFBBF24)
+                                    tint = Color(0xFF95E8A3)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = "Verified Rentals",
                                     fontSize = 12.sp,

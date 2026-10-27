@@ -88,22 +88,22 @@ fun AdminHomeScreen(
     val pendingDocuments = allDocuments.filter { it.status == "SUBMITTED" }
     val activeProperties = properties.filter { it.status == "ACTIVE" }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("admin_home_screen"),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        // 0. Balay-Inn Brand Logo Header
-        item {
-            BalayInnLogoHeader(
-                isDark = isDark,
-                onToggleDarkMode = { viewModel.toggleDarkMode() }
-            )
-        }
+    Column(modifier = modifier.fillMaxSize()) {
+        // Full-width App name bar matching other screens
+        BalayInnLogoHeader(
+            isDark = isDark,
+            onToggleDarkMode = { viewModel.toggleDarkMode() }
+        )
 
-        // 1. Operations Header Card
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .testTag("admin_home_screen"),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            // 1. Operations Header Card
         item {
             Card(
                 modifier = Modifier
@@ -479,6 +479,7 @@ fun AdminHomeScreen(
             }
         }
     }
+}
 }
 
 @Composable

@@ -95,24 +95,24 @@ fun LandlordHomeScreen(
     val totalSaves = managedProperties.sumOf { it.savesCount }
     val pendingViewings = userViewings.filter { it.status == "REQUESTED" }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("landlord_home_screen"),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        // 0. Balay-Inn Brand Logo Header
-        item {
-            BalayInnLogoHeader(
-                isDark = isDark,
-                onToggleDarkMode = { viewModel.toggleDarkMode() }
-            )
-        }
+    Column(modifier = modifier.fillMaxSize()) {
+        // Full-width App name bar matching other screens
+        BalayInnLogoHeader(
+            isDark = isDark,
+            onToggleDarkMode = { viewModel.toggleDarkMode() }
+        )
 
-        // 1. Business Overview Header Card
-        item {
-            Card(
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .testTag("landlord_home_screen"),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            // 1. Business Overview Header Card
+            item {
+                Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("landlord_business_overview"),
@@ -535,6 +535,7 @@ fun LandlordHomeScreen(
             }
         }
     }
+}
 }
 
 @Composable

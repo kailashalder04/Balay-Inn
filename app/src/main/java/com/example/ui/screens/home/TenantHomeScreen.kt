@@ -131,23 +131,22 @@ fun TenantHomeScreen(
         )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("tenant_home_screen"),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            // 0. Balay-Inn Brand Logo Header
-            item {
-                BalayInnLogoHeader(
-                    isDark = isDark,
-                    onToggleDarkMode = { viewModel.toggleDarkMode() }
-                )
-            }
+    Column(modifier = modifier.fillMaxSize()) {
+        // Full-width App name bar matching other screens
+        BalayInnLogoHeader(
+            isDark = isDark,
+            onToggleDarkMode = { viewModel.toggleDarkMode() }
+        )
 
-            // 1. Personalized Welcome & Discovery Hero
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("tenant_home_screen"),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                // 1. Personalized Welcome & Discovery Hero
             item {
                 Card(
                     modifier = Modifier
@@ -470,7 +469,7 @@ fun TenantHomeScreen(
         }
 
         // Floating Comparison Bottom Bar
-        AnimatedVisibility(
+        androidx.compose.animation.AnimatedVisibility(
             visible = comparedProperties.isNotEmpty(),
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
@@ -527,6 +526,7 @@ fun TenantHomeScreen(
             }
         }
     }
+}
 
     if (showComparisonMatrix) {
         ComparisonMatrixSheet(

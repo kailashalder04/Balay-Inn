@@ -102,22 +102,22 @@ fun RepresentativeHomeScreen(
     // Relevant conversations for assigned properties
     val assignedConvs = conversations.filter { it.propertyId in assignedPropertyIds || it.posterId == currentUser.id }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("representative_home_screen"),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        // 0. Balay-Inn Brand Logo Header
-        item {
-            BalayInnLogoHeader(
-                isDark = isDark,
-                onToggleDarkMode = { viewModel.toggleDarkMode() }
-            )
-        }
+    Column(modifier = modifier.fillMaxSize()) {
+        // Full-width App name bar matching other screens
+        BalayInnLogoHeader(
+            isDark = isDark,
+            onToggleDarkMode = { viewModel.toggleDarkMode() }
+        )
 
-        // 1. Representative Authority Banner
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .testTag("representative_home_screen"),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            // 1. Representative Authority Banner
         item {
             Card(
                 modifier = Modifier
@@ -482,6 +482,7 @@ fun RepresentativeHomeScreen(
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalLayoutApi::class)
