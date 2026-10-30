@@ -1,62 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-
-    <!-- Outer Steel Blue Security Shield Rim -->
-    <path
-        android:fillColor="#222E618B"
-        android:strokeColor="#2E618B"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M54,20 L84,30 V54 C84,74 68,86 54,90 C40,86 24,74 24,54 V30 Z" />
-
-    <!-- Inner Golden Amber Trim -->
-    <path
-        android:strokeColor="#FFD166"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M54,25 L79,33 V52 C79,69 65,79 54,83 C43,79 29,69 29,52 V33 Z" />
-
-    <!-- Inner Shield Gold Fill Glow -->
-    <path
-        android:fillColor="#F59E0B"
-        android:pathData="M54,26 L78,34 V52 C78,68 64,78 54,82 C44,78 30,68 30,52 V34 Z" />
-
-    <!-- Upper Gabled Roof Tier (Steel Blue) -->
-    <path
-        android:fillColor="#1E3A5F"
-        android:strokeColor="#FFD166"
-        android:strokeWidth="1.5"
-        android:pathData="M54,34 L66,42 H42 Z" />
-
-    <!-- Main Gabled Roof Tier (Steel Blue with Gold Trim) -->
-    <path
-        android:fillColor="#2E618B"
-        android:strokeColor="#FFD166"
-        android:strokeWidth="2"
-        android:pathData="M54,40 L72,52 H36 Z" />
-
-    <!-- House Body (Warm Amber Gold) -->
-    <path
-        android:fillColor="#FFD166"
-        android:strokeColor="#1E3A5F"
-        android:strokeWidth="1.8"
-        android:pathData="M40,52 H68 V66 H40 Z" />
-
-    <!-- Entrance Doorway -->
-    <path
-        android:fillColor="#1E3A5F"
-        android:pathData="M50,66 V56 H58 V66 Z" />
-
-    <!-- Horizontal Ladder Steps (Gold) -->
-    <path
-        android:strokeColor="#FFD166"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:pathData="M40,70 H68 M43,74 H65 M46,78 H62" />
-</vector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="66dp"
+        android:height="66dp"
+        android:drawable="@drawable/app_logo"
+        android:gravity="center" />
+</layer-list>

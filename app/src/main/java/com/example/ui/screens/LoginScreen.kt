@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -92,6 +93,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.local.entity.UserEntity
+import com.example.ui.components.AppLogo
 import com.example.ui.components.BahayKuboShieldLogo
 import com.example.ui.components.EmailInlineFeedback
 import com.example.ui.components.PasswordStrengthMeter
@@ -109,7 +111,7 @@ fun LoginScreen(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Sign In, 1: Sign Up, 2: Passwordless
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Sign In, 1: Sign Up
     val allUsers by viewModel.allUsers.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
 
@@ -120,22 +122,18 @@ fun LoginScreen(
     var loginError by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    // Passwordless fields (Magic Link & SMS OTP)
-    var passwordlessMode by remember { mutableIntStateOf(0) } // 0: Email Magic Link, 1: SMS OTP
-    var magicEmail by remember { mutableStateOf("joshua.alcantara@gmail.com") }
-    var isMagicLinkSent by remember { mutableStateOf(false) }
-    var magicLinkStatusMsg by remember { mutableStateOf<String?>(null) }
-
-    var otpPhone by remember { mutableStateOf("+63 917 123 4567") }
-    var otpInputCode by remember { mutableStateOf("") }
-    var isOtpSent by remember { mutableStateOf(false) }
-    var otpStatusMsg by remember { mutableStateOf<String?>(null) }
-
-    // Minimal Create Account fields (Progressive Profiling: email + password only)
+    // Registration with OTP Verification fields (Email or Phone)
     var regEmail by remember { mutableStateOf("") }
+    var regPhone by remember { mutableStateOf("+63 917 123 4567") }
     var regPassword by remember { mutableStateOf("") }
     var isRegPasswordVisible by remember { mutableStateOf(false) }
+    var regVerificationChannel by remember { mutableStateOf("EMAIL") } // "EMAIL" or "PHONE"
+    var regStep by remember { mutableIntStateOf(0) } // 0 = Credentials, 1 = OTP Verification
+    var regGeneratedOtp by remember { mutableStateOf("842915") }
+    var regEnteredOtp by remember { mutableStateOf("") }
+    var regSentTarget by remember { mutableStateOf("") }
     var regError by remember { mutableStateOf<String?>(null) }
+    var isRegSubmitting by remember { mutableStateOf(false) }
 
     // SSO Quick Confirmation Dialogs
     var showGoogleSsoDialog by remember { mutableStateOf(false) }
@@ -239,13 +237,21 @@ fun LoginScreen(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            AppLogo(
+                                size = 56.dp,
+                                badgeCornerRadius = 16.dp,
+                                showShadow = true
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Image(
                                 painter = painterResource(id = R.drawable.ic_balay_inn_wordmark_mint),
                                 contentDescription = "Balay-Inn",
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier
                                     .fillMaxWidth(0.68f)
-                                    .height(56.dp)
+                                    .height(52.dp)
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -307,39 +313,35 @@ fun LoginScreen(
                         ) {
                             Tab(
                                 selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
+                                onClick = {
+                                    selectedTab = 0
+                                    regStep = 0
+                                    regError = null
+                                },
                                 text = {
                                     Text(
                                         "Sign In",
                                         fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 13.5.sp
+                                        fontSize = 14.sp
                                     )
                                 },
                                 modifier = Modifier.testTag("tab_sign_in")
                             )
                             Tab(
                                 selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
+                                onClick = {
+                                    selectedTab = 1
+                                    regStep = 0
+                                    regError = null
+                                },
                                 text = {
                                     Text(
                                         "Sign Up",
                                         fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 13.5.sp
+                                        fontSize = 14.sp
                                     )
                                 },
                                 modifier = Modifier.testTag("tab_create_account")
-                            )
-                            Tab(
-                                selected = selectedTab == 2,
-                                onClick = { selectedTab = 2 },
-                                text = {
-                                    Text(
-                                        "Passwordless",
-                                        fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 13.5.sp
-                                    )
-                                },
-                                modifier = Modifier.testTag("tab_passwordless")
                             )
                         }
 
@@ -540,333 +542,407 @@ fun LoginScreen(
                             }
                         }
 
+                                                // ==========================================
+                        // TAB 1: SIGN UP WITH OTP VERIFICATION (EMAIL OR PHONE)
                         // ==========================================
-                        // TAB 2: PASSWORDLESS AUTH (MAGIC LINK / OTP)
-                        // ==========================================
-                        else if (selectedTab == 2) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                // Mode Toggle: Email Magic Link vs SMS OTP
-                                Row(
+                        else {
+                            if (regStep == 0) {
+                                // STEP 0: Credentials & Verification Channel Selection
+                                Column(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Surface(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable { passwordlessMode = 0 },
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = if (passwordlessMode == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        border = BorderStroke(1.dp, if (passwordlessMode == 0) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(Icons.Default.MarkEmailRead, contentDescription = null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Magic Link", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
+                                    Text(
+                                        text = "Register with instant OTP verification via email or mobile.",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 2.dp)
+                                    )
 
-                                    Surface(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable { passwordlessMode = 1 },
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = if (passwordlessMode == 1) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        border = BorderStroke(1.dp, if (passwordlessMode == 1) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text("SMS Code", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                }
+                                    val regEmailValidation = validateEmail(regEmail)
+                                    val regPasswordStrength = calculatePasswordStrength(regPassword)
 
-                                if (passwordlessMode == 0) {
-                                    // Option A: Email Magic Link
-                                    val magicEmailValidation = validateEmail(magicEmail)
-
+                                    // Email Input
                                     OutlinedTextField(
-                                        value = magicEmail,
+                                        value = regEmail,
                                         onValueChange = {
-                                            magicEmail = it
-                                            magicLinkStatusMsg = null
-                                            isMagicLinkSent = false
+                                            regEmail = it
+                                            regError = null
                                         },
-                                        label = { Text("Email") },
+                                        label = { Text("Email Address") },
+                                        placeholder = { Text("name@example.com") },
                                         leadingIcon = {
                                             Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                         },
                                         singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                        modifier = Modifier.fillMaxWidth().testTag("magic_email_input"),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("signup_email_input"),
                                         shape = RoundedCornerShape(12.dp)
                                     )
 
-                                    EmailInlineFeedback(state = magicEmailValidation)
+                                    EmailInlineFeedback(state = regEmailValidation)
 
-                                    if (!isMagicLinkSent) {
-                                        Button(
-                                            onClick = {
-                                                if (magicEmail.isBlank() || !magicEmail.contains("@")) {
-                                                    magicLinkStatusMsg = "Enter a valid email"
-                                                    return@Button
-                                                }
-                                                isMagicLinkSent = true
-                                                magicLinkStatusMsg = "Magic link sent to $magicEmail"
-                                            },
-                                            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("send_magic_link_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                        ) {
-                                            Icon(Icons.Default.MarkEmailRead, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Send Link", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        }
-                                    } else {
-                                        // Magic Link Delivered State Card
-                                        Surface(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = Color(0xFFD1FAE5),
-                                            border = BorderStroke(1.dp, Color(0xFF10B981))
-                                        ) {
-                                            Column(modifier = Modifier.padding(12.dp)) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF047857), modifier = Modifier.size(18.dp))
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Text("Link sent", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF047857))
-                                                }
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = "Tap to sign in:",
-                                                    fontSize = 11.5.sp,
-                                                    color = Color(0xFF065F46)
-                                                )
-                                                Spacer(modifier = Modifier.height(10.dp))
-                                                Button(
-                                                    onClick = {
-                                                        viewModel.loginWithMagicLink(
-                                                            email = magicEmail,
-                                                            onSuccess = { onLoginSuccess() },
-                                                            onError = { err -> magicLinkStatusMsg = err }
-                                                        )
-                                                    },
-                                                    modifier = Modifier.fillMaxWidth().height(40.dp).testTag("verify_magic_link_btn"),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF047857))
-                                                ) {
-                                                    Text("Open Link & Sign In", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // Option B: SMS OTP
+                                    // Phone Number Input
                                     OutlinedTextField(
-                                        value = otpPhone,
+                                        value = regPhone,
                                         onValueChange = {
-                                            otpPhone = it
-                                            otpStatusMsg = null
+                                            regPhone = it
+                                            regError = null
                                         },
-                                        label = { Text("Mobile Number") },
+                                        label = { Text("Mobile Phone Number") },
+                                        placeholder = { Text("+63 917 123 4567") },
                                         leadingIcon = {
-                                            Icon(Icons.Default.PhoneIphone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                            Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                         },
                                         singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                        modifier = Modifier.fillMaxWidth().testTag("otp_phone_input"),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("signup_phone_input"),
                                         shape = RoundedCornerShape(12.dp)
                                     )
 
-                                    if (!isOtpSent) {
-                                        Button(
-                                            onClick = {
-                                                isOtpSent = true
-                                                otpInputCode = "849201" // Pre-fill sample OTP for instant demo
-                                                otpStatusMsg = "Code sent to $otpPhone"
-                                            },
-                                            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("send_otp_btn"),
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                        ) {
-                                            Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Send Code", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        }
-                                    } else {
-                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Surface(
-                                                shape = RoundedCornerShape(8.dp),
-                                                color = Color(0xFFFEF3C7),
-                                                border = BorderStroke(1.dp, Color(0xFFF59E0B)),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(14.dp))
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Text("Demo Code: 849201", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
-                                                }
+                                    // Password Input
+                                    OutlinedTextField(
+                                        value = regPassword,
+                                        onValueChange = {
+                                            regPassword = it
+                                            regError = null
+                                        },
+                                        label = { Text("Create Password") },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        },
+                                        trailingIcon = {
+                                            IconButton(onClick = { isRegPasswordVisible = !isRegPasswordVisible }) {
+                                                Icon(
+                                                    if (isRegPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                    contentDescription = "Toggle password visibility"
+                                                )
                                             }
-
-                                            OutlinedTextField(
-                                                value = otpInputCode,
-                                                onValueChange = { otpInputCode = it.take(6) },
-                                                label = { Text("6-Digit Code") },
-                                                leadingIcon = {
-                                                    Icon(Icons.Default.Key, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                },
-                                                singleLine = true,
-                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                                modifier = Modifier.fillMaxWidth().testTag("otp_code_input"),
-                                                shape = RoundedCornerShape(12.dp)
-                                            )
-
-                                            Button(
-                                                onClick = {
-                                                    viewModel.loginWithSmsOtp(
-                                                        phone = otpPhone,
-                                                        otpCode = otpInputCode,
-                                                        onSuccess = { onLoginSuccess() },
-                                                        onError = { err -> otpStatusMsg = err }
-                                                    )
-                                                },
-                                                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("verify_otp_btn"),
-                                                shape = RoundedCornerShape(12.dp),
-                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                            ) {
-                                                Text("Sign In", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            }
-                                        }
-                                    }
-
-                                    otpStatusMsg?.let { msg ->
-                                        Text(msg, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 4.dp))
-                                    }
-                                }
-                            }
-                        }
-
-                        // ==========================================
-                        // TAB 2: MINIMAL SIGN UP
-                        // ==========================================
-                        else {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Text(
-                                    text = "Email and password only.",
-                                    fontSize = 11.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 2.dp)
-                                )
-
-                                val regEmailValidation = validateEmail(regEmail)
-                                val regPasswordStrength = calculatePasswordStrength(regPassword)
-
-                                OutlinedTextField(
-                                    value = regEmail,
-                                    onValueChange = {
-                                        regEmail = it
-                                        regError = null
-                                    },
-                                    label = { Text("Email") },
-                                    placeholder = { Text("name@example.com") },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("signup_email_input"),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-
-                                EmailInlineFeedback(state = regEmailValidation)
-
-                                OutlinedTextField(
-                                    value = regPassword,
-                                    onValueChange = {
-                                        regPassword = it
-                                        regError = null
-                                    },
-                                    label = { Text("Password") },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    },
-                                    trailingIcon = {
-                                        IconButton(onClick = { isRegPasswordVisible = !isRegPasswordVisible }) {
-                                            Icon(
-                                                if (isRegPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                contentDescription = "Toggle password visibility"
-                                            )
-                                        }
-                                    },
-                                    visualTransformation = if (isRegPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .testTag("signup_password_input"),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-
-                                // Real-Time Inline Password Strength Indicator
-                                PasswordStrengthMeter(strength = regPasswordStrength)
-
-                                AnimatedVisibility(visible = regError != null) {
-                                    Text(
-                                        text = regError ?: "",
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                        },
+                                        visualTransformation = if (isRegPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("signup_password_input"),
+                                        shape = RoundedCornerShape(12.dp)
                                     )
-                                }
 
-                                Button(
-                                    onClick = {
-                                        if (regEmail.isBlank() || !regEmail.contains("@")) {
-                                            regError = "Enter a valid email"
-                                            return@Button
-                                        }
-                                        if (regPassword.length < 6) {
-                                            regError = "Password must be at least 6 characters"
-                                            return@Button
-                                        }
-                                        viewModel.registerMinimalUser(
-                                            email = regEmail,
-                                            password = regPassword,
-                                            onSuccess = { newUser ->
-                                                onLoginSuccess()
-                                            },
-                                            onError = { err ->
-                                                regError = err
+                                    // Real-Time Inline Password Strength Indicator
+                                    PasswordStrengthMeter(strength = regPasswordStrength)
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    // OTP Delivery Choice Toggle
+                                    Text(
+                                        text = "Send verification OTP code to:",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Surface(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable { regVerificationChannel = "EMAIL" },
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (regVerificationChannel == "EMAIL") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            border = BorderStroke(1.2.dp, if (regVerificationChannel == "EMAIL") MaterialTheme.colorScheme.primary else Color.Transparent)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Email,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = if (regVerificationChannel == "EMAIL") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    "Email OTP",
+                                                    fontSize = 12.5.sp,
+                                                    fontWeight = if (regVerificationChannel == "EMAIL") FontWeight.Bold else FontWeight.Medium
+                                                )
                                             }
+                                        }
+
+                                        Surface(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable { regVerificationChannel = "PHONE" },
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (regVerificationChannel == "PHONE") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            border = BorderStroke(1.2.dp, if (regVerificationChannel == "PHONE") MaterialTheme.colorScheme.primary else Color.Transparent)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.PhoneIphone,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = if (regVerificationChannel == "PHONE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    "SMS OTP",
+                                                    fontSize = 12.5.sp,
+                                                    fontWeight = if (regVerificationChannel == "PHONE") FontWeight.Bold else FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    AnimatedVisibility(visible = regError != null) {
+                                        Text(
+                                            text = regError ?: "",
+                                            color = MaterialTheme.colorScheme.error,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 4.dp)
                                         )
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp)
-                                        .testTag("signup_submit_btn"),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            if (regEmail.isBlank() || !regEmail.contains("@") || !regEmail.contains(".")) {
+                                                regError = "Please enter a valid email address"
+                                                return@Button
+                                            }
+                                            if (regVerificationChannel == "PHONE" && (regPhone.isBlank() || regPhone.length < 7)) {
+                                                regError = "Please enter a valid phone number for SMS OTP"
+                                                return@Button
+                                            }
+                                            if (regPassword.length < 6) {
+                                                regError = "Password must be at least 6 characters"
+                                                return@Button
+                                            }
+
+                                            // Generate 6-digit OTP
+                                            val randomOtp = (100000..999999).random().toString()
+                                            regGeneratedOtp = randomOtp
+                                            regSentTarget = if (regVerificationChannel == "EMAIL") regEmail.trim() else regPhone.trim()
+                                            regEnteredOtp = ""
+                                            regError = null
+                                            regStep = 1
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp)
+                                            .testTag("signup_submit_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    ) {
+                                        Text(
+                                            "Send OTP Verification Code",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.5.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                // STEP 1: Enter 6-digit OTP Verification
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("Create Account", fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (regVerificationChannel == "EMAIL") Icons.Default.MarkEmailRead else Icons.Default.Sms,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "Verify Your Account",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Enter the 6-digit code sent to:",
+                                            fontSize = 12.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = regSentTarget,
+                                            fontSize = 13.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
+                                    // Demo OTP Banner with 1-click autofill for testing
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = Color(0xFFFEF3C7),
+                                        border = BorderStroke(1.dp, Color(0xFFF59E0B))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    Icons.Default.Key,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFD97706),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "Code: $regGeneratedOtp",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF92400E)
+                                                )
+                                            }
+                                            TextButton(
+                                                onClick = { regEnteredOtp = regGeneratedOtp },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Auto-fill",
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFB45309)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    OutlinedTextField(
+                                        value = regEnteredOtp,
+                                        onValueChange = { input ->
+                                            if (input.length <= 6) {
+                                                regEnteredOtp = input.filter { it.isDigit() }
+                                                regError = null
+                                            }
+                                        },
+                                        label = { Text("6-Digit OTP") },
+                                        placeholder = { Text("------") },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Key, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("reg_otp_input")
+                                            .testTag("otp_code_input"),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+
+                                    AnimatedVisibility(visible = regError != null) {
+                                        Text(
+                                            text = regError ?: "",
+                                            color = MaterialTheme.colorScheme.error,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            if (regEnteredOtp.trim().length != 6) {
+                                                regError = "Please enter the complete 6-digit OTP"
+                                                return@Button
+                                            }
+                                            if (regEnteredOtp.trim() != regGeneratedOtp) {
+                                                regError = "Invalid verification code. Please check and try again."
+                                                return@Button
+                                            }
+                                            isRegSubmitting = true
+                                            viewModel.registerWithOtpVerification(
+                                                email = regEmail,
+                                                phone = regPhone,
+                                                password = regPassword,
+                                                verifiedVia = regVerificationChannel,
+                                                onSuccess = { newUser ->
+                                                    isRegSubmitting = false
+                                                    onLoginSuccess()
+                                                },
+                                                onError = { err ->
+                                                    isRegSubmitting = false
+                                                    regError = err
+                                                }
+                                            )
+                                        },
+                                        enabled = !isRegSubmitting,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp)
+                                            .testTag("verify_otp_btn"),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    ) {
+                                        if (isRegSubmitting) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = Color.White,
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Text(
+                                                "Verify & Create Account",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                val randomOtp = (100000..999999).random().toString()
+                                                regGeneratedOtp = randomOtp
+                                                regEnteredOtp = ""
+                                                regError = "New code sent to $regSentTarget"
+                                            }
+                                        ) {
+                                            Text("Resend Code", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+
+                                        TextButton(
+                                            onClick = {
+                                                regStep = 0
+                                                regError = null
+                                            }
+                                        ) {
+                                            Text("Edit Details", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
                                 }
                             }
                         }

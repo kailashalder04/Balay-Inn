@@ -1,6 +1,7 @@
 package com.example
 
 import android.content.Context
+import androidx.activity.compose.setContent
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -180,6 +181,24 @@ class ExampleRobolectricTest {
     org.junit.Assert.assertNotNull(scenario)
     scenario.onActivity { activity ->
       org.junit.Assert.assertNotNull(activity)
+    }
+    scenario.close()
+  }
+
+  @Test
+  fun `test ReusablePropertyCard renders without crash`() {
+    val scenario = androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
+    scenario.onActivity { activity ->
+      activity.setContent {
+        com.example.ui.components.ReusablePropertyCard(
+          imageUrl = "https://images.unsplash.com/photo-1570129477492-45c003edd2be",
+          price = "₱8,500/mo",
+          title = "Modern Studio Near IT Park",
+          location = "Lahug, Cebu City",
+          propertyType = "Studio",
+          isSaved = false
+        )
+      }
     }
     scenario.close()
   }

@@ -272,26 +272,30 @@ fun ExploreScreen(
                     }
                 }
 
-                // Philippine Rental Categories Bar (Visible to tenants/renters)
-                Box(modifier = Modifier.padding(top = 10.dp)) {
-                    CategoryFilterRow(
-                        selectedCategory = filterState.propertyType,
-                        allProperties = allUnfilteredProperties,
-                        onSelectCategory = { selectedCat ->
-                            viewModel.updatePropertyType(selectedCat)
-                        },
-                        isDark = isDark
-                    )
+                // Philippine Rental Categories Bar (Visible in list view or desktop; in map view, keep map elevated)
+                if (viewMode == "LIST" || isWideScreen) {
+                    Box(modifier = Modifier.padding(top = 10.dp)) {
+                        CategoryFilterRow(
+                            selectedCategory = filterState.propertyType,
+                            allProperties = allUnfilteredProperties,
+                            onSelectCategory = { selectedCat ->
+                                viewModel.updatePropertyType(selectedCat)
+                            },
+                            isDark = isDark
+                        )
+                    }
                 }
 
-                // Active Category Market Standard Info Card for Renters
-                SelectedCategoryHeaderCard(
-                    selectedCategory = filterState.propertyType,
-                    filteredCount = properties.size,
-                    onResetCategory = { viewModel.updatePropertyType("All") },
-                    isDark = isDark,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                // Active Category Market Standard Info Card for Renters (Shown in list view or desktop to give map full height)
+                if (viewMode == "LIST" || isWideScreen) {
+                    SelectedCategoryHeaderCard(
+                        selectedCategory = filterState.propertyType,
+                        filteredCount = properties.size,
+                        onResetCategory = { viewModel.updatePropertyType("All") },
+                        isDark = isDark,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
                 // Active Filter Chips Row
                 Row(

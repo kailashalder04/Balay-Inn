@@ -24,6 +24,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -72,8 +73,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -82,6 +85,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -116,6 +120,7 @@ import com.example.data.local.entity.ProvinceEntity
 import com.example.ui.theme.SteelBlue
 import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.theme.SteelBlueLightBg
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -236,6 +241,7 @@ fun InteractiveRentalMap(
     val centerLatAnim = remember { Animatable(initialLat.toFloat()) }
     val centerLngAnim = remember { Animatable(initialLng.toFloat()) }
     val zoomAnim = remember { Animatable(initialZoom) }
+    var animationJob by remember { mutableStateOf<Job?>(null) }
 
     var activeProperty by remember(selectedProperty) { mutableStateOf(selectedProperty) }
     var mapLayerStyle by remember { mutableStateOf("OSM") } // "OSM" = Standard Street View, "POSITRON" = Clean Light Map
@@ -255,11 +261,12 @@ fun InteractiveRentalMap(
     // User GPS state
     var userGpsLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
 
-    // Silky-Smooth 1.2s FlyTo transition with 0.25 easeLinearity
+    // Silky-Smooth FlyTo transition with 0.25 easeLinearity
     fun flyTo(targetLat: Double, targetLng: Double, targetZoom: Float) {
-        coroutineScope.launch {
+        animationJob?.cancel()
+        animationJob = coroutineScope.launch {
             val flyEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f) // 0.25 easeLinearity
-            val flyDuration = 1200 // 1.2s animation duration
+            val flyDuration = 900 // Snappy 900ms animation duration
             val snappedTargetZoom = (round(targetZoom / 0.25f) * 0.25f).coerceIn(3.0f, 18.0f)
 
             launch {
@@ -430,10 +437,10 @@ fun InteractiveRentalMap(
         val maxWorldY = centerZPixelY + (heightPx / 2.0) / fracScale
 
         val maxTileIndex = (1 shl currentZ) - 1
-        val minTileX = (floor(minWorldX / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIndex)
-        val maxTileX = (floor(maxWorldX / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIndex)
-        val minTileY = (floor(minWorldY / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIndex)
-        val maxTileY = (floor(maxWorldY / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIndex)
+        val minTileX = (floor(minWorldX / WebMercator.TILE_SIZE).toInt() - 1).coerceIn(0, maxTileIndex)
+        val maxTileX = (floor(maxWorldX / WebMercator.TILE_SIZE).toInt() + 1).coerceIn(0, maxTileIndex)
+        val minTileY = (floor(minWorldY / WebMercator.TILE_SIZE).toInt() - 1).coerceIn(0, maxTileIndex)
+        val maxTileY = (floor(maxWorldY / WebMercator.TILE_SIZE).toInt() + 1).coerceIn(0, maxTileIndex)
 
         // Update bounds for "Search this area"
         val curMinLon = WebMercator.normXToLng(minWorldX / (WebMercator.TILE_SIZE * (1 shl currentZ)))
@@ -458,11 +465,22 @@ fun InteractiveRentalMap(
                         while (true) {
                             awaitPointerEventScope {
                                 val down = awaitFirstDown(requireUnconsumed = false)
+                                animationJob?.cancel()
+                                animationJob = null
+                                launch {
+                                    centerLngAnim.stop()
+                                    centerLatAnim.stop()
+                                    zoomAnim.stop()
+                                }
+
                                 velocityTracker.resetTracking()
                                 velocityTracker.addPosition(down.uptimeMillis, down.position)
 
                                 var prevPos = down.position
                                 var isMultiTouch = false
+                                var currentCameraLng = centerLngAnim.value.toDouble()
+                                var currentCameraLat = centerLatAnim.value.toDouble()
+                                var currentCameraZoom = zoomAnim.value
 
                                 while (true) {
                                     val event = awaitPointerEvent()
@@ -476,19 +494,21 @@ fun InteractiveRentalMap(
                                         val zoomChange = event.calculateZoom()
                                         val pan = event.calculatePan()
 
-                                        val newZoom = (zoomAnim.value * zoomChange).coerceIn(3.0f, 18.0f)
-                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(newZoom.toDouble())
+                                        currentCameraZoom = (currentCameraZoom * zoomChange).coerceIn(3.0f, 18.0f)
+                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(currentCameraZoom.toDouble())
 
-                                        val curPixX = WebMercator.worldPixelX(centerLngAnim.value.toDouble(), newZoom.toDouble()) - pan.x.toDouble()
-                                        val curPixY = WebMercator.worldPixelY(centerLatAnim.value.toDouble(), newZoom.toDouble()) - pan.y.toDouble()
+                                        val curPixX = WebMercator.worldPixelX(currentCameraLng, currentCameraZoom.toDouble()) - pan.x.toDouble()
+                                        val curPixY = WebMercator.worldPixelY(currentCameraLat, currentCameraZoom.toDouble()) - pan.y.toDouble()
 
-                                        val newLng = WebMercator.normXToLng(curPixX / curScale)
-                                        val newLat = WebMercator.normYToLat(curPixY / curScale)
+                                        currentCameraLng = WebMercator.normXToLng(curPixX / curScale)
+                                        currentCameraLat = WebMercator.normYToLat(curPixY / curScale)
+
+                                        event.changes.forEach { it.consume() }
 
                                         launch {
-                                            centerLngAnim.snapTo(newLng.toFloat())
-                                            centerLatAnim.snapTo(newLat.toFloat())
-                                            zoomAnim.snapTo(newZoom)
+                                            centerLngAnim.snapTo(currentCameraLng.toFloat())
+                                            centerLatAnim.snapTo(currentCameraLat.toFloat())
+                                            zoomAnim.snapTo(currentCameraZoom)
                                         }
                                         hasPannedSinceLastSearch = true
                                     } else {
@@ -498,17 +518,18 @@ fun InteractiveRentalMap(
                                         prevPos = currentPos
 
                                         velocityTracker.addPosition(change.uptimeMillis, currentPos)
+                                        change.consume()
 
-                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(zoomAnim.value.toDouble())
-                                        val curPixX = WebMercator.worldPixelX(centerLngAnim.value.toDouble(), zoomAnim.value.toDouble()) - delta.x.toDouble()
-                                        val curPixY = WebMercator.worldPixelY(centerLatAnim.value.toDouble(), zoomAnim.value.toDouble()) - delta.y.toDouble()
+                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(currentCameraZoom.toDouble())
+                                        val curPixX = WebMercator.worldPixelX(currentCameraLng, currentCameraZoom.toDouble()) - delta.x.toDouble()
+                                        val curPixY = WebMercator.worldPixelY(currentCameraLat, currentCameraZoom.toDouble()) - delta.y.toDouble()
 
-                                        val newLng = WebMercator.normXToLng(curPixX / curScale)
-                                        val newLat = WebMercator.normYToLat(curPixY / curScale)
+                                        currentCameraLng = WebMercator.normXToLng(curPixX / curScale)
+                                        currentCameraLat = WebMercator.normYToLat(curPixY / curScale)
 
                                         launch {
-                                            centerLngAnim.snapTo(newLng.toFloat())
-                                            centerLatAnim.snapTo(newLat.toFloat())
+                                            centerLngAnim.snapTo(currentCameraLng.toFloat())
+                                            centerLatAnim.snapTo(currentCameraLat.toFloat())
                                         }
                                         hasPannedSinceLastSearch = true
                                     }
@@ -517,35 +538,37 @@ fun InteractiveRentalMap(
                                 // Gesture Release Handling
                                 if (isMultiTouch) {
                                     // Fine fractional zoom snap to 0.25 increments (zoomSnap = 0.25)
-                                    val snapped = (round(zoomAnim.value / 0.25f) * 0.25f).coerceIn(3.0f, 18.0f)
-                                    launch {
+                                    val snapped = (round(currentCameraZoom / 0.25f) * 0.25f).coerceIn(3.0f, 18.0f)
+                                    animationJob = launch {
                                         zoomAnim.animateTo(snapped, tween(160, easing = FastOutSlowInEasing))
                                     }
                                 } else {
-                                    // Physics-based inertia: max speed 1400 px/s, deceleration 2500 px/s²
+                                    // Physics-based inertia: max speed 1600 px/s, deceleration 2500 px/s²
                                     val vel = velocityTracker.calculateVelocity()
-                                    val vx = vel.x.coerceIn(-1400f, 1400f)
-                                    val vy = vel.y.coerceIn(-1400f, 1400f)
+                                    val vx = vel.x.coerceIn(-1600f, 1600f)
+                                    val vy = vel.y.coerceIn(-1600f, 1600f)
                                     val speed = hypot(vx, vy)
 
-                                    if (speed > 100f) {
-                                        val durationSec = (speed / 2500f).coerceIn(0.2f, 0.85f)
-                                        val inertiaDistX = (vx * durationSec / 2.0).toDouble()
-                                        val inertiaDistY = (vy * durationSec / 2.0).toDouble()
+                                    if (speed > 80f) {
+                                        val durationSec = (speed / 2500f).coerceIn(0.2f, 0.75f)
+                                        val inertiaDistX = (vx * durationSec * 0.42).toDouble()
+                                        val inertiaDistY = (vy * durationSec * 0.42).toDouble()
 
-                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(zoomAnim.value.toDouble())
-                                        val curPixX = WebMercator.worldPixelX(centerLngAnim.value.toDouble(), zoomAnim.value.toDouble()) - inertiaDistX
-                                        val curPixY = WebMercator.worldPixelY(centerLatAnim.value.toDouble(), zoomAnim.value.toDouble()) - inertiaDistY
+                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(currentCameraZoom.toDouble())
+                                        val curPixX = WebMercator.worldPixelX(currentCameraLng, currentCameraZoom.toDouble()) - inertiaDistX
+                                        val curPixY = WebMercator.worldPixelY(currentCameraLat, currentCameraZoom.toDouble()) - inertiaDistY
 
                                         val targetLng = WebMercator.normXToLng(curPixX / curScale)
                                         val targetLat = WebMercator.normYToLat(curPixY / curScale)
 
                                         val animMs = (durationSec * 1000).toInt()
-                                        launch {
-                                            centerLngAnim.animateTo(targetLng.toFloat(), tween(animMs, easing = FastOutSlowInEasing))
-                                        }
-                                        launch {
-                                            centerLatAnim.animateTo(targetLat.toFloat(), tween(animMs, easing = FastOutSlowInEasing))
+                                        animationJob = launch {
+                                            launch {
+                                                centerLngAnim.animateTo(targetLng.toFloat(), tween(animMs, easing = FastOutSlowInEasing))
+                                            }
+                                            launch {
+                                                centerLatAnim.animateTo(targetLat.toFloat(), tween(animMs, easing = FastOutSlowInEasing))
+                                            }
                                         }
                                     }
                                 }
@@ -556,9 +579,10 @@ fun InteractiveRentalMap(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = {
-                            coroutineScope.launch {
+                            animationJob?.cancel()
+                            animationJob = coroutineScope.launch {
                                 val targetZoom = (round((zoomAnim.value + 1.0f) / 0.25f) * 0.25f).coerceAtMost(18.0f)
-                                zoomAnim.animateTo(targetZoom, tween(300, easing = FastOutSlowInEasing))
+                                zoomAnim.animateTo(targetZoom, tween(260, easing = FastOutSlowInEasing))
                                 hasPannedSinceLastSearch = true
                             }
                         },
@@ -583,23 +607,43 @@ fun InteractiveRentalMap(
                         "https://tile.openstreetmap.org/$currentZ/$tileX/$tileY.png"
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .offset { IntOffset(tileScreenX, tileScreenY) }
-                            .size(with(density) { tileWidth.toDp() }, with(density) { tileHeight.toDp() })
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(tileUrl)
-                                .addHeader("User-Agent", "BalayInnRentalApp/1.0 (Android; Jetpack Compose)")
-                                .crossfade(false)
-                                .build(),
-                            contentDescription = null,
-                            contentScale = ContentScale.FillBounds,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                    val tileKey = "$mapLayerStyle-$currentZ-$tileX-$tileY"
+
+                    key(tileKey) {
+                        Box(
+                            modifier = Modifier
+                                .offset { IntOffset(tileScreenX, tileScreenY) }
+                                .size(with(density) { tileWidth.toDp() }, with(density) { tileHeight.toDp() })
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(tileUrl)
+                                    .addHeader("User-Agent", "BalayInnRentalApp/1.0 (Android; Jetpack Compose)")
+                                    .memoryCacheKey(tileKey)
+                                    .diskCacheKey(tileKey)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillBounds,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
+            }
+
+            // --- STREAMING MAP LOADING BAR ---
+            val isCameraMoving = centerLatAnim.isRunning || centerLngAnim.isRunning || zoomAnim.isRunning
+            if (isCameraMoving || isAreaSearchActive) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .zIndex(26f),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Transparent
+                )
             }
 
             // 1.2 Render Property Markers (Rock-solid pin badges aligned to exact road coordinates)
@@ -616,7 +660,7 @@ fun InteractiveRentalMap(
 
                     Box(
                         modifier = Modifier
-                            .offset { IntOffset(markerScreenX - 35, markerScreenY - 18) }
+                            .offset { IntOffset(markerScreenX - 35, markerScreenY - 32) }
                             .zIndex(if (isSelected) 10f else 1f)
                     ) {
                         Surface(
@@ -679,7 +723,7 @@ fun InteractiveRentalMap(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 4.dp)
                 .zIndex(20f)
         ) {
             // Quick Location Presets Row with Smooth 1.2s FlyTo
@@ -715,7 +759,7 @@ fun InteractiveRentalMap(
             exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 52.dp)
+                .padding(top = 40.dp)
                 .zIndex(20f)
         ) {
             Surface(
@@ -1271,14 +1315,27 @@ fun LocationMapPicker(
             val pMaxWorldY = pCenterPixelY + (hPx / 2.0) / pFracScale
 
             val maxTileIdx = (1 shl pZ) - 1
-            val pMinTileX = (floor(pMinWorldX / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIdx)
-            val pMaxTileX = (floor(pMaxWorldX / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIdx)
-            val pMinTileY = (floor(pMinWorldY / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIdx)
-            val pMaxTileY = (floor(pMaxWorldY / WebMercator.TILE_SIZE).toInt()).coerceIn(0, maxTileIdx)
+            val pMinTileX = (floor(pMinWorldX / WebMercator.TILE_SIZE).toInt() - 1).coerceIn(0, maxTileIdx)
+            val pMaxTileX = (floor(pMaxWorldX / WebMercator.TILE_SIZE).toInt() + 1).coerceIn(0, maxTileIdx)
+            val pMinTileY = (floor(pMinWorldY / WebMercator.TILE_SIZE).toInt() - 1).coerceIn(0, maxTileIdx)
+            val pMaxTileY = (floor(pMaxWorldY / WebMercator.TILE_SIZE).toInt() + 1).coerceIn(0, maxTileIdx)
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .pointerInput(currentLat, currentLng, pickerZoom) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            val scale = WebMercator.TILE_SIZE * 2.0.pow(pickerZoom.toDouble())
+                            val curPixX = WebMercator.worldPixelX(currentLng, pickerZoom.toDouble()) - dragAmount.x
+                            val curPixY = WebMercator.worldPixelY(currentLat, pickerZoom.toDouble()) - dragAmount.y
+                            val newLng = WebMercator.normXToLng(curPixX / scale)
+                            val newLat = WebMercator.normYToLat(curPixY / scale)
+                            currentLat = newLat
+                            currentLng = newLng
+                            onLocationPicked(newLat, newLng)
+                        }
+                    }
                     .pointerInput(currentLat, currentLng, pickerZoom) {
                         detectTapGestures { tapOffset ->
                             val scale = WebMercator.TILE_SIZE * 2.0.pow(pickerZoom.toDouble())
@@ -1302,21 +1359,27 @@ fun LocationMapPicker(
                         val th = (WebMercator.TILE_SIZE * pFracScale).roundToInt()
 
                         val tileUrl = "https://tile.openstreetmap.org/$pZ/$tx/$ty.png"
+                        val pKey = "picker-$pZ-$tx-$ty"
 
-                        Box(
-                            modifier = Modifier
-                                .offset { IntOffset(sx, sy) }
-                                .size(with(density) { tw.toDp() }, with(density) { th.toDp() })
-                        ) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(tileUrl)
-                                    .addHeader("User-Agent", "BalayInnRentalApp/1.0 (Android; Jetpack Compose)")
-                                    .build(),
-                                contentDescription = null,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                        key(pKey) {
+                            Box(
+                                modifier = Modifier
+                                    .offset { IntOffset(sx, sy) }
+                                    .size(with(density) { tw.toDp() }, with(density) { th.toDp() })
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(tileUrl)
+                                        .addHeader("User-Agent", "BalayInnRentalApp/1.0 (Android; Jetpack Compose)")
+                                        .memoryCacheKey(pKey)
+                                        .diskCacheKey(pKey)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillBounds,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     }
                 }

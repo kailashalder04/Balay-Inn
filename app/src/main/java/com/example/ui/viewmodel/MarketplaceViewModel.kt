@@ -897,6 +897,47 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         )
     }
 
+    fun registerWithOtpVerification(
+        email: String,
+        phone: String,
+        password: String,
+        verifiedVia: String, // "EMAIL" or "PHONE"
+        onSuccess: (UserEntity) -> Unit,
+        onError: ((String) -> Unit)? = null
+    ) {
+        val cleanEmail = email.trim().lowercase()
+        val cleanPhone = phone.trim()
+        val defaultName = cleanEmail.substringBefore("@")
+            .split(".", "_", "-")
+            .joinToString(" ") { word -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } }
+            .ifBlank { "Balay-Inn Resident" }
+
+        val isEmailVer = verifiedVia.equals("EMAIL", ignoreCase = true)
+        val isPhoneVer = verifiedVia.equals("PHONE", ignoreCase = true)
+
+        registerUser(
+            fullName = defaultName,
+            email = cleanEmail,
+            phone = cleanPhone,
+            role = "TENANT",
+            relationshipToProperty = "Tenant",
+            password = password,
+            onSuccess = { createdUser ->
+                val updatedUser = createdUser.copy(
+                    emailVerified = isEmailVer || createdUser.emailVerified,
+                    phoneVerified = isPhoneVer || createdUser.phoneVerified,
+                    verificationLevel = if (isEmailVer || isPhoneVer) 2 else 1
+                )
+                viewModelScope.launch {
+                    repository.registerUser(updatedUser)
+                    repository.switchUser(updatedUser)
+                    onSuccess(updatedUser)
+                }
+            },
+            onError = onError
+        )
+    }
+
     fun registerOrLoginWithGoogleSso(
         email: String = "kailashalder04@gmail.com",
         fullName: String = "Kailash Alder",
