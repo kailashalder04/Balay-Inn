@@ -146,8 +146,8 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
     private val _filterState = MutableStateFlow(MarketplaceFilterState())
     val filterState: StateFlow<MarketplaceFilterState> = _filterState.asStateFlow()
 
-    // View Mode (LIST vs MAP)
-    private val _viewMode = MutableStateFlow("LIST")
+    // View Mode (MAP vs LIST, defaults to MAP so map is displayed immediately)
+    private val _viewMode = MutableStateFlow("MAP")
     val viewMode: StateFlow<String> = _viewMode.asStateFlow()
 
     fun setViewMode(mode: String) {

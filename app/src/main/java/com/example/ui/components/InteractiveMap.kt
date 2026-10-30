@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -16,6 +17,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +33,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,13 +45,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -126,6 +132,7 @@ import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.atan
 import kotlin.math.floor
 import kotlin.math.hypot
@@ -237,15 +244,25 @@ fun InteractiveRentalMap(
     val initialLng = selectedProperty?.longitude ?: 123.8854
     val initialZoom = if (selectedProperty != null) 14.0f else 12.0f
 
-    // Animated Camera Coordinates & Zoom (for silky-smooth 60fps transitions)
-    val centerLatAnim = remember { Animatable(initialLat.toFloat()) }
-    val centerLngAnim = remember { Animatable(initialLng.toFloat()) }
-    val zoomAnim = remember { Animatable(initialZoom) }
+    // High-performance camera coordinates & zoom (zero mutex contention during touch gestures)
+    var cameraLat by remember { mutableDoubleStateOf(initialLat) }
+    var cameraLng by remember { mutableDoubleStateOf(initialLng) }
+    var cameraZoom by remember { mutableFloatStateOf(initialZoom) }
+    var isCameraAnimating by remember { mutableStateOf(false) }
     var animationJob by remember { mutableStateOf<Job?>(null) }
 
     var activeProperty by remember(selectedProperty) { mutableStateOf(selectedProperty) }
-    var mapLayerStyle by remember { mutableStateOf("OSM") } // "OSM" = Standard Street View, "POSITRON" = Clean Light Map
+    var mapLayerStyle by remember { mutableStateOf("HOT") } // "HOT" = Humanitarian OpenStreetMap (100% Free, Zero API Key, No Watermark)
     var showStyleSelector by remember { mutableStateOf(false) }
+
+    fun getTileUrl(style: String, z: Int, x: Int, y: Int): String {
+        val s = if (kotlin.math.abs(x + y) % 2 == 0) "a" else "b"
+        return when (style) {
+            "OSM" -> "https://tile.openstreetmap.org/$z/$x/$y.png"
+            "DE" -> "https://tile.openstreetmap.de/$z/$x/$y.png"
+            else -> "https://$s.tile.openstreetmap.fr/hot/$z/$x/$y.png"
+        }
+    }
 
     // Map bounds tracking for "Search this area"
     var hasPannedSinceLastSearch by remember { mutableStateOf(false) }
@@ -253,6 +270,19 @@ fun InteractiveRentalMap(
     var currentBoundsMaxLat by remember { mutableDoubleStateOf(initialLat + 0.05) }
     var currentBoundsMinLon by remember { mutableDoubleStateOf(initialLng - 0.05) }
     var currentBoundsMaxLon by remember { mutableDoubleStateOf(initialLng + 0.05) }
+
+    // Auto-frame on loaded properties if camera hasn't been moved
+    var hasAutoFramed by remember { mutableStateOf(false) }
+    LaunchedEffect(properties) {
+        if (!hasAutoFramed && properties.isNotEmpty() && selectedProperty == null && !hasPannedSinceLastSearch) {
+            hasAutoFramed = true
+            val avgLat = properties.map { it.latitude }.average()
+            val avgLng = properties.map { it.longitude }.average()
+            cameraLat = avgLat
+            cameraLng = avgLng
+            cameraZoom = 12.0f
+        }
+    }
 
     // Search bar state
     var searchQuery by remember { mutableStateOf("") }
@@ -264,30 +294,46 @@ fun InteractiveRentalMap(
     // Silky-Smooth FlyTo transition with 0.25 easeLinearity
     fun flyTo(targetLat: Double, targetLng: Double, targetZoom: Float) {
         animationJob?.cancel()
-        animationJob = coroutineScope.launch {
-            val flyEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f) // 0.25 easeLinearity
-            val flyDuration = 900 // Snappy 900ms animation duration
-            val snappedTargetZoom = (round(targetZoom / 0.25f) * 0.25f).coerceIn(3.0f, 18.0f)
+        val startLat = cameraLat
+        val startLng = cameraLng
+        val startZoom = cameraZoom
+        val snappedTargetZoom = (round(targetZoom / 0.25f) * 0.25f).coerceIn(3.0f, 18.0f)
+        val flyEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f)
 
-            launch {
-                centerLatAnim.animateTo(
-                    targetValue = targetLat.toFloat(),
-                    animationSpec = tween(flyDuration, easing = flyEasing)
-                )
-            }
-            launch {
-                centerLngAnim.animateTo(
-                    targetValue = targetLng.toFloat(),
-                    animationSpec = tween(flyDuration, easing = flyEasing)
-                )
-            }
-            launch {
-                zoomAnim.animateTo(
-                    targetValue = snappedTargetZoom,
-                    animationSpec = tween(flyDuration, easing = flyEasing)
-                )
+        animationJob = coroutineScope.launch {
+            isCameraAnimating = true
+            try {
+                animate(
+                    initialValue = 0f,
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 850, easing = flyEasing)
+                ) { fraction, _ ->
+                    cameraLat = startLat + (targetLat - startLat) * fraction
+                    cameraLng = startLng + (targetLng - startLng) * fraction
+                    cameraZoom = startZoom + (snappedTargetZoom - startZoom) * fraction
+                }
+            } finally {
+                isCameraAnimating = false
             }
             hasPannedSinceLastSearch = true
+        }
+    }
+
+    var selectedLocationLabel by remember { mutableStateOf<String?>("🏙️ Metro Cebu") }
+
+    // Fly to location and select closest available property to show card tiles
+    fun selectLocation(label: String, targetLat: Double, targetLng: Double, targetZoom: Float) {
+        selectedLocationLabel = label
+        flyTo(targetLat, targetLng, targetZoom)
+        if (properties.isNotEmpty()) {
+            val closest = properties.minByOrNull { prop ->
+                val dLat = prop.latitude - targetLat
+                val dLng = prop.longitude - targetLng
+                dLat * dLat + dLng * dLng
+            }
+            if (closest != null) {
+                activeProperty = closest
+            }
         }
     }
 
@@ -318,10 +364,16 @@ fun InteractiveRentalMap(
                     Toast.makeText(context, "Acquiring GPS fix...", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: SecurityException) {
-                Toast.makeText(context, "Location permission required", Toast.LENGTH_SHORT).show()
+                val targetLat = if (properties.isNotEmpty()) properties.first().latitude else 10.3157
+                val targetLng = if (properties.isNotEmpty()) properties.first().longitude else 123.8854
+                flyTo(targetLat, targetLng, 12.5f)
+                Toast.makeText(context, "Location permission optional • Centered on Cebu hub", Toast.LENGTH_SHORT).show()
             }
         } else {
-            Toast.makeText(context, "Location permission not granted", Toast.LENGTH_SHORT).show()
+            val targetLat = if (properties.isNotEmpty()) properties.first().latitude else 10.3157
+            val targetLng = if (properties.isNotEmpty()) properties.first().longitude else 123.8854
+            flyTo(targetLat, targetLng, 12.5f)
+            Toast.makeText(context, "Location access is optional • Centered on Cebu hub", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -418,10 +470,10 @@ fun InteractiveRentalMap(
         val widthPx = with(density) { maxWidth.toPx().toDouble() }
         val heightPx = with(density) { maxHeight.toPx().toDouble() }
 
-        // Live Animated Camera State
-        val curLat = centerLatAnim.value.toDouble()
-        val curLng = centerLngAnim.value.toDouble()
-        val curZoom = zoomAnim.value
+        // Live Camera Coordinates & Slippy Math
+        val curLat = cameraLat
+        val curLng = cameraLng
+        val curZoom = cameraZoom
 
         // Slippy Tile Math
         val currentZ = curZoom.toInt().coerceIn(1, 18)
@@ -431,10 +483,12 @@ fun InteractiveRentalMap(
         val centerZPixelX = WebMercator.worldPixelX(curLng, currentZ.toDouble())
         val centerZPixelY = WebMercator.worldPixelY(curLat, currentZ.toDouble())
 
-        val minWorldX = centerZPixelX - (widthPx / 2.0) / fracScale
-        val maxWorldX = centerZPixelX + (widthPx / 2.0) / fracScale
-        val minWorldY = centerZPixelY - (heightPx / 2.0) / fracScale
-        val maxWorldY = centerZPixelY + (heightPx / 2.0) / fracScale
+        val halfW = widthPx / 2.0
+        val halfH = heightPx / 2.0
+        val minWorldX = centerZPixelX - halfW / fracScale
+        val maxWorldX = centerZPixelX + halfW / fracScale
+        val minWorldY = centerZPixelY - halfH / fracScale
+        val maxWorldY = centerZPixelY + halfH / fracScale
 
         val maxTileIndex = (1 shl currentZ) - 1
         val minTileX = (floor(minWorldX / WebMercator.TILE_SIZE).toInt() - 1).coerceIn(0, maxTileIndex)
@@ -454,33 +508,31 @@ fun InteractiveRentalMap(
         currentBoundsMaxLon = curMaxLon
 
         val velocityTracker = remember { VelocityTracker() }
+        var lastTapTime by remember { mutableStateOf(0L) }
+        var lastTapPos by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
 
-        // 1. Map Canvas/Container with Momentum Inertia & Fractional Zoom
+        // 1. Map Canvas/Container with Zero-Lag Touch Panning, Centroid Pinch-Zoom & Momentum
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(if (mapLayerStyle == "OSM") Color(0xFFE2E8F0) else Color(0xFFF8FAFC))
+                .background(if (mapLayerStyle == "POSITRON") Color(0xFFF1F5F9) else Color(0xFFE2E8F0))
                 .pointerInput(Unit) {
+                    val touchSlop = viewConfiguration.touchSlop
                     coroutineScope {
                         while (true) {
                             awaitPointerEventScope {
                                 val down = awaitFirstDown(requireUnconsumed = false)
                                 animationJob?.cancel()
                                 animationJob = null
-                                launch {
-                                    centerLngAnim.stop()
-                                    centerLatAnim.stop()
-                                    zoomAnim.stop()
-                                }
+                                isCameraAnimating = false
 
                                 velocityTracker.resetTracking()
                                 velocityTracker.addPosition(down.uptimeMillis, down.position)
 
                                 var prevPos = down.position
                                 var isMultiTouch = false
-                                var currentCameraLng = centerLngAnim.value.toDouble()
-                                var currentCameraLat = centerLatAnim.value.toDouble()
-                                var currentCameraZoom = zoomAnim.value
+                                var hasPassedSlop = false
+                                var totalDragDistance = 0f
 
                                 while (true) {
                                     val event = awaitPointerEvent()
@@ -491,25 +543,46 @@ fun InteractiveRentalMap(
 
                                     if (changes.size > 1) {
                                         isMultiTouch = true
+                                        hasPassedSlop = true
                                         val zoomChange = event.calculateZoom()
                                         val pan = event.calculatePan()
+                                        val centroid = event.calculateCentroid()
 
-                                        currentCameraZoom = (currentCameraZoom * zoomChange).coerceIn(3.0f, 18.0f)
-                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(currentCameraZoom.toDouble())
+                                        val oldZoom = cameraZoom
+                                        val newZoom = (oldZoom * zoomChange).coerceIn(3.0f, 18.0f)
 
-                                        val curPixX = WebMercator.worldPixelX(currentCameraLng, currentCameraZoom.toDouble()) - pan.x.toDouble()
-                                        val curPixY = WebMercator.worldPixelY(currentCameraLat, currentCameraZoom.toDouble()) - pan.y.toDouble()
+                                        val oldScale = WebMercator.TILE_SIZE * 2.0.pow(oldZoom.toDouble())
+                                        val newScale = WebMercator.TILE_SIZE * 2.0.pow(newZoom.toDouble())
 
-                                        currentCameraLng = WebMercator.normXToLng(curPixX / curScale)
-                                        currentCameraLat = WebMercator.normYToLat(curPixY / curScale)
+                                        val centroidOffsetX = centroid.x - halfW
+                                        val centroidOffsetY = centroid.y - halfH
 
-                                        event.changes.forEach { it.consume() }
+                                        val oldCenterPxX = WebMercator.worldPixelX(cameraLng, oldZoom.toDouble())
+                                        val oldCenterPxY = WebMercator.worldPixelY(cameraLat, oldZoom.toDouble())
 
-                                        launch {
-                                            centerLngAnim.snapTo(currentCameraLng.toFloat())
-                                            centerLatAnim.snapTo(currentCameraLat.toFloat())
-                                            zoomAnim.snapTo(currentCameraZoom)
-                                        }
+                                        val focalWorldPxX = oldCenterPxX + centroidOffsetX
+                                        val focalWorldPxY = oldCenterPxY + centroidOffsetY
+
+                                        val normFocalX = focalWorldPxX / oldScale
+                                        val normFocalY = focalWorldPxY / oldScale
+
+                                        val newFocalPxX = normFocalX * newScale
+                                        val newFocalPxY = normFocalY * newScale
+
+                                        val newCentroidOffsetX = centroidOffsetX + pan.x
+                                        val newCentroidOffsetY = centroidOffsetY + pan.y
+
+                                        val newCenterPxX = newFocalPxX - newCentroidOffsetX
+                                        val newCenterPxY = newFocalPxY - newCentroidOffsetY
+
+                                        val updatedLng = WebMercator.normXToLng(newCenterPxX / newScale)
+                                        val updatedLat = WebMercator.normYToLat(newCenterPxY / newScale)
+
+                                        cameraLng = updatedLng.coerceIn(-180.0, 180.0)
+                                        cameraLat = updatedLat.coerceIn(-85.0511, 85.0511)
+                                        cameraZoom = newZoom
+
+                                        changes.forEach { it.consume() }
                                         hasPannedSinceLastSearch = true
                                     } else {
                                         val change = changes.first()
@@ -517,57 +590,138 @@ fun InteractiveRentalMap(
                                         val delta = currentPos - prevPos
                                         prevPos = currentPos
 
-                                        velocityTracker.addPosition(change.uptimeMillis, currentPos)
-                                        change.consume()
-
-                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(currentCameraZoom.toDouble())
-                                        val curPixX = WebMercator.worldPixelX(currentCameraLng, currentCameraZoom.toDouble()) - delta.x.toDouble()
-                                        val curPixY = WebMercator.worldPixelY(currentCameraLat, currentCameraZoom.toDouble()) - delta.y.toDouble()
-
-                                        currentCameraLng = WebMercator.normXToLng(curPixX / curScale)
-                                        currentCameraLat = WebMercator.normYToLat(curPixY / curScale)
-
-                                        launch {
-                                            centerLngAnim.snapTo(currentCameraLng.toFloat())
-                                            centerLatAnim.snapTo(currentCameraLat.toFloat())
+                                        if (!hasPassedSlop) {
+                                            totalDragDistance += hypot(delta.x, delta.y)
+                                            if (totalDragDistance > touchSlop) {
+                                                hasPassedSlop = true
+                                            }
                                         }
-                                        hasPannedSinceLastSearch = true
+
+                                        if (hasPassedSlop) {
+                                            velocityTracker.addPosition(change.uptimeMillis, currentPos)
+                                            change.consume()
+
+                                            val curScale = WebMercator.TILE_SIZE * 2.0.pow(cameraZoom.toDouble())
+                                            val curPixX = WebMercator.worldPixelX(cameraLng, cameraZoom.toDouble()) - delta.x.toDouble()
+                                            val curPixY = WebMercator.worldPixelY(cameraLat, cameraZoom.toDouble()) - delta.y.toDouble()
+
+                                            cameraLng = WebMercator.normXToLng(curPixX / curScale).coerceIn(-180.0, 180.0)
+                                            cameraLat = WebMercator.normYToLat(curPixY / curScale).coerceIn(-85.0511, 85.0511)
+                                            hasPannedSinceLastSearch = true
+                                        }
                                     }
                                 }
 
                                 // Gesture Release Handling
                                 if (isMultiTouch) {
-                                    // Fine fractional zoom snap to 0.25 increments (zoomSnap = 0.25)
-                                    val snapped = (round(currentCameraZoom / 0.25f) * 0.25f).coerceIn(3.0f, 18.0f)
-                                    animationJob = launch {
-                                        zoomAnim.animateTo(snapped, tween(160, easing = FastOutSlowInEasing))
+                                    val snapped = (round(cameraZoom / 0.25f) * 0.25f).coerceIn(3.0f, 18.0f)
+                                    val startZ = cameraZoom
+                                    if (abs(snapped - startZ) > 0.01f) {
+                                        animationJob = launch {
+                                            isCameraAnimating = true
+                                            try {
+                                                animate(
+                                                    initialValue = startZ,
+                                                    targetValue = snapped,
+                                                    animationSpec = tween(140, easing = FastOutSlowInEasing)
+                                                ) { v, _ ->
+                                                    cameraZoom = v
+                                                }
+                                            } finally {
+                                                isCameraAnimating = false
+                                            }
+                                        }
                                     }
-                                } else {
-                                    // Physics-based inertia: max speed 1600 px/s, deceleration 2500 px/s²
+                                } else if (hasPassedSlop) {
                                     val vel = velocityTracker.calculateVelocity()
-                                    val vx = vel.x.coerceIn(-1600f, 1600f)
-                                    val vy = vel.y.coerceIn(-1600f, 1600f)
+                                    val vx = vel.x.coerceIn(-2200f, 2200f)
+                                    val vy = vel.y.coerceIn(-2200f, 2200f)
                                     val speed = hypot(vx, vy)
 
                                     if (speed > 80f) {
-                                        val durationSec = (speed / 2500f).coerceIn(0.2f, 0.75f)
+                                        val durationSec = (speed / 2800f).coerceIn(0.2f, 0.65f)
                                         val inertiaDistX = (vx * durationSec * 0.42).toDouble()
                                         val inertiaDistY = (vy * durationSec * 0.42).toDouble()
 
-                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(currentCameraZoom.toDouble())
-                                        val curPixX = WebMercator.worldPixelX(currentCameraLng, currentCameraZoom.toDouble()) - inertiaDistX
-                                        val curPixY = WebMercator.worldPixelY(currentCameraLat, currentCameraZoom.toDouble()) - inertiaDistY
-
-                                        val targetLng = WebMercator.normXToLng(curPixX / curScale)
-                                        val targetLat = WebMercator.normYToLat(curPixY / curScale)
+                                        val curScale = WebMercator.TILE_SIZE * 2.0.pow(cameraZoom.toDouble())
+                                        val startPixX = WebMercator.worldPixelX(cameraLng, cameraZoom.toDouble())
+                                        val startPixY = WebMercator.worldPixelY(cameraLat, cameraZoom.toDouble())
+                                        val targetPixX = startPixX - inertiaDistX
+                                        val targetPixY = startPixY - inertiaDistY
 
                                         val animMs = (durationSec * 1000).toInt()
                                         animationJob = launch {
-                                            launch {
-                                                centerLngAnim.animateTo(targetLng.toFloat(), tween(animMs, easing = FastOutSlowInEasing))
+                                            isCameraAnimating = true
+                                            try {
+                                                animate(
+                                                    initialValue = 0f,
+                                                    targetValue = 1f,
+                                                    animationSpec = tween(animMs, easing = FastOutSlowInEasing)
+                                                ) { frac, _ ->
+                                                    val curX = startPixX + (targetPixX - startPixX) * frac
+                                                    val curY = startPixY + (targetPixY - startPixY) * frac
+                                                    cameraLng = WebMercator.normXToLng(curX / curScale).coerceIn(-180.0, 180.0)
+                                                    cameraLat = WebMercator.normYToLat(curY / curScale).coerceIn(-85.0511, 85.0511)
+                                                }
+                                            } finally {
+                                                isCameraAnimating = false
                                             }
-                                            launch {
-                                                centerLatAnim.animateTo(targetLat.toFloat(), tween(animMs, easing = FastOutSlowInEasing))
+                                        }
+                                    }
+                                } else {
+                                    // Clean tap on canvas background without drag: check double tap
+                                    val now = System.currentTimeMillis()
+                                    val tapDist = hypot(down.position.x - lastTapPos.x, down.position.y - lastTapPos.y)
+                                    if (now - lastTapTime < 320L && tapDist < 50f) {
+                                        lastTapTime = 0L
+                                        val startZoom = cameraZoom
+                                        val targetZoom = (round((startZoom + 1.0f) / 0.25f) * 0.25f).coerceAtMost(18.0f)
+                                        animationJob = launch {
+                                            isCameraAnimating = true
+                                            try {
+                                                animate(
+                                                    initialValue = startZoom,
+                                                    targetValue = targetZoom,
+                                                    animationSpec = tween(220, easing = FastOutSlowInEasing)
+                                                ) { v, _ ->
+                                                    cameraZoom = v
+                                                }
+                                            } finally {
+                                                isCameraAnimating = false
+                                            }
+                                        }
+                                    } else {
+                                        lastTapTime = now
+                                        lastTapPos = down.position
+
+                                        // Hit-test nearby property markers on screen
+                                        val densityVal = density.density
+                                        var nearestProp: PropertyEntity? = null
+                                        var minMarkerDist = Float.MAX_VALUE
+
+                                        for (prop in properties) {
+                                            val pX = WebMercator.worldPixelX(prop.longitude, currentZ.toDouble())
+                                            val pY = WebMercator.worldPixelY(prop.latitude, currentZ.toDouble())
+                                            val sX = (halfW + (pX - centerZPixelX) * fracScale).toFloat()
+                                            val sY = (halfH + (pY - centerZPixelY) * fracScale).toFloat()
+                                            val dist = hypot(down.position.x - sX, down.position.y - sY)
+                                            if (dist < minMarkerDist) {
+                                                minMarkerDist = dist
+                                                nearestProp = prop
+                                            }
+                                        }
+
+                                        val directTapRadiusPx = 65f * densityVal
+                                        val areaTapRadiusPx = 135f * densityVal
+                                        if (nearestProp != null && minMarkerDist <= directTapRadiusPx) {
+                                            activeProperty = nearestProp
+                                            flyTo(nearestProp.latitude, nearestProp.longitude, cameraZoom.coerceAtLeast(13.5f))
+                                        } else if (nearestProp != null && minMarkerDist <= areaTapRadiusPx) {
+                                            activeProperty = nearestProp
+                                            flyTo(nearestProp.latitude, nearestProp.longitude, cameraZoom.coerceAtLeast(13.5f))
+                                        } else {
+                                            if (activeProperty != null) {
+                                                activeProperty = null
                                             }
                                         }
                                     }
@@ -576,40 +730,135 @@ fun InteractiveRentalMap(
                         }
                     }
                 }
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onDoubleTap = {
-                            animationJob?.cancel()
-                            animationJob = coroutineScope.launch {
-                                val targetZoom = (round((zoomAnim.value + 1.0f) / 0.25f) * 0.25f).coerceAtMost(18.0f)
-                                zoomAnim.animateTo(targetZoom, tween(260, easing = FastOutSlowInEasing))
-                                hasPannedSinceLastSearch = true
-                            }
-                        },
-                        onTap = {
-                            activeProperty = null
-                        }
-                    )
-                }
         ) {
-            // 1.1 Render Live Tiles (Streamed from OpenStreetMap CDN or CartoDB Positron)
-            for (tileY in minTileY..maxTileY) {
-                for (tileX in minTileX..maxTileX) {
-                    val tileScreenX = (widthPx / 2.0 + (tileX * WebMercator.TILE_SIZE - centerZPixelX) * fracScale).roundToInt()
-                    val tileScreenY = (heightPx / 2.0 + (tileY * WebMercator.TILE_SIZE - centerZPixelY) * fracScale).roundToInt()
-                    val tileWidth = (WebMercator.TILE_SIZE * fracScale).roundToInt()
-                    val tileHeight = (WebMercator.TILE_SIZE * fracScale).roundToInt()
+            // 0. Base Vector Map Canvas (Guarantees map is visually rich and active immediately even before network tiles finish streaming)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val canvasW = size.width
+                val canvasH = size.height
 
-                    val tileUrl = if (mapLayerStyle == "POSITRON") {
-                        val sub = listOf("a", "b", "c")[(tileX + tileY) % 3]
-                        "https://$sub.basemaps.cartocdn.com/light_all/$currentZ/$tileX/$tileY.png"
-                    } else {
-                        "https://tile.openstreetmap.org/$currentZ/$tileX/$tileY.png"
+                // Visayan Sea / Bohol Sea water background
+                drawRect(color = Color(0xFFDCEAF6))
+
+                // Stylized land silhouettes in Visayas region (Cebu, Bohol)
+                val cebuIsland = listOf(
+                    Pair(10.55, 124.00), Pair(10.35, 123.92), Pair(10.15, 123.75),
+                    Pair(9.85, 123.50), Pair(9.50, 123.30), Pair(9.70, 123.40),
+                    Pair(10.10, 123.65), Pair(10.45, 123.85)
+                )
+
+                val boholIsland = listOf(
+                    Pair(9.95, 124.05), Pair(9.85, 124.30), Pair(9.65, 124.25),
+                    Pair(9.55, 123.95), Pair(9.65, 123.85), Pair(9.80, 123.90)
+                )
+
+                fun drawIsland(islandCoords: List<Pair<Double, Double>>, landColor: Color) {
+                    val path = androidx.compose.ui.graphics.Path()
+                    islandCoords.forEachIndexed { idx, (lat, lon) ->
+                        val pX = WebMercator.worldPixelX(lon, currentZ.toDouble())
+                        val pY = WebMercator.worldPixelY(lat, currentZ.toDouble())
+                        val sX = (halfW + (pX - centerZPixelX) * fracScale).toFloat()
+                        val sY = (halfH + (pY - centerZPixelY) * fracScale).toFloat()
+                        if (idx == 0) path.moveTo(sX, sY) else path.lineTo(sX, sY)
+                    }
+                    path.close()
+                    drawPath(path, landColor)
+                    drawPath(path, Color(0xFFCBD5E1), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5f))
+                }
+
+                drawIsland(cebuIsland, Color(0xFFF1F5F9))
+                drawIsland(boholIsland, Color(0xFFF8FAFC))
+
+                // Cartographic Grid Lines (Parallels and Meridians)
+                val gridSpacing = (WebMercator.TILE_SIZE * fracScale).toFloat()
+                if (gridSpacing > 30f) {
+                    val startX = ((halfW - (centerZPixelX % WebMercator.TILE_SIZE) * fracScale) % gridSpacing).toFloat()
+                    val startY = ((halfH - (centerZPixelY % WebMercator.TILE_SIZE) * fracScale) % gridSpacing).toFloat()
+
+                    var x = startX - gridSpacing
+                    while (x < canvasW + gridSpacing) {
+                        drawLine(
+                            color = Color(0xFF94A3B8).copy(alpha = 0.22f),
+                            start = androidx.compose.ui.geometry.Offset(x, 0f),
+                            end = androidx.compose.ui.geometry.Offset(x, canvasH),
+                            strokeWidth = 1f
+                        )
+                        x += gridSpacing
                     }
 
+                    var y = startY - gridSpacing
+                    while (y < canvasH + gridSpacing) {
+                        drawLine(
+                            color = Color(0xFF94A3B8).copy(alpha = 0.22f),
+                            start = androidx.compose.ui.geometry.Offset(0f, y),
+                            end = androidx.compose.ui.geometry.Offset(canvasW, y),
+                            strokeWidth = 1f
+                        )
+                        y += gridSpacing
+                    }
+                }
+            }
+
+            // 1.0 Parent Tile Backdrop (Eliminates blank/gray voids during rapid zoom)
+            if (currentZ > 2 && fracScale > 1.1) {
+                val parentZ = currentZ - 1
+                val parentMaxTileIndex = (1 shl parentZ) - 1
+                val parentMinTileX = (minTileX / 2).coerceIn(0, parentMaxTileIndex)
+                val parentMaxTileX = (maxTileX / 2).coerceIn(0, parentMaxTileIndex)
+                val parentMinTileY = (minTileY / 2).coerceIn(0, parentMaxTileIndex)
+                val parentMaxTileY = (maxTileY / 2).coerceIn(0, parentMaxTileIndex)
+                val parentCenterPixelX = WebMercator.worldPixelX(curLng, parentZ.toDouble())
+                val parentCenterPixelY = WebMercator.worldPixelY(curLat, parentZ.toDouble())
+                val parentScale = fracScale * 2.0
+                val parentTileSize = (WebMercator.TILE_SIZE * parentScale).roundToInt()
+
+                for (pY in parentMinTileY..parentMaxTileY) {
+                    for (pX in parentMinTileX..parentMaxTileX) {
+                        val pScreenX = (halfW + (pX * WebMercator.TILE_SIZE - parentCenterPixelX) * parentScale).roundToInt()
+                        val pScreenY = (halfH + (pY * WebMercator.TILE_SIZE - parentCenterPixelY) * parentScale).roundToInt()
+
+                        val pUrl = getTileUrl(mapLayerStyle, parentZ, pX, pY)
+                        val pFallback = getTileUrl("DE", parentZ, pX, pY)
+                        val pKey = "backdrop-$mapLayerStyle-$parentZ-$pX-$pY"
+
+                        key(pKey) {
+                            var pLoadFailed by remember(pUrl) { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .offset { IntOffset(pScreenX, pScreenY) }
+                                    .size(with(density) { parentTileSize.toDp() }, with(density) { parentTileSize.toDp() })
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(if (pLoadFailed) pFallback else pUrl)
+                                        .memoryCacheKey(pKey)
+                                        .diskCacheKey(pKey)
+                                        .crossfade(false)
+                                        .build(),
+                                    onError = { pLoadFailed = true },
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillBounds,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 1.1 Render Live High-Res Tiles for currentZ
+            for (tileY in minTileY..maxTileY) {
+                for (tileX in minTileX..maxTileX) {
+                    val tileScreenX = (halfW + (tileX * WebMercator.TILE_SIZE - centerZPixelX) * fracScale).roundToInt()
+                    val tileScreenY = (halfH + (tileY * WebMercator.TILE_SIZE - centerZPixelY) * fracScale).roundToInt()
+                    val tileWidth = (WebMercator.TILE_SIZE * fracScale).roundToInt()
+                    val tileHeight = tileWidth
+
+                    val tileUrl = getTileUrl(mapLayerStyle, currentZ, tileX, tileY)
+                    val fallbackUrl = getTileUrl("DE", currentZ, tileX, tileY)
                     val tileKey = "$mapLayerStyle-$currentZ-$tileX-$tileY"
 
                     key(tileKey) {
+                        var loadFailed by remember(tileUrl) { mutableStateOf(false) }
                         Box(
                             modifier = Modifier
                                 .offset { IntOffset(tileScreenX, tileScreenY) }
@@ -617,12 +866,12 @@ fun InteractiveRentalMap(
                         ) {
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
-                                    .data(tileUrl)
-                                    .addHeader("User-Agent", "BalayInnRentalApp/1.0 (Android; Jetpack Compose)")
+                                    .data(if (loadFailed) fallbackUrl else tileUrl)
                                     .memoryCacheKey(tileKey)
                                     .diskCacheKey(tileKey)
-                                    .crossfade(true)
+                                    .crossfade(false)
                                     .build(),
+                                onError = { loadFailed = true },
                                 contentDescription = null,
                                 contentScale = ContentScale.FillBounds,
                                 modifier = Modifier.fillMaxSize()
@@ -633,8 +882,8 @@ fun InteractiveRentalMap(
             }
 
             // --- STREAMING MAP LOADING BAR ---
-            val isCameraMoving = centerLatAnim.isRunning || centerLngAnim.isRunning || zoomAnim.isRunning
-            if (isCameraMoving || isAreaSearchActive) {
+            val isCameraMoving = isCameraAnimating || isAreaSearchActive
+            if (isCameraMoving) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -723,7 +972,7 @@ fun InteractiveRentalMap(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 4.dp)
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
                 .zIndex(20f)
         ) {
             // Quick Location Presets Row with Smooth 1.2s FlyTo
@@ -733,20 +982,20 @@ fun InteractiveRentalMap(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                RegionChip(label = "🏙️ Metro Cebu", onClick = { flyTo(10.3157, 123.8854, 12.0f) })
-                RegionChip(label = "🌴 Bohol & Panglao", onClick = { flyTo(9.7500, 123.9500, 10.25f) })
-                RegionChip(label = "🎭 Bacolod & Cities", onClick = { flyTo(10.6766, 122.9509, 12.0f) })
-                RegionChip(label = "🏛️ Silay & Talisay", onClick = { flyTo(10.7600, 122.9700, 12.5f) })
-                RegionChip(label = "🏖️ Panglao Beach", onClick = { flyTo(9.5800, 123.7700, 13.5f) })
-                RegionChip(label = "🏛️ Tagbilaran", onClick = { flyTo(9.6500, 123.8550, 13.0f) })
-                RegionChip(label = "🏢 Mandaue", onClick = { flyTo(10.3340, 123.9400, 13.0f) })
-                RegionChip(label = "✈️ Lapu-Lapu", onClick = { flyTo(10.3120, 123.9780, 13.0f) })
-                RegionChip(label = "🇵🇭 Philippines", onClick = { flyTo(12.8797, 121.7740, 6.0f) })
-                RegionChip(label = "🎯 Fit All (${properties.size})", onClick = {
+                RegionChip(label = "🏙️ Metro Cebu", isSelected = selectedLocationLabel == "🏙️ Metro Cebu", onClick = { selectLocation("🏙️ Metro Cebu", 10.3157, 123.8854, 12.0f) })
+                RegionChip(label = "🌴 Bohol & Panglao", isSelected = selectedLocationLabel == "🌴 Bohol & Panglao", onClick = { selectLocation("🌴 Bohol & Panglao", 9.7500, 123.9500, 10.25f) })
+                RegionChip(label = "🎭 Bacolod & Cities", isSelected = selectedLocationLabel == "🎭 Bacolod & Cities", onClick = { selectLocation("🎭 Bacolod & Cities", 10.6766, 122.9509, 12.0f) })
+                RegionChip(label = "🏛️ Silay & Talisay", isSelected = selectedLocationLabel == "🏛️ Silay & Talisay", onClick = { selectLocation("🏛️ Silay & Talisay", 10.7600, 122.9700, 12.5f) })
+                RegionChip(label = "🏖️ Panglao Beach", isSelected = selectedLocationLabel == "🏖️ Panglao Beach", onClick = { selectLocation("🏖️ Panglao Beach", 9.5800, 123.7700, 13.5f) })
+                RegionChip(label = "🏛️ Tagbilaran", isSelected = selectedLocationLabel == "🏛️ Tagbilaran", onClick = { selectLocation("🏛️ Tagbilaran", 9.6500, 123.8550, 13.0f) })
+                RegionChip(label = "🏢 Mandaue", isSelected = selectedLocationLabel == "🏢 Mandaue", onClick = { selectLocation("🏢 Mandaue", 10.3340, 123.9400, 13.0f) })
+                RegionChip(label = "✈️ Lapu-Lapu", isSelected = selectedLocationLabel == "✈️ Lapu-Lapu", onClick = { selectLocation("✈️ Lapu-Lapu", 10.3120, 123.9780, 13.0f) })
+                RegionChip(label = "🇵🇭 Philippines", isSelected = selectedLocationLabel == "🇵🇭 Philippines", onClick = { selectLocation("🇵🇭 Philippines", 12.8797, 121.7740, 6.0f) })
+                RegionChip(label = "🎯 Fit All (${properties.size})", isSelected = selectedLocationLabel == "🎯 Fit All", onClick = {
                     if (properties.isNotEmpty()) {
                         val avgLat = properties.map { it.latitude }.average()
                         val avgLng = properties.map { it.longitude }.average()
-                        flyTo(avgLat, avgLng, 11.0f)
+                        selectLocation("🎯 Fit All", avgLat, avgLng, 11.0f)
                     }
                 })
             }
@@ -759,7 +1008,7 @@ fun InteractiveRentalMap(
             exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 40.dp)
+                .padding(top = 48.dp)
                 .zIndex(20f)
         ) {
             Surface(
@@ -810,7 +1059,7 @@ fun InteractiveRentalMap(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 14.dp, bottom = if (activeProperty != null) 175.dp else 24.dp)
+                .padding(end = 14.dp, bottom = if (activeProperty != null) 275.dp else 24.dp)
                 .zIndex(20f),
             horizontalAlignment = Alignment.End
         ) {
@@ -872,8 +1121,9 @@ fun InteractiveRentalMap(
                 ) {
                     Column(modifier = Modifier.padding(6.dp)) {
                         listOf(
-                            "OSM" to "Standard Street View",
-                            "POSITRON" to "Clean Light Map"
+                            "HOT" to "Humanitarian Street View (Detailed)",
+                            "OSM" to "OpenStreetMap Standard",
+                            "DE" to "OpenStreetMap Global Mirror"
                         ).forEach { (code, label) ->
                             Row(
                                 modifier = Modifier
@@ -917,9 +1167,22 @@ fun InteractiveRentalMap(
                 Column {
                     IconButton(
                         onClick = {
-                            coroutineScope.launch {
-                                val target = (round((zoomAnim.value + 0.5f) / 0.25f) * 0.25f).coerceAtMost(18.0f)
-                                zoomAnim.animateTo(target, tween(250, easing = FastOutSlowInEasing))
+                            val target = (round((cameraZoom + 0.5f) / 0.25f) * 0.25f).coerceAtMost(18.0f)
+                            animationJob?.cancel()
+                            val startZ = cameraZoom
+                            animationJob = coroutineScope.launch {
+                                isCameraAnimating = true
+                                try {
+                                    animate(
+                                        initialValue = startZ,
+                                        targetValue = target,
+                                        animationSpec = tween(220, easing = FastOutSlowInEasing)
+                                    ) { v, _ ->
+                                        cameraZoom = v
+                                    }
+                                } finally {
+                                    isCameraAnimating = false
+                                }
                                 hasPannedSinceLastSearch = true
                             }
                         },
@@ -929,9 +1192,22 @@ fun InteractiveRentalMap(
                     }
                     IconButton(
                         onClick = {
-                            coroutineScope.launch {
-                                val target = (round((zoomAnim.value - 0.5f) / 0.25f) * 0.25f).coerceAtLeast(3.0f)
-                                zoomAnim.animateTo(target, tween(250, easing = FastOutSlowInEasing))
+                            val target = (round((cameraZoom - 0.5f) / 0.25f) * 0.25f).coerceAtLeast(3.0f)
+                            animationJob?.cancel()
+                            val startZ = cameraZoom
+                            animationJob = coroutineScope.launch {
+                                isCameraAnimating = true
+                                try {
+                                    animate(
+                                        initialValue = startZ,
+                                        targetValue = target,
+                                        animationSpec = tween(220, easing = FastOutSlowInEasing)
+                                    ) { v, _ ->
+                                        cameraZoom = v
+                                    }
+                                } finally {
+                                    isCameraAnimating = false
+                                }
                                 hasPannedSinceLastSearch = true
                             }
                         },
@@ -950,7 +1226,7 @@ fun InteractiveRentalMap(
             shadowElevation = 2.dp,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(bottom = if (activeProperty != null) 160.dp else 4.dp, start = 8.dp)
+                .padding(bottom = if (activeProperty != null) 265.dp else 4.dp, start = 8.dp)
                 .zIndex(20f)
         ) {
             Row(
@@ -958,247 +1234,414 @@ fun InteractiveRentalMap(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (mapLayerStyle == "OSM") "© OpenStreetMap contributors" else "© OpenStreetMap • CARTO",
+                    text = when (mapLayerStyle) {
+                        "OSM" -> "© OpenStreetMap contributors"
+                        "DE" -> "© OpenStreetMap contributors • DE"
+                        else -> "© OpenStreetMap contributors • HOT"
+                    },
                     fontSize = 9.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        // --- SLIDE-UP PROPERTY SUMMARY BOTTOM SHEET MODAL ---
+        // --- SLIDE-UP AVAILABLE PROPERTY CARD TILES CAROUSEL ---
         AnimatedVisibility(
             visible = activeProperty != null,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .zIndex(30f)
         ) {
             if (activeProperty != null) {
-                val prop = activeProperty!!
-                val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply { maximumFractionDigits = 0 }
-                val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
-                val isSaved = savedPropertyIds.contains(prop.id)
+                val activeProp = activeProperty!!
                 val isDark = isSystemInDarkTheme()
-                val keyAmenities = remember(prop.amenitiesJson) { parseKeyAmenities(prop.amenitiesJson) }
+                val carouselListState = rememberLazyListState()
+
+                // Sort available properties so active property is first, followed by nearest available properties
+                val displayProperties = remember(activeProp.id, properties) {
+                    val list = mutableListOf<PropertyEntity>()
+                    list.add(activeProp)
+                    val others = properties.filter { it.id != activeProp.id }.sortedBy { prop ->
+                        val dLat = prop.latitude - activeProp.latitude
+                        val dLng = prop.longitude - activeProp.longitude
+                        dLat * dLat + dLng * dLng
+                    }
+                    list.addAll(others)
+                    list
+                }
+
+                // Automatically scroll carousel to active property tile when pin or location changes
+                LaunchedEffect(activeProp.id) {
+                    val idx = displayProperties.indexOfFirst { it.id == activeProp.id }
+                    if (idx >= 0) {
+                        carouselListState.animateScrollToItem(idx)
+                    }
+                }
 
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                        .shadow(20.dp, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
+                        .padding(horizontal = 6.dp, vertical = 6.dp)
+                        .shadow(20.dp, RoundedCornerShape(22.dp))
                         .testTag("map_property_modal_sheet"),
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 20.dp, bottomEnd = 20.dp),
-                    color = if (isDark) SteelBlueDarkBg else SteelBlueLightBg,
+                    shape = RoundedCornerShape(22.dp),
+                    color = if (isDark) SteelBlueDarkBg else Color(0xFFFCFDFF),
                     border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp)
+                            .padding(top = 10.dp, bottom = 10.dp)
                     ) {
-                        // Drag Handle Pill
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .padding(bottom = 10.dp)
-                                .width(38.dp)
-                                .height(4.dp)
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
-                        )
-
-                        // Hero Image Banner & Overlay Badges
-                        Box(
+                        // Header Bar: Location Title, Available Count & Controls
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(130.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                        ) {
-                            val images = propertyImagesMap[prop.id] ?: emptyList()
-                            val thumbnail = images.firstOrNull()
-                                ?: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&auto=format&fit=crop&q=80"
-
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(thumbnail)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = prop.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-
-                            // Top Left Property Category Tag
-                            Surface(
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(8.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color.Black.copy(alpha = 0.72f)
-                            ) {
-                                Text(
-                                    text = prop.propertyType,
-                                    color = Color.White,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-
-                            // Top Right Actions (Save & Close)
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.Black.copy(alpha = 0.65f),
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    IconButton(onClick = { onToggleSave?.invoke(prop.id) }) {
-                                        Icon(
-                                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                            contentDescription = "Save property",
-                                            tint = if (isSaved) Color(0xFFE11D48) else Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.Black.copy(alpha = 0.65f),
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    IconButton(onClick = { activeProperty = null }) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Close modal",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Bottom Rent Price Banner
-                            Surface(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(8.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.primary
-                            ) {
-                                Text(
-                                    text = "$formattedRent / month",
-                                    color = Color.White,
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Title & Location
-                        Text(
-                            text = prop.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color.White else Color(0xFF0F172A),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Row(
-                            modifier = Modifier.padding(top = 2.dp),
+                                .padding(horizontal = 14.dp, vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.Place,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = if (prop.neighborhood.isNotBlank()) "${prop.neighborhood} • ${prop.nearbyLandmark}" else prop.nearbyLandmark,
-                                fontSize = 11.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(26.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Place,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                }
+
+                                Column {
+                                    val locationName = when {
+                                        activeProp.neighborhood.isNotBlank() -> activeProp.neighborhood
+                                        activeProp.nearbyLandmark.isNotBlank() -> activeProp.nearbyLandmark
+                                        else -> "Selected Area"
+                                    }
+                                    Text(
+                                        text = "Available Listings • $locationName",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color.White else Color(0xFF0F172A),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "${displayProperties.size} available in this area • Swipe card tiles",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (onToggleViewMode != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .clickable { onToggleViewMode() }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.ViewList,
+                                                contentDescription = "View as list",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "List",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = { activeProperty = null },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Close property cards",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Key Specs Row (Beds, Baths, Area, Furnished)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            SpecBadge(label = "🛏️ ${prop.bedrooms} Bed", isDark = isDark)
-                            SpecBadge(label = "🚿 ${prop.bathrooms} Bath", isDark = isDark)
-                            SpecBadge(label = "📐 ${prop.floorAreaSqm.toInt()} m²", isDark = isDark)
-                            SpecBadge(label = "🪑 ${prop.furnishedStatus}", isDark = isDark)
-                        }
-
-                        // Key Amenities Chips Row
-                        if (keyAmenities.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Key Amenities:",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                keyAmenities.forEach { (emoji, name) ->
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
-                                        border = BorderStroke(0.8.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
-                                    ) {
-                                        Text(
-                                            text = "$emoji $name",
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF334155),
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Primary Action Button
-                        Button(
-                            onClick = { onPropertySelected(prop) },
+                        // Horizontal Carousel of Available Property Card Tiles
+                        LazyRow(
+                            state = carouselListState,
+                            contentPadding = PaddingValues(horizontal = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
-                                .testTag("map_modal_view_details_btn"),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                .testTag("map_property_carousel")
                         ) {
-                            Text("View Full Listing Details", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            items(displayProperties, key = { it.id }) { prop ->
+                                val isSelected = prop.id == activeProp.id
+                                val isSaved = savedPropertyIds.contains(prop.id)
+                                val images = propertyImagesMap[prop.id] ?: emptyList()
+                                val thumbnail = images.firstOrNull()
+                                    ?: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&fm=jpg&fit=crop&q=80"
+                                val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply { maximumFractionDigits = 0 }
+                                val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
+
+                                PropertyMapCardTile(
+                                    property = prop,
+                                    thumbnail = thumbnail,
+                                    formattedRent = formattedRent,
+                                    isSelected = isSelected,
+                                    isSaved = isSaved,
+                                    isDark = isDark,
+                                    onCardClick = {
+                                        activeProperty = prop
+                                        flyTo(prop.latitude, prop.longitude, cameraZoom.coerceAtLeast(13.5f))
+                                    },
+                                    onToggleSave = { onToggleSave?.invoke(prop.id) },
+                                    onViewDetails = { onPropertySelected(prop) }
+                                )
+                            }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PropertyMapCardTile(
+    property: PropertyEntity,
+    thumbnail: String,
+    formattedRent: String,
+    isSelected: Boolean,
+    isSaved: Boolean,
+    isDark: Boolean,
+    onCardClick: () -> Unit,
+    onToggleSave: () -> Unit,
+    onViewDetails: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .width(275.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onCardClick() }
+            .testTag("property_card_tile_${property.id}"),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isDark) {
+            if (isSelected) Color(0xFF1E293B) else Color(0xFF0F172A)
+        } else {
+            if (isSelected) Color(0xFFF0FDF4) else Color.White
+        },
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else (if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+        ),
+        shadowElevation = if (isSelected) 8.dp else 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            // Image Banner with Overlay Badges
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(106.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(thumbnail)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = property.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Top Left: Property Type Badge & Active Pin Tag
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color.Black.copy(alpha = 0.75f)
+                    ) {
+                        Text(
+                            text = property.propertyType,
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
+                        )
+                    }
+
+                    if (isSelected) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text(
+                                text = "Selected Pin",
+                                color = Color.White,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Top Right: Save/Favorite Heart Button
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(28.dp)
+                ) {
+                    IconButton(
+                        onClick = onToggleSave,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Save property",
+                            tint = if (isSaved) Color(0xFFE11D48) else Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+
+                // Bottom Left: Rent Price Banner
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Text(
+                        text = "$formattedRent / mo",
+                        color = Color.White,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(7.dp))
+
+            // Property Title
+            Text(
+                text = property.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (isDark) Color.White else Color(0xFF0F172A),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Location Landmark
+            Row(
+                modifier = Modifier.padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Place,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = if (property.neighborhood.isNotBlank()) "${property.neighborhood} • ${property.nearbyLandmark}" else property.nearbyLandmark,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Key Specs
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                SpecBadge(label = "🛏️ ${property.bedrooms} Bed", isDark = isDark)
+                SpecBadge(label = "🚿 ${property.bathrooms} Bath", isDark = isDark)
+                SpecBadge(label = "📐 ${property.floorAreaSqm.toInt()}m²", isDark = isDark)
+                SpecBadge(label = "🪑 ${property.furnishedStatus.take(4)}", isDark = isDark)
+            }
+
+            Spacer(modifier = Modifier.height(7.dp))
+
+            // Direct View Details Button
+            Button(
+                onClick = onViewDetails,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp)
+                    .testTag("card_tile_view_details_${property.id}"),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("View Details", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
             }
         }
@@ -1256,21 +1699,25 @@ fun parseKeyAmenities(jsonOrCsv: String): List<Pair<String, String>> {
 }
 
 @Composable
-private fun RegionChip(label: String, onClick: () -> Unit) {
+private fun RegionChip(label: String, isSelected: Boolean = false, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 3.dp,
+        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+        shadowElevation = if (isSelected) 5.dp else 2.dp,
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
         modifier = Modifier
             .clip(RoundedCornerShape(18.dp))
             .clickable { onClick() }
     ) {
         Text(
             text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            fontSize = 11.5.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
         )
     }
 }

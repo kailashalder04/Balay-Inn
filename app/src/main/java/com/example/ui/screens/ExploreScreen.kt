@@ -251,24 +251,69 @@ fun ExploreScreen(
 
                     Spacer(modifier = Modifier.width(6.dp))
 
-                    // Toggle View (List vs Map)
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable {
-                                viewModel.setViewMode(if (viewMode == "LIST") "MAP" else "LIST")
-                            }
-                            .testTag("toggle_map_list_btn"),
-                        contentAlignment = Alignment.Center
+                    // Segmented Control (Map vs List View)
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                     ) {
-                        Icon(
-                            imageVector = if (viewMode == "LIST") Icons.Default.Map else Icons.Default.ViewList,
-                            contentDescription = "Toggle View",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (viewMode == "MAP") MaterialTheme.colorScheme.primary else Color.Transparent,
+                                modifier = Modifier
+                                    .clickable { viewModel.setViewMode("MAP") }
+                                    .testTag("toggle_map_view_btn")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Map,
+                                        contentDescription = "Map View",
+                                        tint = if (viewMode == "MAP") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "Map",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (viewMode == "MAP") Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (viewMode == "LIST") MaterialTheme.colorScheme.primary else Color.Transparent,
+                                modifier = Modifier
+                                    .clickable { viewModel.setViewMode("LIST") }
+                                    .testTag("toggle_list_view_btn")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.ViewList,
+                                        contentDescription = "List View",
+                                        tint = if (viewMode == "LIST") Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "List",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (viewMode == "LIST") Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -461,55 +506,57 @@ fun ExploreScreen(
         }
     }
 
-        // Subheader showing total results & sort
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "${properties.size} Properties Available",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                softWrap = false
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        // Subheader showing total results & sort (shown in LIST view on mobile)
+        if (viewMode == "LIST" && !isWideScreen) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "Sort: ",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "${properties.size} Properties Available",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     softWrap = false
                 )
-                Text(
-                    text = when (filterState.sortBy) {
-                        "PRICE_ASC" -> "Price: Low to High"
-                        "PRICE_DESC" -> "Price: High to Low"
-                        else -> "Newest First"
-                    },
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.clickable {
-                        val next = when (filterState.sortBy) {
-                            "NEWEST" -> "PRICE_ASC"
-                            "PRICE_ASC" -> "PRICE_DESC"
-                            else -> "NEWEST"
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Sort: ",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                    Text(
+                        text = when (filterState.sortBy) {
+                            "PRICE_ASC" -> "Price: Low to High"
+                            "PRICE_DESC" -> "Price: High to Low"
+                            else -> "Newest First"
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.clickable {
+                            val next = when (filterState.sortBy) {
+                                "NEWEST" -> "PRICE_ASC"
+                                "PRICE_ASC" -> "PRICE_DESC"
+                                else -> "NEWEST"
+                            }
+                            viewModel.setSortBy(next)
                         }
-                        viewModel.setSortBy(next)
-                    }
-                )
+                    )
+                }
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             if (isWideScreen) {
                 // Desktop / Tablet Side-by-Side: [Property Results List (44%)] | [LIVE INTERACTIVE MAP (56%)]
                 Row(modifier = Modifier.fillMaxSize().padding(bottom = 70.dp)) {
@@ -634,7 +681,7 @@ fun ExploreScreen(
             } else {
                 // Mobile Layout: Responsive [List] or [Map]
                 if (viewMode == "MAP") {
-                    Box(modifier = Modifier.fillMaxSize().padding(bottom = 70.dp)) {
+                    Box(modifier = Modifier.fillMaxSize()) {
                         InteractiveRentalMap(
                             properties = properties,
                             selectedProperty = focusedProp,
@@ -658,13 +705,14 @@ fun ExploreScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
                         if (properties.isEmpty()) {
                             item {
                                 Card(
@@ -735,8 +783,40 @@ fun ExploreScreen(
                             }
                         }
                     }
+
+                    // Floating Pill: Quick switch to interactive map
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 16.dp)
+                            .clickable { viewModel.setViewMode("MAP") }
+                            .testTag("floating_map_pill")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Map,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "View on Map (${properties.size})",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
                 }
             }
+        }
 
             // Floating Comparison Bottom Bar inside Box
             androidx.compose.animation.AnimatedVisibility(
