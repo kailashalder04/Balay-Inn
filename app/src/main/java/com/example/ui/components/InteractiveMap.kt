@@ -101,6 +101,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -464,6 +465,7 @@ fun InteractiveRentalMap(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            .clipToBounds()
             .testTag("live_worldwide_map")
     ) {
         val density = LocalDensity.current
@@ -515,6 +517,7 @@ fun InteractiveRentalMap(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .clipToBounds()
                 .background(if (mapLayerStyle == "POSITRON") Color(0xFFF1F5F9) else Color(0xFFE2E8F0))
                 .pointerInput(Unit) {
                     val touchSlop = viewConfiguration.touchSlop

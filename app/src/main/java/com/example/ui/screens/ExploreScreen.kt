@@ -68,9 +68,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.ui.text.TextStyle
@@ -132,11 +134,15 @@ fun ExploreScreen(
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Search Bar & Toggle View (shown in LIST view or Desktop side-by-side)
+            // Fixed Top Bar (Always visible and permanently anchored above map and list)
             if (showSearchHeader) {
                 Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(50f),
                     color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 2.dp
+                    shadowElevation = 4.dp,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row(
@@ -342,14 +348,32 @@ fun ExploreScreen(
                     )
                 }
 
-                // Active Filter Chips Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                // Active Filter Chips Row (Only takes vertical space when filters are active)
+                val hasAnyFilterPill = filterState.provinceId.isNotEmpty() ||
+                        filterState.cityMunicipalityId.isNotEmpty() ||
+                        filterState.barangayId.isNotEmpty() ||
+                        filterState.propertyType != "All" ||
+                        filterState.targetMarket != "All" ||
+                        filterState.utilityRuleFilter != "All" ||
+                        filterState.listedBy != "All" ||
+                        filterState.authorizedPosterOnly ||
+                        filterState.verifiedOnly ||
+                        filterState.genderRule != "all" ||
+                        filterState.minAvailableBeds > 0 ||
+                        filterState.sortBy != "NEWEST" ||
+                        filterState.minRent > 0 ||
+                        filterState.maxRent < 100000 ||
+                        filterState.leaseDurationFilter != "All" ||
+                        filterState.moveInDateFilter != "All"
+
+                if (hasAnyFilterPill) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                     // Province filter chip
                     if (filterState.provinceId.isNotEmpty()) {
                         val provName = allProvinces.find { it.id == filterState.provinceId }?.name ?: "Province"
@@ -505,6 +529,7 @@ fun ExploreScreen(
             }
         }
     }
+    }
 
         // Subheader showing total results & sort (shown in LIST view on mobile)
         if (viewMode == "LIST" && !isWideScreen) {
@@ -556,7 +581,7 @@ fun ExploreScreen(
             }
         }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        Box(modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (isWideScreen) {
                 // Desktop / Tablet Side-by-Side: [Property Results List (44%)] | [LIVE INTERACTIVE MAP (56%)]
                 Row(modifier = Modifier.fillMaxSize().padding(bottom = 70.dp)) {
@@ -656,6 +681,7 @@ fun ExploreScreen(
                         modifier = Modifier
                             .weight(0.56f)
                             .fillMaxSize()
+                            .clipToBounds()
                     ) {
                         InteractiveRentalMap(
                             properties = properties,
@@ -681,7 +707,7 @@ fun ExploreScreen(
             } else {
                 // Mobile Layout: Responsive [List] or [Map]
                 if (viewMode == "MAP") {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
                         InteractiveRentalMap(
                             properties = properties,
                             selectedProperty = focusedProp,
