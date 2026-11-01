@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,6 +32,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
@@ -38,11 +41,14 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -82,11 +88,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.ui.components.CascadingLocationSelector
-import com.example.ui.components.CategoryFilterRow
 import com.example.ui.components.ComparisonMatrixSheet
 import com.example.ui.components.InteractiveRentalMap
 import com.example.ui.components.PropertyCard
-import com.example.ui.components.SelectedCategoryHeaderCard
 import com.example.ui.theme.SteelBlue
 import com.example.ui.viewmodel.MarketplaceViewModel
 
@@ -119,6 +123,42 @@ fun ExploreScreen(
 
     val savedIds = remember(savedProperties) {
         savedProperties.map { it.propertyId }.toSet()
+    }
+
+    val propertyTypeGridOptions = remember {
+        listOf(
+            SelectableBarOption("Boarding House", "Boarding House", "Beds & dorm spaces", "🛏️"),
+            SelectableBarOption("Apartment", "Apartment", "Flats & multi-door", "🚪"),
+            SelectableBarOption("Condominium", "Condominium", "High-rise & studios", "🏢"),
+            SelectableBarOption("Townhouse", "Townhouse", "Houses & compound units", "🏡")
+        )
+    }
+
+    val genderGridOptions = remember {
+        listOf(
+            SelectableBarOption("ALL", "ALL Genders", "Any gender welcome", "👥"),
+            SelectableBarOption("COED", "Mixed / Co-Ed", "Shared co-living", "👫"),
+            SelectableBarOption("MALE", "Male Only", "Men / Boys only", "👨"),
+            SelectableBarOption("FEMALE", "Female Only", "Ladies / Women only", "👩")
+        )
+    }
+
+    val leaseGridOptions = remember {
+        listOf(
+            SelectableBarOption("Flexible (1-3 mos)", "Flexible (1-3m)", "Short-stay flexibility", "⚡"),
+            SelectableBarOption("Mid-term (4-6 mos)", "Mid-term (4-6m)", "Semester or 6 months", "📅"),
+            SelectableBarOption("Annual (12+ mos)", "Annual (12m+)", "Long-term year lease", "🏠"),
+            SelectableBarOption("All", "All Terms", "Any lease duration", "⏱️")
+        )
+    }
+
+    val bedGridOptions = remember {
+        listOf(
+            SelectableBarOption("0", "Any Vacancies", "All open boarding houses", "🛏️"),
+            SelectableBarOption("1", "1+ Bed Vacant", "At least 1 open bed", "1️⃣"),
+            SelectableBarOption("2", "2+ Beds Vacant", "Pairs / 2 available", "2️⃣"),
+            SelectableBarOption("4", "4+ Beds Vacant", "Groups / 4+ available", "4️⃣")
+        )
     }
 
     BoxWithConstraints(
@@ -323,29 +363,128 @@ fun ExploreScreen(
                     }
                 }
 
-                // Philippine Rental Categories Bar (Visible in list view or desktop; in map view, keep map elevated)
-                if (viewMode == "LIST" || isWideScreen) {
-                    Box(modifier = Modifier.padding(top = 10.dp)) {
-                        CategoryFilterRow(
-                            selectedCategory = filterState.propertyType,
-                            allProperties = allUnfilteredProperties,
-                            onSelectCategory = { selectedCat ->
-                                viewModel.updatePropertyType(selectedCat)
-                            },
-                            isDark = isDark
-                        )
-                    }
-                }
+                val isBoarding = filterState.selectedPropertyTypes.any { it.contains("Board", ignoreCase = true) || it.contains("Bed", ignoreCase = true) } ||
+                        filterState.propertyType.contains("Board", ignoreCase = true) ||
+                        filterState.propertyType.contains("Bed", ignoreCase = true)
 
-                // Active Category Market Standard Info Card for Renters (Shown in list view or desktop to give map full height)
+                // Top to Down 2X2 Selectable Bars for Property Types, Gender Policy, and Lease Duration
                 if (viewMode == "LIST" || isWideScreen) {
-                    SelectedCategoryHeaderCard(
-                        selectedCategory = filterState.propertyType,
-                        filteredCount = properties.size,
-                        onResetCategory = { viewModel.updatePropertyType("All") },
-                        isDark = isDark,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    var showFilterBarsExpanded by remember { mutableStateOf(true) }
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) Color(0xFF1E293B).copy(alpha = 0.7f) else Color(0xFFF8FAFC)
+                        ),
+                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Tune,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Filter Requirements (2x2 Bars)",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                val activeFilterCount = filterState.selectedPropertyTypes.size +
+                                        filterState.selectedGenderRules.filter { it.uppercase() != "ALL" }.size +
+                                        filterState.selectedLeaseDurations.filter { it != "All" }.size +
+                                        (if (filterState.minAvailableBeds > 0) 1 else 0)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (activeFilterCount > 0) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.padding(end = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = "$activeFilterCount active",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = { showFilterBarsExpanded = !showFilterBarsExpanded },
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = if (showFilterBarsExpanded) "Collapse" else "Expand (2x2)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (showFilterBarsExpanded) {
+                                // 1. Property Types (Top 2X2 Selectable Bar)
+                                SelectableGrid2x2(
+                                    title = "Property Types",
+                                    subtitle = "Multi-select: pick one or more rental types",
+                                    options = propertyTypeGridOptions,
+                                    selectedKeys = filterState.selectedPropertyTypes,
+                                    onToggle = { viewModel.togglePropertyType(it) },
+                                    isDark = isDark
+                                )
+
+                                // 2. Gender Policy (Middle 2X2 Selectable Bar)
+                                SelectableGrid2x2(
+                                    title = "Gender Policy",
+                                    subtitle = "Multi-select: accommodations by gender rules",
+                                    options = genderGridOptions,
+                                    selectedKeys = filterState.selectedGenderRules,
+                                    onToggle = { viewModel.toggleGenderRule(it) },
+                                    isDark = isDark
+                                )
+
+                                // 3. Lease Duration (Bottom 2X2 Selectable Bar)
+                                SelectableGrid2x2(
+                                    title = "Lease Duration",
+                                    subtitle = "Multi-select: flexible short-stay or annual terms",
+                                    options = leaseGridOptions,
+                                    selectedKeys = filterState.selectedLeaseDurations,
+                                    onToggle = { viewModel.toggleLeaseDuration(it) },
+                                    isDark = isDark
+                                )
+
+                                // Bed availability option ONLY when user selects Boarding House property type
+                                if (isBoarding) {
+                                    SelectableGrid2x2(
+                                        title = "Available Bed Vacancies",
+                                        subtitle = "Open beds currently vacant in boarding house",
+                                        options = bedGridOptions,
+                                        selectedKeys = if (filterState.minAvailableBeds > 0) setOf(filterState.minAvailableBeds.toString()) else setOf("0"),
+                                        onToggle = { key ->
+                                            val beds = key.toIntOrNull() ?: 0
+                                            viewModel.updateMinAvailableBeds(if (filterState.minAvailableBeds == beds) 0 else beds)
+                                        },
+                                        isDark = isDark
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Active Filter Chips Row (Only takes vertical space when filters are active)
@@ -353,12 +492,11 @@ fun ExploreScreen(
                         filterState.cityMunicipalityId.isNotEmpty() ||
                         filterState.barangayId.isNotEmpty() ||
                         filterState.propertyType != "All" ||
-                        filterState.targetMarket != "All" ||
                         filterState.utilityRuleFilter != "All" ||
                         filterState.listedBy != "All" ||
                         filterState.authorizedPosterOnly ||
                         filterState.verifiedOnly ||
-                        filterState.genderRule != "all" ||
+                        (filterState.genderRule.uppercase() != "ALL") ||
                         filterState.minAvailableBeds > 0 ||
                         filterState.sortBy != "NEWEST" ||
                         filterState.minRent > 0 ||
@@ -401,19 +539,18 @@ fun ExploreScreen(
                         )
                     }
 
-                    // Property type filter chip
-                    if (filterState.propertyType != "All") {
+                    // Property type filter chips (multi-select)
+                    if (filterState.selectedPropertyTypes.isNotEmpty()) {
+                        filterState.selectedPropertyTypes.forEach { pType ->
+                            FilterBadge(
+                                label = pType,
+                                onRemove = { viewModel.togglePropertyType(pType) }
+                            )
+                        }
+                    } else if (filterState.propertyType != "All") {
                         FilterBadge(
                             label = filterState.propertyType,
-                            onRemove = { viewModel.updatePropertyType("All") }
-                        )
-                    }
-
-                    // Target market filter chip
-                    if (filterState.targetMarket != "All") {
-                        FilterBadge(
-                            label = "Target: ${filterState.targetMarket}",
-                            onRemove = { viewModel.updateTargetMarket("All") }
+                            onRemove = { viewModel.clearPropertyTypes() }
                         )
                     }
 
@@ -449,11 +586,30 @@ fun ExploreScreen(
                         )
                     }
 
-                    // Gender policy chip
-                    if (filterState.genderRule != "all") {
+                    // Gender policy chips (multi-select)
+                    if (filterState.selectedGenderRules.isNotEmpty() && "ALL" !in filterState.selectedGenderRules) {
+                        filterState.selectedGenderRules.forEach { gRule ->
+                            val gLabel = when (gRule.uppercase()) {
+                                "FEMALE", "FEMALE_ONLY" -> "Female Only"
+                                "MALE", "MALE_ONLY" -> "Male Only"
+                                "COED", "CO-ED" -> "Co-Ed / Mixed"
+                                else -> gRule
+                            }
+                            FilterBadge(
+                                label = "Gender: $gLabel",
+                                onRemove = { viewModel.toggleGenderRule(gRule) }
+                            )
+                        }
+                    } else if (filterState.genderRule.uppercase() != "ALL") {
+                        val gLabel = when (filterState.genderRule.uppercase()) {
+                            "FEMALE", "FEMALE_ONLY" -> "Female Only"
+                            "MALE", "MALE_ONLY" -> "Male Only"
+                            "COED", "CO-ED" -> "Co-Ed / Mixed"
+                            else -> filterState.genderRule
+                        }
                         FilterBadge(
-                            label = if (filterState.genderRule == "female_only") "Female Only" else "Male Only",
-                            onRemove = { viewModel.updateGenderRule("all") }
+                            label = "Gender: $gLabel",
+                            onRemove = { viewModel.clearGenderRules() }
                         )
                     }
 
@@ -465,11 +621,18 @@ fun ExploreScreen(
                         )
                     }
 
-                    // Flexible Lease Duration chip
-                    if (filterState.leaseDurationFilter != "All") {
+                    // Flexible Lease Duration chips (multi-select)
+                    if (filterState.selectedLeaseDurations.isNotEmpty() && "All" !in filterState.selectedLeaseDurations) {
+                        filterState.selectedLeaseDurations.forEach { lDur ->
+                            FilterBadge(
+                                label = "Lease: $lDur",
+                                onRemove = { viewModel.toggleLeaseDuration(lDur) }
+                            )
+                        }
+                    } else if (filterState.leaseDurationFilter != "All") {
                         FilterBadge(
                             label = "Lease: ${filterState.leaseDurationFilter}",
-                            onRemove = { viewModel.updateLeaseDuration("All") }
+                            onRemove = { viewModel.clearLeaseDurations() }
                         )
                     }
 
@@ -484,9 +647,10 @@ fun ExploreScreen(
                     // Sort By chip
                     if (filterState.sortBy != "NEWEST") {
                         val sortLabel = when (filterState.sortBy) {
+                            "PRICE_ASC", "RENT_ASC", "lowest_price" -> "Rent: Low to High"
+                            "PRICE_DESC", "RENT_DESC" -> "Rent: High to Low"
+                            "OLDEST", "DATE_ASC" -> "Date: Oldest First"
                             "highest_available" -> "Most Available Beds"
-                            "PRICE_ASC", "lowest_price" -> "Lowest Price"
-                            "PRICE_DESC" -> "Highest Price"
                             else -> filterState.sortBy
                         }
                         FilterBadge(
@@ -499,15 +663,18 @@ fun ExploreScreen(
                     val hasActiveFilters = filterState.provinceId.isNotEmpty() ||
                         filterState.cityMunicipalityId.isNotEmpty() ||
                         filterState.barangayId.isNotEmpty() ||
+                        filterState.selectedPropertyTypes.isNotEmpty() ||
                         filterState.propertyType != "All" ||
                         filterState.listedBy != "All" ||
                         filterState.authorizedPosterOnly ||
                         filterState.verifiedOnly ||
-                        filterState.genderRule != "all" ||
+                        (filterState.selectedGenderRules.isNotEmpty() && "ALL" !in filterState.selectedGenderRules) ||
+                        (filterState.genderRule.uppercase() != "ALL") ||
                         filterState.minAvailableBeds > 0 ||
                         filterState.sortBy != "NEWEST" ||
                         filterState.minRent > 0 ||
                         filterState.maxRent < 100000 ||
+                        (filterState.selectedLeaseDurations.isNotEmpty() && "All" !in filterState.selectedLeaseDurations) ||
                         filterState.leaseDurationFilter != "All" ||
                         filterState.moveInDateFilter != "All"
 
@@ -549,35 +716,10 @@ fun ExploreScreen(
                     softWrap = false
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Sort: ",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                    Text(
-                        text = when (filterState.sortBy) {
-                            "PRICE_ASC" -> "Price: Low to High"
-                            "PRICE_DESC" -> "Price: High to Low"
-                            else -> "Newest First"
-                        },
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.clickable {
-                            val next = when (filterState.sortBy) {
-                                "NEWEST" -> "PRICE_ASC"
-                                "PRICE_ASC" -> "PRICE_DESC"
-                                else -> "NEWEST"
-                            }
-                            viewModel.setSortBy(next)
-                        }
-                    )
-                }
+                SortByDropdownMenu(
+                    currentSort = filterState.sortBy,
+                    onSelectSort = { viewModel.setSortBy(it) }
+                )
             }
         }
 
@@ -602,20 +744,29 @@ fun ExploreScreen(
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleSmall
                             )
-                            if (filterState.bounds != null) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    modifier = Modifier.clickable { viewModel.clearMapAreaSearch() }
-                                ) {
-                                    Text(
-                                        text = "Area Filter Active ✕",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (filterState.bounds != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        modifier = Modifier.clickable { viewModel.clearMapAreaSearch() }
+                                    ) {
+                                        Text(
+                                            text = "Area Filter Active ✕",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
+                                SortByDropdownMenu(
+                                    currentSort = filterState.sortBy,
+                                    onSelectSort = { viewModel.setSortBy(it) }
+                                )
                             }
                         }
 
@@ -810,36 +961,7 @@ fun ExploreScreen(
                         }
                     }
 
-                    // Floating Pill: Quick switch to interactive map
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        shadowElevation = 8.dp,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 16.dp)
-                            .clickable { viewModel.setViewMode("MAP") }
-                            .testTag("floating_map_pill")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Map,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "View on Map (${properties.size})",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
+
                 }
             }
         }
@@ -953,7 +1075,7 @@ fun ExploreScreen(
         )
     }
 
-    // Comprehensive Filter Modal Bottom Sheet
+    // Comprehensive Interactive Filter Modal Bottom Sheet
     if (showFilterSheet) {
         ModalBottomSheet(
             onDismissRequest = { showFilterSheet = false },
@@ -963,714 +1085,329 @@ fun ExploreScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Filter Rental Properties",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = { showFilterSheet = false }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Section 1: Geographic Cascading Hierarchy
-                Text(
-                    text = "Geographic Location",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                CascadingLocationSelector(
-                    countries = countries,
-                    selectedCountryId = "ctry_ph",
-                    onCountrySelected = { /* PH default */ },
-                    regions = emptyList(),
-                    selectedRegionId = "",
-                    onRegionSelected = { },
-                    provinces = allProvinces,
-                    selectedProvinceId = filterState.provinceId,
-                    onProvinceSelected = { viewModel.updateProvince(it) },
-                    cities = allCities,
-                    selectedCityId = filterState.cityMunicipalityId,
-                    onCitySelected = { viewModel.updateCity(it) },
-                    barangays = allBarangays,
-                    selectedBarangayId = filterState.barangayId,
-                    onBarangaySelected = { viewModel.updateBarangay(it) },
-                    allowAllOption = true
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 2: Property Type (Philippine Rental Market Standards)
-                Text(
-                    text = "Property Type (Philippine Standards)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Select from the 4 primary Philippine rental categories or locality residential houses",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = filterState.propertyType == "All",
-                        onClick = { viewModel.updatePropertyType("All") },
-                        label = { Text("All", fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                    )
-                    PhilippineRentalPropertyCategory.ALL_CATEGORIES.forEach { cat ->
-                        val isSelected = filterState.propertyType == cat.displayName || filterState.propertyType == cat.shortLabel
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.updatePropertyType(cat.displayName) },
-                            label = { Text("${cat.targetEmoji} ${cat.shortLabel}", fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                    Column {
+                        Text(
+                            text = "Filter Rental Properties",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Interactive dropdowns • ${properties.size} properties match",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    IconButton(onClick = { showFilterSheet = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close filter menu")
+                    }
                 }
 
-                // If a property type is selected, show its Philippine Rental Market Standard profile card
-                if (filterState.propertyType != "All") {
-                    val activeTypeCat = PhilippineRentalPropertyCategory.fromPropertyType(filterState.propertyType)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                        modifier = Modifier.fillMaxWidth()
+                // 1. TOP MENU: Monthly Rent Budget (₱)
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "${activeTypeCat.targetEmoji} ${activeTypeCat.displayName} Specifications",
-                                fontSize = 12.sp,
+                                text = "Monthly Rent Budget (₱)",
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            Text(
-                                text = "👤 Target: ${activeTypeCat.targetMarket}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "🏠 Expected Amenities: ${activeTypeCat.expectedAmenities.joinToString(", ")}",
-                                fontSize = 10.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "⚡ Utilities: ${activeTypeCat.waterDefault} • ${activeTypeCat.electricityDefault} • ${activeTypeCat.internetDefault}",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "📋 House Rules: ${activeTypeCat.curfewDefault} • ${activeTypeCat.securityDefault} • ${activeTypeCat.visitorsDefault} • ${activeTypeCat.cookingDefault} • ${activeTypeCat.petPolicyDefault} • ${activeTypeCat.parkingDefault}",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = "₱${filterState.minRent.toInt()} – ₱${filterState.maxRent.toInt()}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
-                    }
-                }
 
-                // Dynamic Type-Specific Filters (Condition-Driven)
-                val isBoarding = filterState.propertyType.contains("Board", ignoreCase = true) || filterState.propertyType.contains("Bed", ignoreCase = true)
-                val isApartment = filterState.propertyType.contains("Apart", ignoreCase = true) || filterState.propertyType.contains("Flat", ignoreCase = true)
-                val isCondo = filterState.propertyType.contains("Condo", ignoreCase = true) || filterState.propertyType.contains("Studio", ignoreCase = true)
-                val isTownhouse = filterState.propertyType.contains("Town", ignoreCase = true) || filterState.propertyType.contains("House", ignoreCase = true)
-
-                if (isBoarding) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "🛏️ Boarding House Specifications",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text("Pricing Model:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Per Person/Bed", "Per Room").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.boardingPricingModel == opt,
-                                onClick = { viewModel.updateBoardingPricingModel(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Room Capacity:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Single", "Double bed", "4-bed bunk", "6-bed bunk").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.boardingCapacity == opt,
-                                onClick = { viewModel.updateBoardingCapacity(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Bathroom Setup:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Private/En-suite", "Shared/Communal").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.boardingBathroom == opt,
-                                onClick = { viewModel.updateBoardingBathroom(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-                } else if (isApartment) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "🚪 Apartment Specifications",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text("Kitchen Setup:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Indoor/Integral", "Outdoor/Dirty Kitchen").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.apartmentKitchen == opt,
-                                onClick = { viewModel.updateApartmentKitchen(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Utility Billing:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Own Meter", "Sub-metered by Landlord").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.apartmentBilling == opt,
-                                onClick = { viewModel.updateApartmentBilling(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-                } else if (isCondo) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "🏢 Condominium & Studio Specifications",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text("Unit Layout:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Studio", "1BR", "2BR", "Loft", "Bi-level").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.condoLayout == opt,
-                                onClick = { viewModel.updateCondoLayout(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Association Dues:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Inclusive in rent", "Exclusive/Tenant pays separately").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.condoDues == opt,
-                                onClick = { viewModel.updateCondoDues(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Parking Arrangement:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("All", "Included in rent", "Available for extra fee").forEach { opt ->
-                            FilterChip(
-                                selected = filterState.condoParking == opt,
-                                onClick = { viewModel.updateCondoParking(opt) },
-                                label = { Text(opt, fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
-                } else if (isTownhouse) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "🏡 Townhouse Specifications",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text("Number of Stories:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = filterState.townhouseStories == null,
-                            onClick = { viewModel.updateTownhouseStories(null) },
-                            label = { Text("All", fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
+                        RangeSlider(
+                            value = filterState.minRent.toFloat()..filterState.maxRent.toFloat(),
+                            onValueChange = { range ->
+                                viewModel.updatePriceRange(range.start.toDouble(), range.endInclusive.toDouble())
+                            },
+                            valueRange = 0f..100000f,
+                            steps = 19
                         )
-                        listOf(1, 2, 3).forEach { st ->
-                            FilterChip(
-                                selected = filterState.townhouseStories == st,
-                                onClick = { viewModel.updateTownhouseStories(st) },
-                                label = { Text("$st-Storey", fontSize = 11.5.sp, maxLines = 1, softWrap = false) }
-                            )
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = filterState.townhouseGatedSubdivision,
-                            onClick = { viewModel.updateTownhouseGated(!filterState.townhouseGatedSubdivision) },
-                            label = { Text(if (filterState.townhouseGatedSubdivision) "✓ Gated Subdivision" else "Gated Subdivision", fontSize = 11.5.sp) }
+                        // Quick budget preset dropdown
+                        val currentBudgetPreset = when {
+                            filterState.minRent == 0.0 && filterState.maxRent >= 100000.0 -> "all"
+                            filterState.minRent == 1000.0 && filterState.maxRent == 5000.0 -> "budget"
+                            filterState.minRent == 5000.0 && filterState.maxRent == 15000.0 -> "mid"
+                            filterState.minRent == 15000.0 && filterState.maxRent == 35000.0 -> "premium"
+                            filterState.minRent == 35000.0 && filterState.maxRent == 100000.0 -> "luxury"
+                            else -> "custom"
+                        }
+
+                        val budgetPresets = listOf(
+                            "all" to "Any Budget (₱0 – ₱100,000+)",
+                            "budget" to "Budget Friendly (₱1,000 – ₱5,000)",
+                            "mid" to "Mid-Range (₱5,000 – ₱15,000)",
+                            "premium" to "Premium Units (₱15,000 – ₱35,000)",
+                            "luxury" to "Luxury & Townhouses (₱35,000 – ₱100,000)",
+                            "custom" to "Custom (₱${filterState.minRent.toInt()} – ₱${filterState.maxRent.toInt()})"
                         )
-                        FilterChip(
-                            selected = filterState.townhouseMaidsRoom,
-                            onClick = { viewModel.updateTownhouseMaidsRoom(!filterState.townhouseMaidsRoom) },
-                            label = { Text(if (filterState.townhouseMaidsRoom) "✓ Maid's Quarters" else "Maid's Quarters", fontSize = 11.5.sp) }
+
+                        InteractiveFilterDropdown(
+                            title = "Quick Budget Range Preset",
+                            selectedValue = currentBudgetPreset,
+                            options = budgetPresets,
+                            onSelect = { presetKey ->
+                                when (presetKey) {
+                                    "all" -> viewModel.updatePriceRange(0.0, 100000.0)
+                                    "budget" -> viewModel.updatePriceRange(1000.0, 5000.0)
+                                    "mid" -> viewModel.updatePriceRange(5000.0, 15000.0)
+                                    "premium" -> viewModel.updatePriceRange(15000.0, 35000.0)
+                                    "luxury" -> viewModel.updatePriceRange(35000.0, 100000.0)
+                                }
+                            }
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 2B: Target Market / Demographics
-                Text(
-                    text = "Target Market / Demographics",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                // 2. Property Types 2X2 Selectable Bar (Multi-select)
+                SelectableGrid2x2(
+                    title = "Property Types",
+                    subtitle = "Select one or more rental categories as per your requirements",
+                    options = propertyTypeGridOptions,
+                    selectedKeys = filterState.selectedPropertyTypes,
+                    onToggle = { viewModel.togglePropertyType(it) },
+                    isDark = isDark
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val targetOptions = listOf(
-                        "All",
-                        "Students & Budget BPO",
-                        "Solo Renters & Couples",
-                        "Small Families & Sharers",
-                        "High-earning Professionals & Expats"
+
+                // 3. Gender Policy 2X2 Selectable Bar (Multi-select)
+                SelectableGrid2x2(
+                    title = "Gender Policy",
+                    subtitle = "Select allowed gender policies (ALL, MALE, FEMALE, Mixed)",
+                    options = genderGridOptions,
+                    selectedKeys = filterState.selectedGenderRules,
+                    onToggle = { viewModel.toggleGenderRule(it) },
+                    isDark = isDark
+                )
+
+                // 4. Lease Duration 2X2 Selectable Bar (Multi-select)
+                SelectableGrid2x2(
+                    title = "Lease Duration",
+                    subtitle = "Select flexible lease terms (Flexible, Mid-term, Annual, All)",
+                    options = leaseGridOptions,
+                    selectedKeys = filterState.selectedLeaseDurations,
+                    onToggle = { viewModel.toggleLeaseDuration(it) },
+                    isDark = isDark
+                )
+
+                // 5. Available Bed Vacancies 2X2 Selectable Bar (ONLY when Boarding House is selected)
+                val isBoardingInSheet = filterState.selectedPropertyTypes.any { it.contains("Board", ignoreCase = true) || it.contains("Bed", ignoreCase = true) } ||
+                        filterState.propertyType.contains("Board", ignoreCase = true) ||
+                        filterState.propertyType.contains("Bed", ignoreCase = true)
+
+                if (isBoardingInSheet) {
+                    SelectableGrid2x2(
+                        title = "Available Bed Vacancies",
+                        subtitle = "Minimum open beds currently vacant in boarding house",
+                        options = bedGridOptions,
+                        selectedKeys = if (filterState.minAvailableBeds > 0) setOf(filterState.minAvailableBeds.toString()) else setOf("0"),
+                        onToggle = { key ->
+                            val beds = key.toIntOrNull() ?: 0
+                            viewModel.updateMinAvailableBeds(if (filterState.minAvailableBeds == beds) 0 else beds)
+                        },
+                        isDark = isDark
                     )
-                    targetOptions.forEach { opt ->
-                        FilterChip(
-                            selected = filterState.targetMarket == opt,
-                            onClick = { viewModel.updateTargetMarket(opt) },
-                            label = { Text(opt, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 2C: Utilities & House Rules Setup
-                Text(
-                    text = "Utilities & House Rules Standards",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                // 6. Move-In Date Dropdown
+                val moveInOptions = listOf(
+                    "All" to "Any Move-in Date",
+                    "Immediate / Today" to "⚡ Immediate / Ready Today",
+                    "Within 7 Days" to "📦 Within 7 Days",
+                    "Within 15 Days" to "🗓️ Within 15 Days",
+                    "Within 30 Days" to "🗓️ Within 30 Days"
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val utilityRuleOptions = listOf(
-                        "All",
-                        "Sub-metered Electricity",
-                        "Flat Rate Water",
-                        "Shared WiFi",
-                        "24/7 Gate Key (No Curfew)",
-                        "Curfew Hours",
-                        "Caretaker On-Site",
-                        "24/7 Roaming Guards",
-                        "Strictly Induction (No LPG)",
-                        "LPG Allowed",
-                        "Daytime Visitors Allowed",
-                        "Strictly No Visitors"
-                    )
-                    utilityRuleOptions.forEach { opt ->
-                        FilterChip(
-                            selected = filterState.utilityRuleFilter == opt,
-                            onClick = { viewModel.updateUtilityRuleFilter(opt) },
-                            label = { Text(opt, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 3: Listed By
-                Text(
-                    text = "Listed By",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                InteractiveFilterDropdown(
+                    title = "Move-In Date & Availability",
+                    subtitle = "Target occupancy availability",
+                    selectedValue = filterState.moveInDateFilter,
+                    options = moveInOptions,
+                    onSelect = { viewModel.updateMoveInDate(it) }
                 )
-                Text(
-                    text = "Filter by poster authority & relationship to property",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
 
+                // 7. Listed By Dropdown
                 val listedByOptions = listOf(
-                    "All",
-                    "Direct Owner",
-                    "Licensed Broker",
-                    "Property Manager",
-                    "Caretaker",
-                    "Family Member",
-                    "Authorized Representative"
+                    "All" to "All Poster Roles",
+                    "Direct Owner" to "Direct Owner",
+                    "Licensed Broker" to "Licensed Broker",
+                    "Property Manager" to "Property Manager",
+                    "Caretaker" to "Caretaker",
+                    "Family Member" to "Family Member",
+                    "Authorized Representative" to "Authorized Representative"
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+                InteractiveFilterDropdown(
+                    title = "Listed By (Poster Authority)",
+                    subtitle = "Filter by poster relation to property",
+                    selectedValue = filterState.listedBy,
+                    options = listedByOptions,
+                    onSelect = { viewModel.updateListedBy(it) }
+                )
+
+                // 8. Utilities & House Rules Dropdown
+                val utilityRuleOptions = listOf(
+                    "All" to "All Utilities & Rules",
+                    "Sub-metered Electricity" to "Sub-metered Electricity",
+                    "Flat Rate Water" to "Flat Rate Water",
+                    "Shared WiFi" to "Shared WiFi",
+                    "24/7 Gate Key (No Curfew)" to "24/7 Gate Key (No Curfew)",
+                    "Curfew Hours" to "Curfew Hours",
+                    "Caretaker On-Site" to "Caretaker On-Site",
+                    "24/7 Roaming Guards" to "24/7 Roaming Guards",
+                    "Strictly Induction (No LPG)" to "Strictly Induction (No LPG)",
+                    "LPG Allowed" to "LPG Allowed",
+                    "Daytime Visitors Allowed" to "Daytime Visitors Allowed",
+                    "Strictly No Visitors" to "Strictly No Visitors"
+                )
+
+                InteractiveFilterDropdown(
+                    title = "Utilities & House Rules Standards",
+                    subtitle = "Standard Philippine boarding house & rental policies",
+                    selectedValue = filterState.utilityRuleFilter,
+                    options = utilityRuleOptions,
+                    onSelect = { viewModel.updateUtilityRuleFilter(it) }
+                )
+
+                // 9. Top-Down List of Key Requirements & Features
+                Text(
+                    text = "Key Listing Requirements",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    listedByOptions.forEach { option ->
-                        FilterChip(
-                            selected = filterState.listedBy == option,
-                            onClick = { viewModel.updateListedBy(option) },
-                            label = { Text(option, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Authorized posters only
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Authorized Posters Only", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Direct owners and verified legal representatives only",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = filterState.authorizedPosterOnly,
+                                onCheckedChange = { viewModel.toggleAuthorizedPosterOnly() }
+                            )
+                        }
+
+                        // Dedicated parking required
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Dedicated Parking Required", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Requires reserved car or motorcycle parking space",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = filterState.parkingRequired,
+                                onCheckedChange = { viewModel.toggleParkingRequired() }
+                            )
+                        }
+
+                        // Pet friendly only
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Pet-Friendly Only", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Accepts dogs, cats, or small pets per house rules",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = filterState.petFriendly,
+                                onCheckedChange = { viewModel.togglePetFriendly() }
+                            )
+                        }
+
+                        // Verified listings only (Level 3+)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Verified Listings Only (Level 3+)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Barangay clearance, proof of authority, or title validated",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = filterState.verifiedOnly,
+                                onCheckedChange = { viewModel.toggleVerifiedOnly() }
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Authorized posters toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Authorized Posters Only", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "Only show listings posted by direct owners or verified representatives",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Switch(
-                        checked = filterState.authorizedPosterOnly,
-                        onCheckedChange = { viewModel.toggleAuthorizedPosterOnly() }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 4: Monthly Budget (₱)
-                Text(
-                    text = "Monthly Rent Budget (₱)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("₱${filterState.minRent.toInt()}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("₱${filterState.maxRent.toInt()}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                RangeSlider(
-                    value = filterState.minRent.toFloat()..filterState.maxRent.toFloat(),
-                    onValueChange = { range ->
-                        viewModel.updatePriceRange(range.start.toDouble(), range.endInclusive.toDouble())
-                    },
-                    valueRange = 0f..100000f,
-                    steps = 19
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Section 5: Specifications & Policies
-                Text(
-                    text = "Specifications & Amenities",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Parking toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Dedicated Parking Required", fontSize = 13.sp)
-                    Switch(
-                        checked = filterState.parkingRequired,
-                        onCheckedChange = { viewModel.toggleParkingRequired() }
-                    )
-                }
-
-                // Pet friendly toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Pet-Friendly Only", fontSize = 13.sp)
-                    Switch(
-                        checked = filterState.petFriendly,
-                        onCheckedChange = { viewModel.togglePetFriendly() }
-                    )
-                }
-
-                // Verified only toggle
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Verified Listings Only (Level 3+)", fontSize = 13.sp)
-                    Switch(
-                        checked = filterState.verifiedOnly,
-                        onCheckedChange = { viewModel.toggleVerifiedOnly() }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 6: Gender Rule Policy
-                Text(
-                    text = "Gender Policy (Boarding House)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val genderOptions = listOf(
-                        "all" to "All Genders / Mixed",
-                        "female_only" to "Female Only (Ladies)",
-                        "male_only" to "Male Only (Men)"
-                    )
-                    genderOptions.forEach { (key, label) ->
-                        FilterChip(
-                            selected = filterState.genderRule == key,
-                            onClick = { viewModel.updateGenderRule(key) },
-                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 7: Minimum Available Beds
-                Text(
-                    text = "Available Bed Vacancies",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val bedOptions = listOf(
-                        0 to "Any Beds",
-                        1 to "1+ Beds Vacant",
-                        2 to "2+ Beds Vacant",
-                        4 to "4+ Beds Vacant"
-                    )
-                    bedOptions.forEach { (beds, label) ->
-                        FilterChip(
-                            selected = filterState.minAvailableBeds == beds,
-                            onClick = { viewModel.updateMinAvailableBeds(beds) },
-                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 8: Flexible Lease Duration
-                Text(
-                    text = "Flexible Lease Duration",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Find short stays, academic semester terms, or long-term annual rentals",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val leaseOptions = listOf(
-                        "All" to "All Terms",
-                        "Flexible (1-3 mos)" to "⚡ Flexible (1-3 mos)",
-                        "Mid-term (4-6 mos)" to "📅 Mid-term (4-6 mos)",
-                        "Academic / Semester" to "🎓 Academic / Semester",
-                        "Annual (12+ mos)" to "🏠 Annual (12+ mos)"
-                    )
-                    leaseOptions.forEach { (key, label) ->
-                        FilterChip(
-                            selected = filterState.leaseDurationFilter == key,
-                            onClick = { viewModel.updateLeaseDuration(key) },
-                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 9: Move-In Date & Availability Window
-                Text(
-                    text = "Move-In Date & Availability",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Filter properties ready for immediate occupancy or upcoming move-in dates",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val moveInOptions = listOf(
-                        "All" to "Any Move-in Date",
-                        "Immediate / Today" to "⚡ Immediate / Ready Today",
-                        "Within 7 Days" to "📦 Within 7 Days",
-                        "Within 15 Days" to "🗓️ Within 15 Days",
-                        "Within 30 Days" to "🗓️ Within 30 Days"
-                    )
-                    moveInOptions.forEach { (key, label) ->
-                        FilterChip(
-                            selected = filterState.moveInDateFilter == key,
-                            onClick = { viewModel.updateMoveInDate(key) },
-                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 10: Sort Order
-                Text(
-                    text = "Sort By",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val sortOptions = listOf(
-                        "NEWEST" to "Recently Updated",
-                        "highest_available" to "Most Available Beds",
-                        "PRICE_ASC" to "Lowest Price",
-                        "PRICE_DESC" to "Highest Price"
-                    )
-                    sortOptions.forEach { (key, label) ->
-                        FilterChip(
-                            selected = filterState.sortBy == key,
-                            onClick = { viewModel.setSortBy(key) },
-                            label = { Text(label, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Apply & Reset Buttons
+                // Apply & Reset Sticky Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1681,7 +1418,7 @@ fun ExploreScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Reset", maxLines = 1, softWrap = false)
+                        Text("Reset All", maxLines = 1, softWrap = false)
                     }
 
                     Button(
@@ -1692,11 +1429,112 @@ fun ExploreScreen(
                         Text("Apply Filters (${properties.size})", maxLines = 1, softWrap = false)
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
             }
         }
     }
 }
+}
+
+@Composable
+private fun InteractiveFilterDropdown(
+    title: String,
+    selectedValue: String,
+    options: List<Pair<String, String>>, // (key, label)
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayLabel = options.find { it.first.equals(selectedValue, ignoreCase = true) }?.second ?: selectedValue
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true },
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(
+                    1.dp,
+                    if (expanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = displayLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Expand $title menu",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(0.88f)
+            ) {
+                options.forEach { (key, label) ->
+                    val isSelected = key.equals(selectedValue, ignoreCase = true)
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        trailingIcon = {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        },
+                        onClick = {
+                            onSelect(key)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1728,6 +1566,342 @@ private fun FilterBadge(
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(12.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun SortByDropdownMenu(
+    currentSort: String,
+    onSelectSort: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayLabel = when (currentSort) {
+        "PRICE_ASC", "RENT_ASC", "lowest_price" -> "Rent (Low to High)"
+        "PRICE_DESC", "RENT_DESC" -> "Rent (High to Low)"
+        "OLDEST", "DATE_ASC" -> "Date (Oldest First)"
+        else -> "Date (Newest First)"
+    }
+
+    Box(modifier = modifier) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+            modifier = Modifier.clickable { expanded = true }
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Sort By: ",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Text(
+                    text = displayLabel,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Open Sort Options",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            val sortOptions = listOf(
+                "PRICE_ASC" to "Rent (Low to High)",
+                "PRICE_DESC" to "Rent (High to Low)",
+                "NEWEST" to "Date (Newest First)",
+                "OLDEST" to "Date (Oldest First)"
+            )
+            sortOptions.forEach { (key, label) ->
+                val isSelected = when (key) {
+                    "PRICE_ASC" -> currentSort in listOf("PRICE_ASC", "RENT_ASC", "lowest_price")
+                    "PRICE_DESC" -> currentSort in listOf("PRICE_DESC", "RENT_DESC")
+                    "OLDEST" -> currentSort in listOf("OLDEST", "DATE_ASC")
+                    else -> currentSort !in listOf("PRICE_ASC", "RENT_ASC", "lowest_price", "PRICE_DESC", "RENT_DESC", "OLDEST", "DATE_ASC")
+                }
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    trailingIcon = {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    },
+                    onClick = {
+                        onSelectSort(key)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterPillBar(
+    title: String,
+    selectedValue: String,
+    options: List<Pair<String, String>>, // (key, label)
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            options.forEach { (key, label) ->
+                val isSelected = key.equals(selectedValue, ignoreCase = true)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.clickable { onSelect(key) }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class SelectableBarOption(
+    val key: String,
+    val label: String,
+    val subtitle: String? = null,
+    val iconEmoji: String? = null
+)
+
+@Composable
+fun SelectableGrid2x2(
+    title: String,
+    subtitle: String? = null,
+    options: List<SelectableBarOption>,
+    selectedKeys: Set<String>,
+    onToggle: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isDark: Boolean = false
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (selectedKeys.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        text = "${selectedKeys.size} selected",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+
+        // 2x2 Grid Layout
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val rows = options.chunked(2)
+            for (row in rows) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    for (opt in row) {
+                        val isSelected = selectedKeys.contains(opt.key)
+                        Surface(
+                            onClick = { onToggle(opt.key) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                if (isDark) Color(0xFF1E293B) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            },
+                            border = BorderStroke(
+                                width = if (isSelected) 1.8.dp else 1.dp,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                                }
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 52.dp)
+                                .testTag("selectable_bar_${opt.key.lowercase().replace(" ", "_").replace("/", "_")}")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (opt.iconEmoji != null) {
+                                        Text(
+                                            text = opt.iconEmoji,
+                                            fontSize = 16.sp,
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = opt.label,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isSelected) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (opt.subtitle != null) {
+                                            Text(
+                                                text = opt.subtitle,
+                                                fontSize = 10.5.sp,
+                                                color = if (isSelected) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (row.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
         }
     }
 }

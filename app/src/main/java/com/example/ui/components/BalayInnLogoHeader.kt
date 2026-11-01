@@ -30,7 +30,7 @@ fun BalayInnLogoHeader(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().height(64.dp),
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = if (isDark) 0.dp else 2.dp,
         tonalElevation = 2.dp
@@ -38,8 +38,8 @@ fun BalayInnLogoHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 68.dp)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .height(64.dp)
+                .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -48,42 +48,42 @@ fun BalayInnLogoHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.testTag("balay_inn_brand_header")
             ) {
-                // Balay-Inn Custom App Logo Badge (Bahay Kubo & Shield) - Enlarged
+                // Balay-Inn Custom App Logo Badge (Bahay Kubo & Shield)
                 BahayKuboShieldLogo(
-                    size = 48.dp,
-                    badgeCornerRadius = 14.dp,
+                    size = 36.dp,
+                    badgeCornerRadius = 10.dp,
                     showGradientBackground = true
                 )
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Balay-Inn",
-                            fontSize = 24.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
                             color = if (isDark) Color.White else Color(0xFF0F172A),
-                            letterSpacing = (-0.6).sp
+                            letterSpacing = (-0.5).sp
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Surface(
-                            shape = RoundedCornerShape(5.dp),
+                            shape = RoundedCornerShape(4.dp),
                             color = if (isDark) Color(0xFF1E3552) else Color(0xFFEDF4FA),
                             modifier = Modifier.padding(top = 1.dp)
                         ) {
                             Text(
                                 text = "PH",
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.5.dp)
                             )
                         }
                     }
                     Text(
                         text = "Rental Marketplace & Transparency",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
                     )
@@ -98,7 +98,7 @@ fun BalayInnLogoHeader(
                 IconButton(
                     onClick = onToggleDarkMode,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .background(
                             if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
                             CircleShape
@@ -108,7 +108,7 @@ fun BalayInnLogoHeader(
                         imageVector = if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
                         contentDescription = "Toggle Dark Mode",
                         tint = if (isDark) Color(0xFFFBBF24) else Color(0xFF475569),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
@@ -116,7 +116,7 @@ fun BalayInnLogoHeader(
                     IconButton(
                         onClick = onNotificationsClick,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .background(
                                 if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
                                 CircleShape
@@ -126,7 +126,7 @@ fun BalayInnLogoHeader(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Notifications",
                             tint = if (isDark) Color.White else Color(0xFF0F172A),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }

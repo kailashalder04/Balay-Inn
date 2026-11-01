@@ -77,6 +77,7 @@ data class MarketplaceFilterState(
     val minRent: Double = 0.0,
     val maxRent: Double = 100000.0,
     val propertyType: String = "All", // All, Studio, Apartment, Condominium, House, Room, Townhouse
+    val selectedPropertyTypes: Set<String> = emptySet(), // Multi-select: "Boarding House", "Apartment", "Condominium", "Townhouse"
     val bedrooms: Int? = null,
     val furnishedStatus: String = "All", // All, Furnished, Semi-Furnished, Unfurnished
     val parkingRequired: Boolean = false,
@@ -87,11 +88,13 @@ data class MarketplaceFilterState(
     val distanceFilter: DistanceFilter? = null,
     val listedBy: String = "All", // All, Direct Owner, Licensed Broker, Property Manager, Caretaker, Family Member, Authorized Representative
     val authorizedPosterOnly: Boolean = false,
-    val genderRule: String = "all", // all, female_only, male_only
+    val genderRule: String = "ALL", // ALL, MALE, FEMALE
+    val selectedGenderRules: Set<String> = emptySet(), // Multi-select: "ALL", "MALE", "FEMALE", "COED"
     val minAvailableBeds: Int = 0,
     val targetMarket: String = "All",
     val utilityRuleFilter: String = "All",
     val leaseDurationFilter: String = "All", // All, Flexible (1-3 mos), Mid-term (4-6 mos), Annual (12+ mos)
+    val selectedLeaseDurations: Set<String> = emptySet(), // Multi-select: "Flexible (1-3 mos)", "Mid-term (4-6 mos)", "Annual (12+ mos)", "All"
     val moveInDateFilter: String = "All", // All, Immediate / Available Now, Within 15 Days, Within 30 Days, Flexible
     // Type-specific dynamic filter attributes
     val boardingPricingModel: String = "All", // All, Per Person/Bed, Per Room
@@ -297,13 +300,24 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             // Price Range
             val matchesPrice = prop.monthlyRent in filter.minRent..filter.maxRent
 
-            // Property Type
-            val matchesType = when {
-                filter.propertyType == "All" -> true
-                prop.propertyType.equals(filter.propertyType, ignoreCase = true) -> true
-                else -> {
-                    val filterCat = PhilippineRentalPropertyCategory.fromPropertyType(filter.propertyType)
-                    filterCat == propCategory
+            // Property Type (supports multi-selection)
+            val matchesType = if (filter.selectedPropertyTypes.isEmpty() || "All" in filter.selectedPropertyTypes) {
+                when {
+                    filter.propertyType == "All" -> true
+                    prop.propertyType.equals(filter.propertyType, ignoreCase = true) -> true
+                    else -> {
+                        val filterCat = PhilippineRentalPropertyCategory.fromPropertyType(filter.propertyType)
+                        filterCat == propCategory
+                    }
+                }
+            } else {
+                filter.selectedPropertyTypes.any { selType ->
+                    prop.propertyType.equals(selType, ignoreCase = true) ||
+                    PhilippineRentalPropertyCategory.fromPropertyType(selType) == propCategory ||
+                    (selType.contains("Board", ignoreCase = true) && (propCategory == PhilippineRentalPropertyCategory.BED_SPACE || prop.propertyType.contains("Board", ignoreCase = true) || prop.propertyType.contains("Bed", ignoreCase = true))) ||
+                    (selType.contains("Apart", ignoreCase = true) && (propCategory == PhilippineRentalPropertyCategory.APARTMENT_FLAT || prop.propertyType.contains("Apart", ignoreCase = true))) ||
+                    (selType.contains("Condo", ignoreCase = true) && (propCategory == PhilippineRentalPropertyCategory.CONDOMINIUM || propCategory == PhilippineRentalPropertyCategory.STUDIO_UNIT || prop.propertyType.contains("Condo", ignoreCase = true) || prop.propertyType.contains("Studio", ignoreCase = true))) ||
+                    (selType.contains("Town", ignoreCase = true) && (propCategory == PhilippineRentalPropertyCategory.HOUSE_TOWNHOUSE || prop.propertyType.contains("Town", ignoreCase = true) || prop.propertyType.contains("House", ignoreCase = true)))
                 }
             }
 
@@ -449,34 +463,72 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 ) <= filter.distanceFilter.radiusKm
             )
 
-            // Gender Rule
-            val matchesGender = when (filter.genderRule) {
-                "female_only" -> prop.title.contains("Ladies", ignoreCase = true) ||
-                        prop.title.contains("Female", ignoreCase = true) ||
-                        prop.description.contains("Ladies only", ignoreCase = true) ||
-                        prop.description.contains("Female only", ignoreCase = true)
-                "male_only" -> prop.title.contains("Men", ignoreCase = true) ||
-                        prop.title.contains("Male", ignoreCase = true) ||
-                        prop.description.contains("Men only", ignoreCase = true) ||
-                        prop.description.contains("Male only", ignoreCase = true)
-                else -> true
+            // Gender Rule: ALL, MALE, FEMALE, COED (supports multi-selection)
+            val matchesGender = if (filter.selectedGenderRules.isEmpty() || "ALL" in filter.selectedGenderRules) {
+                when (filter.genderRule.uppercase()) {
+                    "FEMALE", "FEMALE_ONLY" -> prop.title.contains("Ladies", ignoreCase = true) ||
+                            prop.title.contains("Female", ignoreCase = true) ||
+                            prop.description.contains("Ladies", ignoreCase = true) ||
+                            prop.description.contains("Female", ignoreCase = true)
+                    "MALE", "MALE_ONLY" -> prop.title.contains("Men", ignoreCase = true) ||
+                            prop.title.contains("Male", ignoreCase = true) ||
+                            prop.description.contains("Men", ignoreCase = true) ||
+                            prop.description.contains("Male", ignoreCase = true)
+                    else -> true
+                }
+            } else {
+                filter.selectedGenderRules.any { rule ->
+                    when (rule.uppercase()) {
+                        "FEMALE", "FEMALE_ONLY" ->
+                            prop.title.contains("Ladies", ignoreCase = true) ||
+                            prop.title.contains("Female", ignoreCase = true) ||
+                            prop.description.contains("Ladies", ignoreCase = true) ||
+                            prop.description.contains("Female", ignoreCase = true)
+                        "MALE", "MALE_ONLY" ->
+                            prop.title.contains("Men", ignoreCase = true) ||
+                            prop.title.contains("Male", ignoreCase = true) ||
+                            prop.description.contains("Men", ignoreCase = true) ||
+                            prop.description.contains("Male", ignoreCase = true)
+                        "COED", "CO-ED", "MIXED" ->
+                            !prop.title.contains("Ladies", ignoreCase = true) &&
+                            !prop.title.contains("Female", ignoreCase = true) &&
+                            !prop.title.contains("Men", ignoreCase = true) &&
+                            !prop.title.contains("Male", ignoreCase = true)
+                        else -> true
+                    }
+                }
             }
 
             // Min Available Beds
             val matchesMinBeds = filter.minAvailableBeds <= 0 || (prop.bedrooms == 0 || prop.bedrooms >= filter.minAvailableBeds)
 
-            // Flexible Lease Duration Filter
-            val matchesLeaseDuration = when (filter.leaseDurationFilter) {
-                "Flexible (1-3 mos)", "Short-term (< 6 mos)" ->
-                    prop.leaseDurationMonths <= 3 ||
-                    prop.description.contains("flexible", ignoreCase = true) ||
-                    prop.description.contains("short term", ignoreCase = true)
-                "Mid-term (4-6 mos)", "Semester (4-6 mos)" ->
-                    prop.leaseDurationMonths in 4..6 ||
-                    prop.description.contains("semester", ignoreCase = true)
-                "Annual (12+ mos)", "Long-term (12+ mos)" ->
-                    prop.leaseDurationMonths >= 12
-                else -> true
+            // Flexible Lease Duration Filter (supports multi-selection)
+            val matchesLeaseDuration = if (filter.selectedLeaseDurations.isEmpty() || "All" in filter.selectedLeaseDurations) {
+                when (filter.leaseDurationFilter) {
+                    "Flexible (1-3 mos)", "Short-term (< 6 mos)" ->
+                        prop.leaseDurationMonths <= 3 ||
+                        prop.description.contains("flexible", ignoreCase = true) ||
+                        prop.description.contains("short term", ignoreCase = true)
+                    "Mid-term (4-6 mos)" ->
+                        prop.leaseDurationMonths in 4..6
+                    "Annual (12+ mos)", "Long-term (12+ mos)" ->
+                        prop.leaseDurationMonths >= 12
+                    else -> true
+                }
+            } else {
+                filter.selectedLeaseDurations.any { dur ->
+                    when (dur) {
+                        "Flexible (1-3 mos)", "Short-term (< 6 mos)" ->
+                            prop.leaseDurationMonths <= 3 ||
+                            prop.description.contains("flexible", ignoreCase = true) ||
+                            prop.description.contains("short term", ignoreCase = true)
+                        "Mid-term (4-6 mos)" ->
+                            prop.leaseDurationMonths in 4..6
+                        "Annual (12+ mos)", "Long-term (12+ mos)" ->
+                            prop.leaseDurationMonths >= 12
+                        else -> true
+                    }
+                }
             }
 
             // Move-In Date Filter
@@ -537,8 +589,10 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 matchesGender && matchesMinBeds && matchesLeaseDuration && matchesMoveInDate && matchesCategorySpecs
         }.sortedWith(
             when (filter.sortBy) {
-                "PRICE_ASC", "lowest_price" -> compareBy { it.monthlyRent }
-                "PRICE_DESC" -> compareByDescending { it.monthlyRent }
+                "PRICE_ASC", "RENT_ASC", "lowest_price" -> compareBy { it.monthlyRent }
+                "PRICE_DESC", "RENT_DESC" -> compareByDescending { it.monthlyRent }
+                "OLDEST", "DATE_ASC" -> compareBy { it.createdAt }
+                "NEWEST", "DATE_DESC" -> compareByDescending { it.createdAt }
                 "highest_available" -> compareByDescending { if (it.bedrooms == 0) 4 else it.bedrooms * 2 }
                 else -> compareByDescending { it.createdAt }
             }
@@ -588,8 +642,34 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         _filterState.value = _filterState.value.copy(minRent = min, maxRent = max)
     }
 
+    fun togglePropertyType(type: String) {
+        val current = _filterState.value.selectedPropertyTypes.toMutableSet()
+        if (type == "All" || type.isBlank()) {
+            current.clear()
+        } else {
+            if (current.contains(type)) {
+                current.remove(type)
+            } else {
+                current.add(type)
+            }
+        }
+        val isBoarding = current.any { it.contains("Board", ignoreCase = true) || it.contains("Bed", ignoreCase = true) }
+        _filterState.value = _filterState.value.copy(
+            selectedPropertyTypes = current,
+            propertyType = if (current.isEmpty()) "All" else current.first(),
+            minAvailableBeds = if (!isBoarding && current.isNotEmpty()) 0 else _filterState.value.minAvailableBeds
+        )
+    }
+
     fun updatePropertyType(type: String) {
-        _filterState.value = _filterState.value.copy(propertyType = type)
+        togglePropertyType(type)
+    }
+
+    fun clearPropertyTypes() {
+        _filterState.value = _filterState.value.copy(
+            selectedPropertyTypes = emptySet(),
+            propertyType = "All"
+        )
     }
 
     fun updateTargetMarket(target: String) {
@@ -632,8 +712,39 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         _filterState.value = _filterState.value.copy(sortBy = sortBy)
     }
 
+    fun toggleGenderRule(rule: String) {
+        val current = _filterState.value.selectedGenderRules.toMutableSet()
+        val upper = rule.uppercase()
+        if (upper == "ALL" || upper.isBlank()) {
+            if (current.contains("ALL")) {
+                current.remove("ALL")
+            } else {
+                current.clear()
+                current.add("ALL")
+            }
+        } else {
+            current.remove("ALL")
+            if (current.contains(upper)) {
+                current.remove(upper)
+            } else {
+                current.add(upper)
+            }
+        }
+        _filterState.value = _filterState.value.copy(
+            selectedGenderRules = current,
+            genderRule = if (current.isEmpty()) "ALL" else current.first()
+        )
+    }
+
     fun updateGenderRule(genderRule: String) {
-        _filterState.value = _filterState.value.copy(genderRule = genderRule)
+        toggleGenderRule(genderRule)
+    }
+
+    fun clearGenderRules() {
+        _filterState.value = _filterState.value.copy(
+            selectedGenderRules = emptySet(),
+            genderRule = "ALL"
+        )
     }
 
     fun updateMinAvailableBeds(minBeds: Int) {
@@ -665,8 +776,38 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         _filterState.value = _filterState.value.copy(distanceFilter = null)
     }
 
+    fun toggleLeaseDuration(duration: String) {
+        val current = _filterState.value.selectedLeaseDurations.toMutableSet()
+        if (duration == "All" || duration.isBlank()) {
+            if (current.contains("All")) {
+                current.remove("All")
+            } else {
+                current.clear()
+                current.add("All")
+            }
+        } else {
+            current.remove("All")
+            if (current.contains(duration)) {
+                current.remove(duration)
+            } else {
+                current.add(duration)
+            }
+        }
+        _filterState.value = _filterState.value.copy(
+            selectedLeaseDurations = current,
+            leaseDurationFilter = if (current.isEmpty()) "All" else current.first()
+        )
+    }
+
     fun updateLeaseDuration(duration: String) {
-        _filterState.value = _filterState.value.copy(leaseDurationFilter = duration)
+        toggleLeaseDuration(duration)
+    }
+
+    fun clearLeaseDurations() {
+        _filterState.value = _filterState.value.copy(
+            selectedLeaseDurations = emptySet(),
+            leaseDurationFilter = "All"
+        )
     }
 
     fun updateMoveInDate(date: String) {

@@ -359,11 +359,11 @@ object PropertyDataSeed {
             savesCount = 55
         ),
 
-        // 7. Cebu City - Guadalupe
+        // 7. Cebu City - Guadalupe (Female / Ladies Boarding House)
         PropertyEntity(
             id = "prop_ceb_03",
-            title = "Affordable Budget Boarding Room for Students & Staff",
-            description = "WiFi available for all boarders. Electricity and water are part of the rent (no extra utility bills). Direct highway access along V. Rama Avenue with 24/7 jeepney routes to Chong Hua, Velez, and downtown.",
+            title = "Ladies Boarding Room for Students & Staff",
+            description = "Female only boarding house in Guadalupe. WiFi available for all boarders. Electricity and water are part of the rent (no extra utility bills). Direct highway access along V. Rama Avenue with 24/7 jeepney routes to Chong Hua, Velez, and downtown.",
             propertyType = "Boarding House",
             monthlyRent = 3800.0,
             countryId = "ctry_ph",
@@ -456,11 +456,11 @@ object PropertyDataSeed {
             savesCount = 37
         ),
 
-        // 9. Bacolod City - Villamonte / USLS Area
+        // 9. Bacolod City - Villamonte / USLS Area (Male Only Boarding House)
         PropertyEntity(
             id = "prop_bcd_01",
-            title = "Affordable Boarding House near USLS & Lacson",
-            description = "WiFi available (500Mbps fiber). Electricity submeter installed, water supply included in rent. Walking distance to University of St. La Salle (USLS) and Lacson Street, with direct highway access along B.S. Aquino Drive. Safe, student and worker-friendly with 24/7 CCTV and gated compound.",
+            title = "Men's Boarding House near USLS & Lacson",
+            description = "Male only boarding house. WiFi available (500Mbps fiber). Electricity submeter installed, water supply included in rent. Walking distance to University of St. La Salle (USLS) and Lacson Street, with direct highway access along B.S. Aquino Drive. Safe, student and worker-friendly with 24/7 CCTV and gated compound.",
             propertyType = "Boarding House",
             monthlyRent = 3200.0,
             countryId = "ctry_ph",

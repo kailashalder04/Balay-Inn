@@ -162,7 +162,7 @@ fun BalayInnApp(
             }
         }
     ) { innerPadding ->
-        val screenPadding = if (currentScreen is AppScreen.PropertyDetail || currentScreen is AppScreen.Welcome) {
+        val screenPadding = if (currentScreen is AppScreen.PropertyDetail || currentScreen is AppScreen.Welcome || currentScreen is AppScreen.Login) {
             PaddingValues(0.dp)
         } else {
             innerPadding

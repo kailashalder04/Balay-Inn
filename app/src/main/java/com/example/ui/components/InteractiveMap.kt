@@ -2,10 +2,16 @@ package com.example.ui.components
 
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Bundle
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
@@ -44,6 +50,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -322,20 +329,21 @@ fun InteractiveRentalMap(
 
     var selectedLocationLabel by remember { mutableStateOf<String?>("🏙️ Metro Cebu") }
 
-    // Fly to location and select closest available property to show card tiles
+    // Fly to region preset and display the particular property card for that selected location
     fun selectLocation(label: String, targetLat: Double, targetLng: Double, targetZoom: Float) {
         selectedLocationLabel = label
-        flyTo(targetLat, targetLng, targetZoom)
-        if (properties.isNotEmpty()) {
-            val closest = properties.minByOrNull { prop ->
+        if (label == "🎯 Fit All" || label == "🇵🇭 Philippines") {
+            activeProperty = null
+        } else {
+            // Pick particular property matching or nearest to this selected location
+            val matchingProp = properties.minByOrNull { prop ->
                 val dLat = prop.latitude - targetLat
                 val dLng = prop.longitude - targetLng
                 dLat * dLat + dLng * dLng
             }
-            if (closest != null) {
-                activeProperty = closest
-            }
+            activeProperty = matchingProp
         }
+        flyTo(targetLat, targetLng, targetZoom)
     }
 
     // React to selectedProperty changing from outside
@@ -346,6 +354,79 @@ fun InteractiveRentalMap(
         }
     }
 
+    var isGpsLoading by remember { mutableStateOf(false) }
+
+    fun captureCurrentLocation() {
+        try {
+            isGpsLoading = true
+            val locManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            if (locManager == null) {
+                isGpsLoading = false
+                Toast.makeText(context, "Location service not available", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // Check cached location first for instant responsiveness
+            val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+            var bestLoc: Location? = null
+            for (provider in providers) {
+                try {
+                    if (locManager.isProviderEnabled(provider)) {
+                        val loc = locManager.getLastKnownLocation(provider)
+                        if (loc != null) {
+                            if (bestLoc == null || loc.accuracy < bestLoc.accuracy) {
+                                bestLoc = loc
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            if (bestLoc != null) {
+                userGpsLocation = Pair(bestLoc.latitude, bestLoc.longitude)
+                flyTo(bestLoc.latitude, bestLoc.longitude, 15.0f)
+                isGpsLoading = false
+                Toast.makeText(context, "Connected to GPS • Current location captured", Toast.LENGTH_SHORT).show()
+            }
+
+            // Connect to mobile GPS hardware for live single update
+            val listener = object : LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    userGpsLocation = Pair(location.latitude, location.longitude)
+                    flyTo(location.latitude, location.longitude, 15.0f)
+                    isGpsLoading = false
+                    Toast.makeText(context, "Connected to GPS • Location updated", Toast.LENGTH_SHORT).show()
+                    try {
+                        locManager.removeUpdates(this)
+                    } catch (_: Exception) {}
+                }
+                @Deprecated("Deprecated in Java")
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+
+            val providerToUse = when {
+                locManager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+                locManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+                else -> null
+            }
+
+            if (providerToUse != null) {
+                locManager.requestSingleUpdate(providerToUse, listener, Looper.getMainLooper())
+            } else if (bestLoc == null) {
+                isGpsLoading = false
+                Toast.makeText(context, "Please enable mobile GPS in settings", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: SecurityException) {
+            isGpsLoading = false
+            Toast.makeText(context, "GPS permission required to capture location", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            isGpsLoading = false
+            Toast.makeText(context, "Error connecting to GPS", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // Location Permission launcher
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -353,28 +434,25 @@ fun InteractiveRentalMap(
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (fineGranted || coarseGranted) {
-            try {
-                val locManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-                val gpsLoc = locManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    ?: locManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                if (gpsLoc != null) {
-                    userGpsLocation = Pair(gpsLoc.latitude, gpsLoc.longitude)
-                    flyTo(gpsLoc.latitude, gpsLoc.longitude, 15.0f)
-                    Toast.makeText(context, "Centered on your GPS location", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Acquiring GPS fix...", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: SecurityException) {
-                val targetLat = if (properties.isNotEmpty()) properties.first().latitude else 10.3157
-                val targetLng = if (properties.isNotEmpty()) properties.first().longitude else 123.8854
-                flyTo(targetLat, targetLng, 12.5f)
-                Toast.makeText(context, "Location permission optional • Centered on Cebu hub", Toast.LENGTH_SHORT).show()
-            }
+            captureCurrentLocation()
         } else {
-            val targetLat = if (properties.isNotEmpty()) properties.first().latitude else 10.3157
-            val targetLng = if (properties.isNotEmpty()) properties.first().longitude else 123.8854
-            flyTo(targetLat, targetLng, 12.5f)
-            Toast.makeText(context, "Location access is optional • Centered on Cebu hub", Toast.LENGTH_SHORT).show()
+            isGpsLoading = false
+            Toast.makeText(context, "GPS permission was not granted", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun requestGpsConnection() {
+        val finePerm = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        val coarsePerm = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (finePerm == PackageManager.PERMISSION_GRANTED || coarsePerm == PackageManager.PERMISSION_GRANTED) {
+            captureCurrentLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
         }
     }
 
@@ -707,22 +785,19 @@ fun InteractiveRentalMap(
                                             val pY = WebMercator.worldPixelY(prop.latitude, currentZ.toDouble())
                                             val sX = (halfW + (pX - centerZPixelX) * fracScale).toFloat()
                                             val sY = (halfH + (pY - centerZPixelY) * fracScale).toFloat()
-                                            val dist = hypot(down.position.x - sX, down.position.y - sY)
+                                            // The visual marker badge is centered around (sX, sY - 16dp)
+                                            val dist = hypot(down.position.x - sX, down.position.y - (sY - 16f * densityVal))
                                             if (dist < minMarkerDist) {
                                                 minMarkerDist = dist
                                                 nearestProp = prop
                                             }
                                         }
 
-                                        val directTapRadiusPx = 65f * densityVal
-                                        val areaTapRadiusPx = 135f * densityVal
+                                        val directTapRadiusPx = 75f * densityVal
                                         if (nearestProp != null && minMarkerDist <= directTapRadiusPx) {
                                             activeProperty = nearestProp
                                             flyTo(nearestProp.latitude, nearestProp.longitude, cameraZoom.coerceAtLeast(13.5f))
-                                        } else if (nearestProp != null && minMarkerDist <= areaTapRadiusPx) {
-                                            activeProperty = nearestProp
-                                            flyTo(nearestProp.latitude, nearestProp.longitude, cameraZoom.coerceAtLeast(13.5f))
-                                        } else {
+                                        } else if (minMarkerDist > 140f * densityVal) {
                                             if (activeProperty != null) {
                                                 activeProperty = null
                                             }
@@ -978,7 +1053,7 @@ fun InteractiveRentalMap(
                 .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
                 .zIndex(20f)
         ) {
-            // Quick Location Presets Row with Smooth 1.2s FlyTo
+            // Quick Location Presets Row with Smooth FlyTo
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1062,34 +1137,36 @@ fun InteractiveRentalMap(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 14.dp, bottom = if (activeProperty != null) 275.dp else 24.dp)
+                .padding(end = 14.dp, bottom = if (activeProperty != null) 320.dp else 24.dp)
                 .zIndex(20f),
             horizontalAlignment = Alignment.End
         ) {
-            // User GPS Locate Me
+            // User MyLocation Button (Prompts for location access)
             Surface(
                 shape = CircleShape,
-                color = if (userGpsLocation != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                shadowElevation = 4.dp,
-                modifier = Modifier.testTag("user_gps_button")
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp
             ) {
                 IconButton(
-                    onClick = {
-                        locationPermissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                            )
-                        )
-                    },
-                    modifier = Modifier.size(44.dp)
+                    onClick = { requestGpsConnection() },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .testTag("user_gps_button")
                 ) {
-                    Icon(
-                        Icons.Default.MyLocation,
-                        contentDescription = "Locate Me",
-                        tint = if (userGpsLocation != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    if (isGpsLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.MyLocation,
+                            contentDescription = "My Location",
+                            tint = if (userGpsLocation != null) Color(0xFF16A34A) else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
 
@@ -1229,7 +1306,7 @@ fun InteractiveRentalMap(
             shadowElevation = 2.dp,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(bottom = if (activeProperty != null) 265.dp else 4.dp, start = 8.dp)
+                .padding(bottom = if (activeProperty != null) 310.dp else 4.dp, start = 8.dp)
                 .zIndex(20f)
         ) {
             Row(
@@ -1248,7 +1325,7 @@ fun InteractiveRentalMap(
             }
         }
 
-        // --- SLIDE-UP AVAILABLE PROPERTY CARD TILES CAROUSEL ---
+        // --- SLIDE-UP PARTICULAR PROPERTY CARD (CLICKED LOCATION ONLY) ---
         AnimatedVisibility(
             visible = activeProperty != null,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -1256,187 +1333,230 @@ fun InteractiveRentalMap(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp)
                 .zIndex(30f)
         ) {
             if (activeProperty != null) {
-                val activeProp = activeProperty!!
+                val prop = activeProperty!!
                 val isDark = isSystemInDarkTheme()
-                val carouselListState = rememberLazyListState()
+                val isSaved = savedPropertyIds.contains(prop.id)
+                val images = propertyImagesMap[prop.id] ?: emptyList()
+                val thumbnail = images.firstOrNull()
+                    ?: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&fm=jpg&fit=crop&q=80"
+                val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply { maximumFractionDigits = 0 }
+                val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
 
-                // Sort available properties so active property is first, followed by nearest available properties
-                val displayProperties = remember(activeProp.id, properties) {
-                    val list = mutableListOf<PropertyEntity>()
-                    list.add(activeProp)
-                    val others = properties.filter { it.id != activeProp.id }.sortedBy { prop ->
-                        val dLat = prop.latitude - activeProp.latitude
-                        val dLng = prop.longitude - activeProp.longitude
-                        dLat * dLat + dLng * dLng
-                    }
-                    list.addAll(others)
-                    list
-                }
-
-                // Automatically scroll carousel to active property tile when pin or location changes
-                LaunchedEffect(activeProp.id) {
-                    val idx = displayProperties.indexOfFirst { it.id == activeProp.id }
-                    if (idx >= 0) {
-                        carouselListState.animateScrollToItem(idx)
-                    }
-                }
-
-                Surface(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 6.dp)
-                        .shadow(20.dp, RoundedCornerShape(22.dp))
-                        .testTag("map_property_modal_sheet"),
-                    shape = RoundedCornerShape(22.dp),
-                    color = if (isDark) SteelBlueDarkBg else Color(0xFFFCFDFF),
+                        .widthIn(max = 500.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onPropertySelected(prop) }
+                        .testTag("map_single_property_card"),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) SteelBlueDarkBg else Color(0xFFFCFDFF)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
                     border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 10.dp, bottom = 10.dp)
+                            .padding(12.dp)
                     ) {
-                        // Header Bar: Location Title, Available Count & Controls
-                        Row(
+                        // Image Banner with Badges & Save/Close Buttons
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .height(140.dp)
+                                .clip(RoundedCornerShape(14.dp))
                         ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(thumbnail)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = prop.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            // Top Left: Property Type Badge & Pin Tag
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    modifier = Modifier.size(26.dp)
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.Black.copy(alpha = 0.75f)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Default.Place,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
+                                    Text(
+                                        text = prop.propertyType,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
                                 }
 
-                                Column {
-                                    val locationName = when {
-                                        activeProp.neighborhood.isNotBlank() -> activeProp.neighborhood
-                                        activeProp.nearbyLandmark.isNotBlank() -> activeProp.nearbyLandmark
-                                        else -> "Selected Area"
-                                    }
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                ) {
                                     Text(
-                                        text = "Available Listings • $locationName",
-                                        style = MaterialTheme.typography.titleSmall,
+                                        text = "📍 Selected Location",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isDark) Color.White else Color(0xFF0F172A),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "${displayProperties.size} available in this area • Swipe card tiles",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                                     )
                                 }
                             }
 
+                            // Top Right: Save & Close Buttons
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                if (onToggleViewMode != null) {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .clickable { onToggleViewMode() }
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = { onToggleSave?.invoke(prop.id) },
+                                        modifier = Modifier.size(32.dp)
                                     ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                Icons.Default.ViewList,
-                                                contentDescription = "View as list",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "List",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Save property",
+                                            tint = if (isSaved) Color(0xFFE11D48) else Color.White,
+                                            modifier = Modifier.size(17.dp)
+                                        )
                                     }
                                 }
 
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
-                                    modifier = Modifier.size(28.dp)
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    modifier = Modifier.size(32.dp)
                                 ) {
                                     IconButton(
                                         onClick = { activeProperty = null },
-                                        modifier = Modifier.size(28.dp)
+                                        modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Close property cards",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(16.dp)
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Close property card",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(17.dp)
                                         )
                                     }
                                 }
                             }
+
+                            // Bottom Left: Rent Price Banner
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(8.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            ) {
+                                Text(
+                                    text = "$formattedRent / mo",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Property Title
+                        Text(
+                            text = prop.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color.White else Color(0xFF0F172A),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        // Location Landmark
+                        Row(
+                            modifier = Modifier.padding(top = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Place,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val locationLabel = when {
+                                prop.neighborhood.isNotBlank() && prop.nearbyLandmark.isNotBlank() -> "${prop.neighborhood} • ${prop.nearbyLandmark}"
+                                prop.neighborhood.isNotBlank() -> prop.neighborhood
+                                prop.nearbyLandmark.isNotBlank() -> prop.nearbyLandmark
+                                else -> "Prime Location"
+                            }
+                            Text(
+                                text = locationLabel,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Horizontal Carousel of Available Property Card Tiles
-                        LazyRow(
-                            state = carouselListState,
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        // Key Specs Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            SpecBadge(label = "🛏️ ${prop.bedrooms} Bed", isDark = isDark)
+                            SpecBadge(label = "🚿 ${prop.bathrooms} Bath", isDark = isDark)
+                            SpecBadge(label = "📐 ${prop.floorAreaSqm.toInt()}m²", isDark = isDark)
+                            SpecBadge(label = "🪑 ${prop.furnishedStatus.take(8)}", isDark = isDark)
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // View Listing Details Action Button
+                        Button(
+                            onClick = { onPropertySelected(prop) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .testTag("map_property_carousel")
+                                .height(42.dp)
+                                .testTag("card_tile_view_details_${prop.id}"),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
                         ) {
-                            items(displayProperties, key = { it.id }) { prop ->
-                                val isSelected = prop.id == activeProp.id
-                                val isSaved = savedPropertyIds.contains(prop.id)
-                                val images = propertyImagesMap[prop.id] ?: emptyList()
-                                val thumbnail = images.firstOrNull()
-                                    ?: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&fm=jpg&fit=crop&q=80"
-                                val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply { maximumFractionDigits = 0 }
-                                val formattedRent = currencyFormat.format(prop.monthlyRent).replace("PHP", "₱")
-
-                                PropertyMapCardTile(
-                                    property = prop,
-                                    thumbnail = thumbnail,
-                                    formattedRent = formattedRent,
-                                    isSelected = isSelected,
-                                    isSaved = isSaved,
-                                    isDark = isDark,
-                                    onCardClick = {
-                                        activeProperty = prop
-                                        flyTo(prop.latitude, prop.longitude, cameraZoom.coerceAtLeast(13.5f))
-                                    },
-                                    onToggleSave = { onToggleSave?.invoke(prop.id) },
-                                    onViewDetails = { onPropertySelected(prop) }
-                                )
-                            }
+                            Text(
+                                text = "View Property Details",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                Icons.Default.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.White
+                            )
                         }
                     }
                 }
