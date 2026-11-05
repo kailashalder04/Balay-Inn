@@ -168,12 +168,7 @@ fun AdminHomeScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Persona Switcher
-                    QuickPersonaSwitcherRow(
-                        viewModel = viewModel,
-                        currentUser = currentUser,
-                        isDark = isDark
-                    )
+
 
                     Spacer(modifier = Modifier.height(12.dp))
 

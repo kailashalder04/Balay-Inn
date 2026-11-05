@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
@@ -47,6 +49,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -93,6 +97,21 @@ import com.example.ui.components.InteractiveRentalMap
 import com.example.ui.components.PropertyCard
 import com.example.ui.theme.SteelBlue
 import com.example.ui.viewmodel.MarketplaceViewModel
+data class PremiumLocationHub(
+    val name: String,
+    val icon: String,
+    val subtitle: String,
+    val description: String
+)
+
+data class GroupedLocationItem(
+    val id: String,
+    val name: String,
+    val category: String, // "Region", "Province / City", "Barangay"
+    val subtitle: String,
+    val filterToken: String,
+    val icon: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,9 +132,97 @@ fun ExploreScreen(
     val comparedPropertyIds = remember(comparedProperties) { comparedProperties.map { it.id }.toSet() }
 
     val countries by viewModel.countries.collectAsState()
+    val allRegions by viewModel.allRegions.collectAsState()
     val allProvinces by viewModel.allProvinces.collectAsState()
     val allCities by viewModel.allCities.collectAsState()
     val allBarangays by viewModel.allBarangays.collectAsState()
+
+    var showLocationSuggestions by remember { mutableStateOf(false) }
+
+    val premiumLocations = remember {
+        listOf(
+            PremiumLocationHub("Cebu IT Park", "🏙️", "Apas, Cebu City", "Tech & BPO Hub"),
+            PremiumLocationHub("Lahug", "🌿", "Salinas Drive", "UP Cebu & Dining"),
+            PremiumLocationHub("Mabolo", "🏢", "SM City Corridor", "Central Transit"),
+            PremiumLocationHub("Panglao", "🏖️", "Alona & Doljo", "Beach Resorts"),
+            PremiumLocationHub("Tagbilaran City", "🏛️", "Dampas & Cogon", "Bohol Capital"),
+            PremiumLocationHub("USLS Area", "🎓", "Villamonte, Bacolod", "University Belt"),
+            PremiumLocationHub("Guadalupe", "🌳", "V. Rama, Cebu", "Residential & Med"),
+            PremiumLocationHub("Mandaue City", "🌇", "Subangdaku", "Metro Gateway")
+        )
+    }
+
+    val allLocationSuggestions = remember(allRegions, allProvinces, allCities, allBarangays) {
+        val list = mutableListOf<GroupedLocationItem>()
+        // 1. Regions
+        list.add(GroupedLocationItem("reg_vii", "Central Visayas (Region VII)", "Region", "Cebu, Bohol & Negros Oriental", "Central Visayas", "🗺️"))
+        list.add(GroupedLocationItem("reg_vi", "Western Visayas (Region VI)", "Region", "Negros Occidental & Iloilo", "Western Visayas", "🗺️"))
+        list.add(GroupedLocationItem("reg_ncr", "National Capital Region (NCR)", "Region", "Metro Manila Hub", "National Capital Region", "🗺️"))
+        allRegions.forEach { r ->
+            if (list.none { it.id == r.id }) {
+                list.add(GroupedLocationItem(r.id, r.name, "Region", "Administrative Region", r.name, "🗺️"))
+            }
+        }
+
+        // 2. Province / City
+        list.add(GroupedLocationItem("city_cebu", "Cebu City", "Province / City", "Highly Urbanized City • Metro Cebu", "Cebu City", "🏙️"))
+        list.add(GroupedLocationItem("city_tagbilaran", "Tagbilaran City", "Province / City", "Component City • Bohol Capital", "Tagbilaran City", "🏙️"))
+        list.add(GroupedLocationItem("city_bacolod", "Bacolod City", "Province / City", "Highly Urbanized City • Negros Occ.", "Bacolod City", "🏙️"))
+        list.add(GroupedLocationItem("city_mandaue", "Mandaue City", "Province / City", "Component City • Metro Cebu", "Mandaue City", "🏙️"))
+        list.add(GroupedLocationItem("city_lapu_lapu", "Lapu-Lapu City", "Province / City", "Mactan Island • Metro Cebu", "Lapu-Lapu City", "🏙️"))
+        list.add(GroupedLocationItem("city_panglao", "Panglao", "Province / City", "Municipality • Bohol", "Panglao", "🏖️"))
+        list.add(GroupedLocationItem("city_dauis", "Dauis", "Province / City", "Municipality • Bohol", "Dauis", "🏝️"))
+        list.add(GroupedLocationItem("prov_cebu", "Cebu", "Province / City", "Province • Central Visayas", "Cebu", "🏝️"))
+        list.add(GroupedLocationItem("prov_bohol", "Bohol", "Province / City", "Province • Central Visayas", "Bohol", "🏝️"))
+        list.add(GroupedLocationItem("prov_bacolod", "Negros Occidental", "Province / City", "Province • Western Visayas", "Negros Occidental", "🌾"))
+        allCities.forEach { c ->
+            if (list.none { it.name.equals(c.name, true) }) {
+                list.add(GroupedLocationItem(c.id, c.name, "Province / City", "${c.type} • Active LGU", c.name, "🏙️"))
+            }
+        }
+
+        // 3. Barangay / Hubs
+        list.add(GroupedLocationItem("hub_it_park", "Cebu IT Park", "Barangay", "Barangay Apas, Cebu City • BPO & Tech Hub", "Cebu IT Park", "📍"))
+        list.add(GroupedLocationItem("hub_mabolo", "Mabolo", "Barangay", "Cebu City • Commercial & SM City Hub", "Mabolo", "📍"))
+        list.add(GroupedLocationItem("hub_lahug", "Lahug", "Barangay", "Cebu City • Salinas Drive & UP Cebu", "Lahug", "📍"))
+        list.add(GroupedLocationItem("hub_guadalupe", "Guadalupe", "Barangay", "Cebu City • Residential & Chong Hua", "Guadalupe", "📍"))
+        list.add(GroupedLocationItem("hub_banilad", "Banilad", "Barangay", "Cebu City • Country Mall Strip", "Banilad", "📍"))
+        list.add(GroupedLocationItem("hub_talamban", "Talamban", "Barangay", "Cebu City • USC Talamban Campus", "Talamban", "📍"))
+        list.add(GroupedLocationItem("hub_capitol", "Capitol Site", "Barangay", "Cebu City • Provincial Capitol & Hospitals", "Capitol Site", "📍"))
+        list.add(GroupedLocationItem("hub_fuente", "Fuente Osmeña", "Barangay", "Cebu City • Uptown Rotunda & Malls", "Fuente Osmeña", "📍"))
+        list.add(GroupedLocationItem("hub_dampas", "Dampas", "Barangay", "Tagbilaran City, Bohol • Near HNU & ICM", "Dampas", "📍"))
+        list.add(GroupedLocationItem("hub_cogon", "Cogon", "Barangay", "Tagbilaran City, Bohol • J.A. Clarin St", "Cogon", "📍"))
+        list.add(GroupedLocationItem("hub_tawala", "Tawala", "Barangay", "Panglao, Bohol • Alona Beach Resort", "Tawala", "📍"))
+        list.add(GroupedLocationItem("hub_doljo", "Doljo", "Barangay", "Panglao, Bohol • Beach Villa & Resorts", "Doljo", "📍"))
+        list.add(GroupedLocationItem("hub_villamonte", "Villamonte", "Barangay", "Bacolod City • USLS University Belt", "Villamonte", "📍"))
+        list.add(GroupedLocationItem("hub_mandalagan", "Mandalagan", "Barangay", "Bacolod City • Lacson St Strip", "Mandalagan", "📍"))
+        list.add(GroupedLocationItem("hub_bata", "Bata", "Barangay", "Bacolod City • North Bus Terminal", "Bata", "📍"))
+        list.add(GroupedLocationItem("hub_songculan", "Songculan", "Barangay", "Dauis, Bohol • Coastal Highway", "Songculan", "📍"))
+        list.add(GroupedLocationItem("hub_tipolo", "Tipolo", "Barangay", "Mandaue City • Commercial Area", "Tipolo", "📍"))
+        list.add(GroupedLocationItem("hub_subangdaku", "Subangdaku", "Barangay", "Mandaue City • Inn & Border Corridor", "Subangdaku", "📍"))
+
+        list
+    }
+
+    val searchInput = filterState.keyword.trim()
+    val regionSuggestions = remember(searchInput, allLocationSuggestions) {
+        allLocationSuggestions.filter {
+            it.category == "Region" &&
+            (searchInput.isEmpty() || it.name.contains(searchInput, ignoreCase = true) || it.subtitle.contains(searchInput, ignoreCase = true))
+        }
+    }
+    val citySuggestions = remember(searchInput, allLocationSuggestions) {
+        allLocationSuggestions.filter {
+            it.category == "Province / City" &&
+            (searchInput.isEmpty() || it.name.contains(searchInput, ignoreCase = true) || it.subtitle.contains(searchInput, ignoreCase = true))
+        }
+    }
+    val barangaySuggestions = remember(searchInput, allLocationSuggestions) {
+        allLocationSuggestions.filter {
+            it.category == "Barangay" &&
+            (searchInput.isEmpty() || it.name.contains(searchInput, ignoreCase = true) || it.subtitle.contains(searchInput, ignoreCase = true))
+        }
+    }
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var showComparisonMatrix by remember { mutableStateOf(false) }
@@ -226,7 +333,10 @@ fun ExploreScreen(
                                 }
                                 BasicTextField(
                                     value = filterState.keyword,
-                                    onValueChange = { viewModel.updateKeyword(it) },
+                                    onValueChange = {
+                                        viewModel.updateKeyword(it)
+                                        showLocationSuggestions = true
+                                    },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("search_text_input"),
@@ -250,6 +360,17 @@ fun ExploreScreen(
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                            }
+                            IconButton(
+                                onClick = { showLocationSuggestions = !showLocationSuggestions },
+                                modifier = Modifier.size(26.dp).testTag("toggle_location_suggestions_btn")
+                            ) {
+                                Icon(
+                                    if (showLocationSuggestions) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = if (showLocationSuggestions) "Hide suggestions" else "Show location suggestions",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (showLocationSuggestions) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -363,27 +484,26 @@ fun ExploreScreen(
                     }
                 }
 
-                val isBoarding = filterState.selectedPropertyTypes.any { it.contains("Board", ignoreCase = true) || it.contains("Bed", ignoreCase = true) } ||
-                        filterState.propertyType.contains("Board", ignoreCase = true) ||
-                        filterState.propertyType.contains("Bed", ignoreCase = true)
-
-                // Top to Down 2X2 Selectable Bars for Property Types, Gender Policy, and Lease Duration
-                if (viewMode == "LIST" || isWideScreen) {
-                    var showFilterBarsExpanded by remember { mutableStateOf(true) }
+                // Search Bar Auto-Suggest with Grouped Results & Multi-Location Selection
+                if (showLocationSuggestions) {
                     Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isDark) Color(0xFF1E293B).copy(alpha = 0.7f) else Color(0xFFF8FAFC)
-                        ),
-                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp)
+                            .testTag("location_autosuggest_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                     ) {
                         Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
                         ) {
+                            // Header
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -391,32 +511,29 @@ fun ExploreScreen(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        Icons.Default.Tune,
+                                        Icons.Default.LocationOn,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Filter Requirements (2x2 Bars)",
+                                        text = "Location Auto-Suggestions",
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
-                                val activeFilterCount = filterState.selectedPropertyTypes.size +
-                                        filterState.selectedGenderRules.filter { it.uppercase() != "ALL" }.size +
-                                        filterState.selectedLeaseDurations.filter { it != "All" }.size +
-                                        (if (filterState.minAvailableBeds > 0) 1 else 0)
+
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (activeFilterCount > 0) {
+                                    if (filterState.selectedLocationZones.isNotEmpty()) {
                                         Surface(
-                                            shape = RoundedCornerShape(8.dp),
+                                            shape = RoundedCornerShape(6.dp),
                                             color = MaterialTheme.colorScheme.primaryContainer,
                                             modifier = Modifier.padding(end = 6.dp)
                                         ) {
                                             Text(
-                                                text = "$activeFilterCount active",
+                                                text = "${filterState.selectedLocationZones.size} selected",
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary,
@@ -424,62 +541,118 @@ fun ExploreScreen(
                                             )
                                         }
                                     }
-                                    TextButton(
-                                        onClick = { showFilterBarsExpanded = !showFilterBarsExpanded },
-                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    IconButton(
+                                        onClick = { showLocationSuggestions = false },
+                                        modifier = Modifier.size(24.dp)
                                     ) {
-                                        Text(
-                                            text = if (showFilterBarsExpanded) "Collapse" else "Expand (2x2)",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Close suggestions",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
                                 }
                             }
 
-                            if (showFilterBarsExpanded) {
-                                // 1. Property Types (Top 2X2 Selectable Bar)
-                                SelectableGrid2x2(
-                                    title = "Property Types",
-                                    subtitle = "Multi-select: pick one or more rental types",
-                                    options = propertyTypeGridOptions,
-                                    selectedKeys = filterState.selectedPropertyTypes,
-                                    onToggle = { viewModel.togglePropertyType(it) },
-                                    isDark = isDark
-                                )
+                            Text(
+                                text = "Select multiple nearby zones at once (e.g., [✓] Cebu IT Park + [✓] Mabolo + [✓] Lahug)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                            )
 
-                                // 2. Gender Policy (Middle 2X2 Selectable Bar)
-                                SelectableGrid2x2(
-                                    title = "Gender Policy",
-                                    subtitle = "Multi-select: accommodations by gender rules",
-                                    options = genderGridOptions,
-                                    selectedKeys = filterState.selectedGenderRules,
-                                    onToggle = { viewModel.toggleGenderRule(it) },
-                                    isDark = isDark
-                                )
+                            // Scrollable Categorized List
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 280.dp)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // 1. REGION CATEGORY
+                                if (regionSuggestions.isNotEmpty()) {
+                                    LocationCategoryGroup(
+                                        categoryTitle = "1. Region",
+                                        categoryIcon = "🗺️",
+                                        items = regionSuggestions,
+                                        selectedZones = filterState.selectedLocationZones,
+                                        onToggle = { viewModel.toggleLocationZone(it) }
+                                    )
+                                }
 
-                                // 3. Lease Duration (Bottom 2X2 Selectable Bar)
-                                SelectableGrid2x2(
-                                    title = "Lease Duration",
-                                    subtitle = "Multi-select: flexible short-stay or annual terms",
-                                    options = leaseGridOptions,
-                                    selectedKeys = filterState.selectedLeaseDurations,
-                                    onToggle = { viewModel.toggleLeaseDuration(it) },
-                                    isDark = isDark
-                                )
+                                // 2. PROVINCE / CITY CATEGORY
+                                if (citySuggestions.isNotEmpty()) {
+                                    LocationCategoryGroup(
+                                        categoryTitle = "2. Province / City",
+                                        categoryIcon = "🏙️",
+                                        items = citySuggestions,
+                                        selectedZones = filterState.selectedLocationZones,
+                                        onToggle = { viewModel.toggleLocationZone(it) }
+                                    )
+                                }
 
-                                // Bed availability option ONLY when user selects Boarding House property type
-                                if (isBoarding) {
-                                    SelectableGrid2x2(
-                                        title = "Available Bed Vacancies",
-                                        subtitle = "Open beds currently vacant in boarding house",
-                                        options = bedGridOptions,
-                                        selectedKeys = if (filterState.minAvailableBeds > 0) setOf(filterState.minAvailableBeds.toString()) else setOf("0"),
-                                        onToggle = { key ->
-                                            val beds = key.toIntOrNull() ?: 0
-                                            viewModel.updateMinAvailableBeds(if (filterState.minAvailableBeds == beds) 0 else beds)
-                                        },
-                                        isDark = isDark
+                                // 3. BARANGAY CATEGORY
+                                if (barangaySuggestions.isNotEmpty()) {
+                                    LocationCategoryGroup(
+                                        categoryTitle = "3. Barangay",
+                                        categoryIcon = "📍",
+                                        items = barangaySuggestions,
+                                        selectedZones = filterState.selectedLocationZones,
+                                        onToggle = { viewModel.toggleLocationZone(it) }
+                                    )
+                                }
+
+                                if (regionSuggestions.isEmpty() && citySuggestions.isEmpty() && barangaySuggestions.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "No locations matching '${filterState.keyword}'.",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Footer Bar
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (filterState.selectedLocationZones.isNotEmpty()) {
+                                    Text(
+                                        text = "Clear Selected (${filterState.selectedLocationZones.size})",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier
+                                            .clickable { viewModel.clearLocationZones() }
+                                            .padding(4.dp)
+                                    )
+                                } else {
+                                    Spacer(modifier = Modifier.width(1.dp))
+                                }
+
+                                Button(
+                                    onClick = { showLocationSuggestions = false },
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Text(
+                                        text = if (filterState.selectedLocationZones.isNotEmpty())
+                                            "Apply (${properties.size} properties)"
+                                        else "Done",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
@@ -487,8 +660,174 @@ fun ExploreScreen(
                     }
                 }
 
+                // Active Multi-Selected Location Zones Row
+                if (filterState.selectedLocationZones.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${filterState.selectedLocationZones.size} Zones Active:",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        filterState.selectedLocationZones.forEach { zone ->
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                                modifier = Modifier.clickable { viewModel.removeLocationZone(zone) }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "📍 $zone",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove $zone",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = "Clear All",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .clickable { viewModel.clearLocationZones() }
+                                .padding(horizontal = 6.dp)
+                        )
+                    }
+                }
+
+                // ✨ Premium Locations Quick-Selection Row
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "✨",
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Premium Locations",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "Curated high-demand hubs",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        premiumLocations.forEach { loc ->
+                            val isSelected = filterState.selectedLocationZones.contains(loc.name)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                                ),
+                                modifier = Modifier
+                                    .clickable { viewModel.toggleLocationZone(loc.name) }
+                                    .testTag("premium_location_${loc.name.lowercase().replace(" ", "_")}")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = loc.icon, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Column {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = loc.name,
+                                                fontSize = 12.5.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (isSelected) {
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = "Selected",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = loc.subtitle,
+                                            fontSize = 10.sp,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Active Filter Chips Row (Only takes vertical space when filters are active)
-                val hasAnyFilterPill = filterState.provinceId.isNotEmpty() ||
+                val hasAnyFilterPill = filterState.selectedLocationZones.isNotEmpty() ||
+                        filterState.provinceId.isNotEmpty() ||
                         filterState.cityMunicipalityId.isNotEmpty() ||
                         filterState.barangayId.isNotEmpty() ||
                         filterState.propertyType != "All" ||
@@ -512,6 +851,14 @@ fun ExploreScreen(
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                    // Multi-Selected Location Zones filter badges
+                    filterState.selectedLocationZones.forEach { zone ->
+                        FilterBadge(
+                            label = "📍 $zone",
+                            onRemove = { viewModel.removeLocationZone(zone) }
+                        )
+                    }
+
                     // Province filter chip
                     if (filterState.provinceId.isNotEmpty()) {
                         val provName = allProvinces.find { it.id == filterState.provinceId }?.name ?: "Province"
@@ -1899,6 +2246,95 @@ fun SelectableGrid2x2(
                     }
                     if (row.size == 1) {
                         Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationCategoryGroup(
+    categoryTitle: String,
+    categoryIcon: String,
+    items: List<GroupedLocationItem>,
+    selectedZones: Set<String>,
+    onToggle: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$categoryIcon $categoryTitle",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                val countInGroup = items.count { it.filterToken in selectedZones }
+                if (countInGroup > 0) {
+                    Text(
+                        text = "$countInGroup selected",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        items.forEach { item ->
+            val isChecked = selectedZones.contains(item.filterToken)
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle(item.filterToken) }
+                    .testTag("location_item_${item.filterToken.lowercase().replace(" ", "_").replace("/", "_")}")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isChecked,
+                        onCheckedChange = { onToggle(item.filterToken) },
+                        modifier = Modifier.size(32.dp),
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.name,
+                            fontSize = 13.sp,
+                            fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = item.subtitle,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }

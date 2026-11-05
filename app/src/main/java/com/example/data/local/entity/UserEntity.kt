@@ -35,6 +35,9 @@ data class UserEntity(
     val isGuest: Boolean
         get() = id == "usr_guest" || role.equals("GUEST", ignoreCase = true)
 
+    val isHostVerified: Boolean
+        get() = verificationLevel >= 2 || identitySubmitted
+
     companion object {
         val GUEST_USER = UserEntity(
             id = "usr_guest",

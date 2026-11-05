@@ -150,6 +150,9 @@ fun BalayInnApp(
         (currentScreen is AppScreen.Messages && currentScreen.conversationId == null) ||
         currentScreen is AppScreen.Dashboard
 
+    val currentUser by viewModel.currentUser.collectAsState()
+    val isHost = currentUser.role == "PROPERTY_OWNER"
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets.statusBars,
@@ -157,6 +160,7 @@ fun BalayInnApp(
             if (isRootScreen) {
                 ResponsiveBottomNav(
                     currentScreen = currentScreen,
+                    isHost = isHost,
                     onNavigate = { navigateTo(it) }
                 )
             }
@@ -279,7 +283,8 @@ fun BalayInnApp(
                         onLoginSuccess = { navigateTo(AppScreen.Home) },
                         onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) },
                         onContinueAsGuest = { navigateTo(AppScreen.Home) },
-                        onBack = { navigateBack() }
+                        onBack = { navigateBack() },
+                        onNavigateToAdmin = { navigateTo(AppScreen.AdminPanel) }
                     )
                 }
                 is AppScreen.Onboarding -> {
@@ -308,6 +313,7 @@ private data class NavItemData(
 fun ResponsiveBottomNav(
     currentScreen: AppScreen,
     onNavigate: (AppScreen) -> Unit,
+    isHost: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -328,13 +334,15 @@ fun ResponsiveBottomNav(
                 else -> Triple(11.5.sp, 22.dp, 8.dp)
             }
 
-            val navItems = listOf(
-                NavItemData("Home", Icons.Default.Home, AppScreen.Home, "nav_home"),
-                NavItemData("Explore", Icons.Default.Explore, AppScreen.Explore, "nav_explore"),
-                NavItemData("Viewings", Icons.Default.CalendarMonth, AppScreen.Viewings, "nav_viewings"),
-                NavItemData("Messages", Icons.Default.Chat, AppScreen.Messages(), "nav_messages"),
-                NavItemData("Profile", Icons.Default.Person, AppScreen.Dashboard, "nav_dashboard")
-            )
+            val navItems = buildList {
+                add(NavItemData("Home", Icons.Default.Home, AppScreen.Home, "nav_home"))
+                if (!isHost) {
+                    add(NavItemData("Explore", Icons.Default.Explore, AppScreen.Explore, "nav_explore"))
+                }
+                add(NavItemData("Viewings", Icons.Default.CalendarMonth, AppScreen.Viewings, "nav_viewings"))
+                add(NavItemData("Messages", Icons.Default.Chat, AppScreen.Messages(), "nav_messages"))
+                add(NavItemData("Profile", Icons.Default.Person, AppScreen.Dashboard, "nav_dashboard"))
+            }
 
             Row(
                 modifier = Modifier

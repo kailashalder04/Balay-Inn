@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,6 +102,16 @@ fun RepresentativeHomeScreen(
 
     // Relevant conversations for assigned properties
     val assignedConvs = conversations.filter { it.propertyId in assignedPropertyIds || it.posterId == currentUser.id }
+
+    var showVerificationWarningDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    fun handlePostPropertyClick() {
+        if (!currentUser.isHostVerified) {
+            showVerificationWarningDialog = true
+        } else {
+            onNavigateToPostProperty()
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         // Full-width App name bar matching other screens
@@ -210,17 +221,12 @@ fun RepresentativeHomeScreen(
                         )
                     }
 
-                    // Persona Switcher
-                    QuickPersonaSwitcherRow(
-                        viewModel = viewModel,
-                        currentUser = currentUser,
-                        isDark = isDark
-                    )
+
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Button(
-                        onClick = onNavigateToPostProperty,
+                        onClick = { handlePostPropertyClick() },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(12.dp)
@@ -311,7 +317,7 @@ fun RepresentativeHomeScreen(
                     Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("No properties assigned to your representative account yet.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Button(onClick = onNavigateToPostProperty) {
+                        Button(onClick = { handlePostPropertyClick() }) {
                             Text("Post with Owner Authorization", fontSize = 11.sp, maxLines = 1, softWrap = false)
                         }
                     }
@@ -483,6 +489,39 @@ fun RepresentativeHomeScreen(
         }
     }
 }
+
+    if (showVerificationWarningDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showVerificationWarningDialog = false },
+            icon = {
+                Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = {
+                Text("Verification Required", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Sorry, verification is needed before adding property. Please complete your identity and host verification in your Profile Settings to start listing properties.",
+                    fontSize = 13.5.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showVerificationWarningDialog = false
+                        onNavigateToVerificationCenter()
+                    }
+                ) {
+                    Text("Verify in Profile")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showVerificationWarningDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

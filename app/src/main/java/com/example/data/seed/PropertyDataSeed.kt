@@ -503,10 +503,66 @@ object PropertyDataSeed {
             identitySubmitted = true,
             viewsCount = 184,
             savesCount = 29
+        ),
+
+        // 10. Cebu City - Mabolo (Near SM City Cebu & Cebu Business Park)
+        PropertyEntity(
+            id = "prop_ceb_mabolo",
+            title = "Modern Studio Flat in Mabolo near SM City Cebu",
+            description = "Contemporary studio apartment located in Mabolo, Cebu City. Walking distance to SM City Cebu, Cebu Business Park, and convenient 24/7 access to jeepney and taxi lines. Furnished with queen bed, inverter aircon, kitchenette with induction cooker, private modern bathroom with hot shower, and 100Mbps fiber WiFi. Building features 24/7 security guard, CCTV, elevator, and covered motorcycle parking. Terms: 1 month advance, 1 month deposit. Minimum 3 months flexible stay.",
+            propertyType = "Studio",
+            monthlyRent = 12000.0,
+            countryId = "ctry_ph",
+            regionId = "reg_vii",
+            provinceId = "prov_cebu",
+            cityMunicipalityId = "cebu_cebu_city",
+            barangayId = "bgy_ceb_c_2", // Mabolo
+            neighborhood = "Mabolo",
+            nearbyLandmark = "Behind SM City Cebu & Mabolo Church",
+            streetAddressPrivate = "M.J. Cuenco Avenue, Mabolo, Cebu City",
+            locationPrivacy = "APPROXIMATE",
+            latitude = 10.3200,
+            longitude = 123.9120,
+            bedrooms = 0,
+            bathrooms = 1,
+            floorAreaSqm = 24.0,
+            furnishedStatus = "Fully-Furnished",
+            parkingAvailable = true,
+            petPolicy = "No Pets",
+            availabilityDate = "Immediately",
+            leaseDurationMonths = 3,
+            advanceRentMonths = 1,
+            securityDepositMonths = 1,
+            associationDues = 0.0,
+            utilitiesIncluded = false,
+            internetIncluded = true,
+            maintenanceFees = 0.0,
+            parkingFees = 0.0,
+            amenitiesJson = "[\"Inverter Air Conditioning\", \"Fiber Internet\", \"Kitchenette with Induction\", \"Hot Shower\", \"24/7 Security Guard\", \"CCTV\", \"Motorcycle Parking\"]",
+            contactPreferences = "Calls/Texts & In-App Messaging",
+            status = "ACTIVE",
+            ownerId = "usr_owner_1",
+            posterId = "usr_broker_marco",
+            posterName = "Marco Villanueva",
+            posterRole = "Licensed Broker",
+            isPosterAuthorized = true,
+            verificationLevel = 4,
+            phoneVerified = true,
+            emailVerified = true,
+            identitySubmitted = true,
+            professionalVerified = true,
+            viewsCount = 245,
+            savesCount = 42
         )
     )
 
     val sampleImages = listOf(
+        // prop_ceb_mabolo (Mabolo Modern Studio Flat - 4 photos)
+        PropertyImageEntity("img_ceb_mabolo_1", "prop_ceb_mabolo", "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&auto=format&fit=crop&q=80", true, "Modern studio interior in Mabolo", 0),
+        PropertyImageEntity("img_ceb_mabolo_2", "prop_ceb_mabolo", "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&auto=format&fit=crop&q=80", false, "Queen bed with built-in wardrobe", 1),
+        PropertyImageEntity("img_ceb_mabolo_3", "prop_ceb_mabolo", "https://images.unsplash.com/photo-1556912173-3bb406ef7e77?w=1200&auto=format&fit=crop&q=80", false, "Kitchenette with induction and counter", 2),
+        PropertyImageEntity("img_ceb_mabolo_4", "prop_ceb_mabolo", "https://images.unsplash.com/photo-1584622781564-1d987f7333c1?w=1200&auto=format&fit=crop&q=80", false, "Private modern bathroom with hot shower", 3),
+
         // prop_boh_dampas (Dampas Tagbilaran Studio - Kuya Mark - 4 photos)
         PropertyImageEntity("img_boh_dampas_1", "prop_boh_dampas", "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&auto=format&fit=crop&q=80", true, "Furnished studio with single bed with pull-out", 0),
         PropertyImageEntity("img_boh_dampas_2", "prop_boh_dampas", "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&auto=format&fit=crop&q=80", false, "Study table, chair, and wall fan setup", 1),

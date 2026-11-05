@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,22 +36,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -88,88 +89,29 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.data.local.entity.BarangayEntity
+import com.example.data.local.entity.CityMunicipalityEntity
+import com.example.data.local.entity.ProvinceEntity
 import com.example.data.model.ApartmentDetails
 import com.example.data.model.BoardingHouseDetails
 import com.example.data.model.CondominiumDetails
-import com.example.data.model.PhilippineRentalPropertyCategory
 import com.example.data.model.PropertyCategorySpecifications
 import com.example.data.model.RoleVerificationDetails
 import com.example.data.model.TownhouseDetails
 import com.example.ui.components.CascadingLocationSelector
 import com.example.ui.components.SearchableDropdownField
 import com.example.ui.viewmodel.MarketplaceViewModel
+import com.example.util.LocationCoordinatesHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
 import java.util.UUID
-
-class BhFormState {
-    var pricingModel by mutableStateOf("Per Person/Bed")
-    var monthlyRentStr by mutableStateOf("2500")
-    var floorAreaStr by mutableStateOf("18")
-    var roomCapacity by mutableStateOf("4-bed bunk")
-    var tenantPreference by mutableStateOf("Mixed")
-    var bathroomType by mutableStateOf("Shared/Communal")
-    var furnishing by mutableStateOf("Fully-Furnished")
-    var parking by mutableStateOf("Motorcycle Parking Included")
-    var curfew by mutableStateOf("10:00 PM Gate Lock")
-    var visitors by mutableStateOf("Lobby Visitors Only")
-    var petPolicy by mutableStateOf("Strictly No Pets")
-    var cooking by mutableStateOf("Light Cooking Allowed")
-    var leaseTerm by mutableStateOf("6 months")
-    val utilities = mutableStateListOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included")
-}
-
-class AptFormState {
-    var monthlyRentStr by mutableStateOf("12000")
-    var floorAreaStr by mutableStateOf("42")
-    var bedrooms by mutableIntStateOf(1)
-    var bathrooms by mutableIntStateOf(1)
-    var leaseTermMin by mutableStateOf("1 year")
-    var furnishing by mutableStateOf("Semi-Furnished")
-    var kitchenType by mutableStateOf("Indoor/Integral")
-    var utilityBilling by mutableStateOf("Own Meter")
-    var parking by mutableStateOf("Covered Garage Slot")
-    var petPolicy by mutableStateOf("Pets Allowed")
-    var curfew by mutableStateOf("No Curfew (24/7 Access)")
-}
-
-class CondoFormState {
-    var monthlyRentStr by mutableStateOf("22000")
-    var assocDuesStatus by mutableStateOf("Inclusive in rent")
-    var unitLayout by mutableStateOf("Studio")
-    var floorAreaStr by mutableStateOf("28")
-    var floorLevel by mutableStateOf("14th Floor")
-    var parking by mutableStateOf("Available for extra fee")
-    val amenities = mutableStateListOf("Pool", "Gym", "24/7 Security")
-    var petPolicy by mutableStateOf("Pet-Friendly")
-    var furnishing by mutableStateOf("Fully-Furnished")
-    var leaseTerm by mutableStateOf("1 year")
-    var visitors by mutableStateOf("24/7 Concierge & Guest Registration")
-    var kitchen by mutableStateOf("Equipped Kitchenette")
-}
-
-class TownhouseFormState {
-    var monthlyRentStr by mutableStateOf("30000")
-    var lotAreaStr by mutableStateOf("120")
-    var floorAreaStr by mutableStateOf("95")
-    var stories by mutableIntStateOf(2)
-    var bedrooms by mutableIntStateOf(3)
-    var bathrooms by mutableIntStateOf(2)
-    var garageCapacity by mutableIntStateOf(2)
-    var hasMaidsRoom by mutableStateOf(false)
-    var isGatedSubdivision by mutableStateOf(true)
-    var furnishing by mutableStateOf("Semi-Furnished")
-    var petPolicy by mutableStateOf("Pet-Friendly")
-    var assocDues by mutableStateOf("Inclusive in rent")
-    var leaseTerm by mutableStateOf("1 year")
-    var kitchen by mutableStateOf("Indoor Kitchen + Dirty Kitchen")
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -179,6 +121,7 @@ fun PostPropertyScreen(
     onSuccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentUser by viewModel.currentUser.collectAsState()
     val allProvinces by viewModel.allProvinces.collectAsState()
     val allCities by viewModel.allCities.collectAsState()
     val allBarangays by viewModel.allBarangays.collectAsState()
@@ -187,43 +130,128 @@ fun PostPropertyScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    // Multi-Step Progress State (1: Role, 2: Base Info, 3: Specifications, 4: Review & Publish)
+    // CONSTRAINT 1: Host must be verified before adding a property
+    if (!currentUser.isHostVerified) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("List Rental Property", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                )
+            },
+            modifier = modifier
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.size(76.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(42.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = "Verification Required",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Sorry, verification is needed before adding property.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Philippine marketplace guidelines and Balay-Inn trust policies require all property hosts, caretakers, and brokers to complete role & identity verification in Profile Settings before publishing listings.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Verify in Profile Setting", fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Go Back")
+                }
+            }
+        }
+        return
+    }
+
+    // -------------------------------------------------------------
+    // 3-STEP STREAMLINED FLOW (Role verification is housed in Profile)
+    // Step 1: Base Property Info & Photos
+    // Step 2: Specifications, Utilities & Terms
+    // Step 3: Review & Publish
+    // -------------------------------------------------------------
     var currentStep by remember { mutableIntStateOf(1) }
 
-    // -------------------------------------------------------------
-    // STEP 1: ROLE-BASED VERIFICATION STATES
-    // -------------------------------------------------------------
-    var userRole by remember { mutableStateOf("Property owner") } // "Property owner", "Authorized representative / Caretaker", "Sublessor / Master tenant"
-    // Owner specific
-    var isTitleOwnerConfirmed by remember { mutableStateOf(true) }
-    var ownerIdType by remember { mutableStateOf("Philippine National ID (PhilSys)") }
-    var ownerIdNumber by remember { mutableStateOf("") }
-    var ownerContactPref by remember { mutableStateOf("Direct Phone Call & SMS") }
-    // Representative specific
-    var landlordFullName by remember { mutableStateOf("") }
-    var repRelationship by remember { mutableStateOf("Caretaker / Property Custodian") }
-    var isAuthorizedByOwner by remember { mutableStateOf("Yes") } // "Yes", "No"
-    var authorizationDocType by remember { mutableStateOf("Special Power of Attorney (SPA)") }
-    var repPhoneNumber by remember { mutableStateOf("") }
-    // Sublessor specific
-    var masterLandlordName by remember { mutableStateOf("") }
-    var hasSubleasePermission by remember { mutableStateOf("Yes") }
-    var masterLeaseDuration by remember { mutableStateOf("6 to 12 months") }
-
-    // -------------------------------------------------------------
-    // STEP 2: BASE PROPERTY INFORMATION STATES
-    // -------------------------------------------------------------
+    // STEP 1 STATE: Location & Base Information
     var selectedProvinceId by remember { mutableStateOf("prov_bohol") }
     var selectedCityId by remember { mutableStateOf("bohol_panglao") }
     var selectedBarangayId by remember { mutableStateOf("") }
     var streetAddress by remember { mutableStateOf("") }
     var neighborhood by remember { mutableStateOf("") }
-    var landmark by remember { mutableStateOf("") }
+    var selectedLandmarkOption by remember { mutableStateOf("") }
+    var customLandmarkText by remember { mutableStateOf("") }
 
-    // Supported Core Property Types: Boarding House, Apartment, Condominium, Studio, Townhouse
+    // Auto Location Coordinates Pin
+    var currentLatitude by remember { mutableDoubleStateOf(9.5800) }
+    var currentLongitude by remember { mutableDoubleStateOf(123.7714) }
+
+    // Property Type (RADIO BUTTON REQUIREMENT)
     var selectedPropertyType by remember { mutableStateOf("Boarding House") }
 
-    // Media & Marketing
+    // Photos
     val uploadedPhotos = remember { mutableStateListOf<String>() }
     var listingTitle by remember { mutableStateOf("") }
     var listingDescription by remember { mutableStateOf("") }
@@ -243,13 +271,36 @@ fun PostPropertyScreen(
         }
     }
 
-    // -------------------------------------------------------------
-    // STEP 3: CONDITIONAL SPECIFICATIONS STATES (Universal Categories)
-    // -------------------------------------------------------------
-    val bhState = remember { BhFormState() }
-    val aptState = remember { AptFormState() }
-    val condoState = remember { CondoFormState() }
-    val thState = remember { TownhouseFormState() }
+    // STEP 2 STATE: Specifications, Utilities & Terms
+    var monthlyRentStr by remember { mutableStateOf("2500") }
+    var depositTerms by remember { mutableStateOf("1 Month Advance + 1 Month Deposit") }
+    var genderAllowed by remember { mutableStateOf("Any / Co-ed / Mixed") }
+    var waterBillingSetup by remember { mutableStateOf("Sub-metered Water (pay based on actual cu.m reading)") }
+    var electricityBillingSetup by remember { mutableStateOf("Individual Electric Sub-meter") }
+    var freeWifiIncluded by remember { mutableStateOf(true) }
+
+    // Room Specs
+    var roomLayoutType by remember { mutableStateOf("Bedspace / Dormitory") }
+    var totalBeds by remember { mutableIntStateOf(4) }
+    var availableBeds by remember { mutableIntStateOf(2) }
+    var totalCapacity by remember { mutableIntStateOf(4) }
+    var bathroomType by remember { mutableStateOf("Shared / Communal Bathroom") }
+    var airConditioningType by remember { mutableStateOf("Air-Conditioned") }
+    var floorAreaStr by remember { mutableStateOf("18") }
+    var furnishing by remember { mutableStateOf("Fully-Furnished") }
+    var cookingRule by remember { mutableStateOf("Light Cooking Allowed (Electric kettle/rice cooker)") }
+    var curfewRule by remember { mutableStateOf("10:00 PM Gate Lock") }
+    var visitorsRule by remember { mutableStateOf("Lobby Visitors Only") }
+    var petPolicy by remember { mutableStateOf("Strictly No Pets") }
+    var parkingPolicy by remember { mutableStateOf("Motorcycle Parking Included") }
+    var leaseTerm by remember { mutableStateOf("6 months") }
+
+    // Effective landmark text
+    val effectiveLandmark = if (selectedLandmarkOption == "Others (Specify Custom Landmark)") {
+        customLandmarkText
+    } else {
+        selectedLandmarkOption.ifBlank { customLandmarkText }
+    }
 
     Scaffold(
         topBar = {
@@ -271,7 +322,7 @@ fun PostPropertyScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Step Progress Indicator Header
+            // Step Progress Header (3 Steps)
             MultiStepProgressHeader(
                 currentStep = currentStep,
                 onStepClick = { step ->
@@ -279,88 +330,53 @@ fun PostPropertyScreen(
                 }
             )
 
-            // Step Content Animated
             AnimatedContent(
                 targetState = currentStep,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                label = "step_content"
+                label = "post_property_flow"
             ) { step ->
                 when (step) {
-                    1 -> Step1RoleVerification(
-                        userRole = userRole,
-                        onRoleChange = { userRole = it },
-                        isTitleOwnerConfirmed = isTitleOwnerConfirmed,
-                        onTitleOwnerConfirmedChange = { isTitleOwnerConfirmed = it },
-                        ownerIdType = ownerIdType,
-                        onOwnerIdTypeChange = { ownerIdType = it },
-                        ownerIdNumber = ownerIdNumber,
-                        onOwnerIdNumberChange = { ownerIdNumber = it },
-                        ownerContactPref = ownerContactPref,
-                        onOwnerContactPrefChange = { ownerContactPref = it },
-                        landlordFullName = landlordFullName,
-                        onLandlordFullNameChange = { landlordFullName = it },
-                        repRelationship = repRelationship,
-                        onRepRelationshipChange = { repRelationship = it },
-                        isAuthorizedByOwner = isAuthorizedByOwner,
-                        onIsAuthorizedByOwnerChange = { isAuthorizedByOwner = it },
-                        authorizationDocType = authorizationDocType,
-                        onAuthorizationDocTypeChange = { authorizationDocType = it },
-                        repPhoneNumber = repPhoneNumber,
-                        onRepPhoneNumberChange = { repPhoneNumber = it },
-                        masterLandlordName = masterLandlordName,
-                        onMasterLandlordNameChange = { masterLandlordName = it },
-                        hasSubleasePermission = hasSubleasePermission,
-                        onHasSubleasePermissionChange = { hasSubleasePermission = it },
-                        masterLeaseDuration = masterLeaseDuration,
-                        onMasterLeaseDurationChange = { masterLeaseDuration = it },
-                        onNext = {
-                            // Validate Step 1
-                            when (userRole) {
-                                "Property owner" -> {
-                                    if (!isTitleOwnerConfirmed) {
-                                        scope.launch { snackbarHostState.showSnackbar("Please confirm property ownership declaration.") }
-                                        return@Step1RoleVerification
-                                    }
-                                }
-                                "Authorized representative / Caretaker" -> {
-                                    if (landlordFullName.isBlank()) {
-                                        scope.launch { snackbarHostState.showSnackbar("Please enter the property owner's full name.") }
-                                        return@Step1RoleVerification
-                                    }
-                                    if (isAuthorizedByOwner != "Yes") {
-                                        scope.launch { snackbarHostState.showSnackbar("You must be authorized by the owner to list this property.") }
-                                        return@Step1RoleVerification
-                                    }
-                                }
-                                else -> {
-                                    if (masterLandlordName.isBlank()) {
-                                        scope.launch { snackbarHostState.showSnackbar("Please enter the head landlord's name.") }
-                                        return@Step1RoleVerification
-                                    }
-                                }
-                            }
-                            currentStep = 2
-                        }
-                    )
-                    2 -> Step2BasePropertyInformation(
+                    1 -> Step1PropertyInfoAndPhotos(
                         allProvinces = allProvinces,
                         allCities = allCities,
                         allBarangays = allBarangays,
                         selectedProvinceId = selectedProvinceId,
-                        onProvinceSelected = { selectedProvinceId = it },
+                        onProvinceSelected = { provId ->
+                            selectedProvinceId = provId
+                            val (lat, lng) = LocationCoordinatesHelper.resolveCoordinates(provId, selectedCityId)
+                            currentLatitude = lat
+                            currentLongitude = lng
+                        },
                         selectedCityId = selectedCityId,
-                        onCitySelected = { selectedCityId = it },
+                        onCitySelected = { cityId ->
+                            selectedCityId = cityId
+                            val (lat, lng) = LocationCoordinatesHelper.resolveCoordinates(selectedProvinceId, cityId)
+                            currentLatitude = lat
+                            currentLongitude = lng
+                        },
                         selectedBarangayId = selectedBarangayId,
                         onBarangaySelected = { selectedBarangayId = it },
                         streetAddress = streetAddress,
                         onStreetAddressChange = { streetAddress = it },
                         neighborhood = neighborhood,
                         onNeighborhoodChange = { neighborhood = it },
-                        landmark = landmark,
-                        onLandmarkChange = { landmark = it },
+                        selectedLandmarkOption = selectedLandmarkOption,
+                        onLandmarkOptionSelected = { selectedLandmarkOption = it },
+                        customLandmarkText = customLandmarkText,
+                        onCustomLandmarkChange = { customLandmarkText = it },
+                        currentLatitude = currentLatitude,
+                        currentLongitude = currentLongitude,
+                        onOpenMaps = {
+                            LocationCoordinatesHelper.openInGoogleMaps(
+                                context = context,
+                                latitude = currentLatitude,
+                                longitude = currentLongitude,
+                                label = listingTitle.ifBlank { "Rental Property Location" }
+                            )
+                        },
                         selectedPropertyType = selectedPropertyType,
                         onPropertyTypeSelected = { selectedPropertyType = it },
                         uploadedPhotos = uploadedPhotos,
@@ -369,244 +385,269 @@ fun PostPropertyScreen(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
+                        onAddDemoPhotos = {
+                            val samplePhotos = listOf(
+                                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop",
+                                "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop",
+                                "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop",
+                                "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop"
+                            )
+                            samplePhotos.forEach { url ->
+                                if (!uploadedPhotos.contains(url)) uploadedPhotos.add(url)
+                            }
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Added 4 authentic sample demo property photos.")
+                            }
+                        },
                         onRemovePhoto = { idx -> uploadedPhotos.removeAt(idx) },
                         listingTitle = listingTitle,
                         onListingTitleChange = { listingTitle = it },
                         listingDescription = listingDescription,
                         onListingDescriptionChange = { listingDescription = it },
-                        onBack = { currentStep = 1 },
                         onNext = {
                             if (listingTitle.isBlank()) {
-                                scope.launch { snackbarHostState.showSnackbar("Please provide a listing title.") }
-                                return@Step2BasePropertyInformation
+                                scope.launch { snackbarHostState.showSnackbar("Please enter a listing title.") }
+                                return@Step1PropertyInfoAndPhotos
                             }
                             if (streetAddress.isBlank()) {
-                                scope.launch { snackbarHostState.showSnackbar("Please provide the street address or building name.") }
-                                return@Step2BasePropertyInformation
+                                scope.launch { snackbarHostState.showSnackbar("Please enter the street address or building name.") }
+                                return@Step1PropertyInfoAndPhotos
                             }
-                            if (uploadedPhotos.size < 3) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Please upload at least 3 photos (currently ${uploadedPhotos.size}/10).")
-                                }
-                                return@Step2BasePropertyInformation
+                            if (uploadedPhotos.isEmpty()) {
+                                scope.launch { snackbarHostState.showSnackbar("Please add at least 1 photo or click 'Add Sample Photos (Demo)'.") }
+                                return@Step1PropertyInfoAndPhotos
+                            }
+                            currentStep = 2
+                        }
+                    )
+
+                    2 -> Step2SpecificationsUtilitiesTerms(
+                        propertyType = selectedPropertyType,
+                        monthlyRentStr = monthlyRentStr,
+                        onMonthlyRentChange = { monthlyRentStr = it },
+                        depositTerms = depositTerms,
+                        onDepositTermsChange = { depositTerms = it },
+                        genderAllowed = genderAllowed,
+                        onGenderAllowedChange = { genderAllowed = it },
+                        waterBillingSetup = waterBillingSetup,
+                        onWaterBillingChange = { waterBillingSetup = it },
+                        electricityBillingSetup = electricityBillingSetup,
+                        onElectricityBillingChange = { electricityBillingSetup = it },
+                        freeWifiIncluded = freeWifiIncluded,
+                        onFreeWifiChange = { freeWifiIncluded = it },
+                        roomLayoutType = roomLayoutType,
+                        onRoomLayoutChange = { roomLayoutType = it },
+                        totalBeds = totalBeds,
+                        onTotalBedsChange = { totalBeds = it },
+                        availableBeds = availableBeds,
+                        onAvailableBedsChange = { availableBeds = it },
+                        totalCapacity = totalCapacity,
+                        onTotalCapacityChange = { totalCapacity = it },
+                        bathroomType = bathroomType,
+                        onBathroomTypeChange = { bathroomType = it },
+                        airConditioningType = airConditioningType,
+                        onAirConditioningChange = { airConditioningType = it },
+                        floorAreaStr = floorAreaStr,
+                        onFloorAreaChange = { floorAreaStr = it },
+                        furnishing = furnishing,
+                        onFurnishingChange = { furnishing = it },
+                        cookingRule = cookingRule,
+                        onCookingRuleChange = { cookingRule = it },
+                        curfewRule = curfewRule,
+                        onCurfewRuleChange = { curfewRule = it },
+                        visitorsRule = visitorsRule,
+                        onVisitorsRuleChange = { visitorsRule = it },
+                        petPolicy = petPolicy,
+                        onPetPolicyChange = { petPolicy = it },
+                        parkingPolicy = parkingPolicy,
+                        onParkingPolicyChange = { parkingPolicy = it },
+                        leaseTerm = leaseTerm,
+                        onLeaseTermChange = { leaseTerm = it },
+                        onBack = { currentStep = 1 },
+                        onNext = {
+                            val rent = monthlyRentStr.toDoubleOrNull() ?: 0.0
+                            if (rent <= 0.0) {
+                                scope.launch { snackbarHostState.showSnackbar("Please enter a valid monthly rent amount.") }
+                                return@Step2SpecificationsUtilitiesTerms
                             }
                             currentStep = 3
                         }
                     )
-                    3 -> Step3ConditionalSpecifications(
-                        propertyType = selectedPropertyType,
-                        bhState = bhState,
-                        aptState = aptState,
-                        condoState = condoState,
-                        thState = thState,
-                        onBack = { currentStep = 2 },
-                        onNext = {
-                            val rent = when (selectedPropertyType) {
-                                "Boarding House" -> bhState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-                                "Apartment" -> aptState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-                                "Condo", "Condominium", "Studio" -> condoState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-                                else -> thState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-                            }
-                            if (rent <= 0.0) {
-                                scope.launch { snackbarHostState.showSnackbar("Please enter a valid monthly rent amount.") }
-                                return@Step3ConditionalSpecifications
-                            }
-                            currentStep = 4
-                        }
-                    )
-                    4 -> Step4ReviewAndPublish(
-                        userRole = userRole,
+
+                    3 -> Step3ReviewAndPublish(
+                        currentUser = currentUser,
                         propertyType = selectedPropertyType,
                         title = listingTitle,
                         description = listingDescription,
                         streetAddress = streetAddress,
+                        neighborhood = neighborhood,
+                        landmark = effectiveLandmark,
+                        latitude = currentLatitude,
+                        longitude = currentLongitude,
                         photoCount = uploadedPhotos.size,
-                        bhState = bhState,
-                        aptState = aptState,
-                        condoState = condoState,
-                        thState = thState,
-                        onBack = { currentStep = 3 },
+                        photos = uploadedPhotos.toList(),
+                        monthlyRent = monthlyRentStr.toDoubleOrNull() ?: 2500.0,
+                        depositTerms = depositTerms,
+                        genderAllowed = genderAllowed,
+                        waterBilling = waterBillingSetup,
+                        electricityBilling = electricityBillingSetup,
+                        freeWifi = freeWifiIncluded,
+                        roomLayout = roomLayoutType,
+                        totalBeds = totalBeds,
+                        availableBeds = availableBeds,
+                        bathroomType = bathroomType,
+                        airConditioning = airConditioningType,
+                        floorArea = floorAreaStr.toDoubleOrNull() ?: 18.0,
+                        furnishing = furnishing,
+                        cookingRule = cookingRule,
+                        curfew = curfewRule,
+                        visitors = visitorsRule,
+                        petPolicy = petPolicy,
+                        parking = parkingPolicy,
+                        leaseTerm = leaseTerm,
+                        onBack = { currentStep = 2 },
+                        onOpenMaps = {
+                            LocationCoordinatesHelper.openInGoogleMaps(
+                                context = context,
+                                latitude = currentLatitude,
+                                longitude = currentLongitude,
+                                label = listingTitle.ifBlank { "Rental Property Location" }
+                            )
+                        },
                         onPublish = {
-                            // Construct typed specs
                             val roleVerification = RoleVerificationDetails(
-                                role = userRole,
-                                isTitleOwnerConfirmed = isTitleOwnerConfirmed,
-                                ownerIdType = ownerIdType,
-                                ownerIdNumber = ownerIdNumber,
-                                contactPreference = ownerContactPref,
-                                landlordFullName = landlordFullName,
-                                representativeRelationship = repRelationship,
-                                isAuthorizedByOwner = isAuthorizedByOwner == "Yes",
-                                authorizationDocType = authorizationDocType,
-                                representativePhone = repPhoneNumber,
-                                masterLandlordName = masterLandlordName,
-                                hasSubleasePermission = hasSubleasePermission == "Yes",
-                                masterLeaseExpiry = masterLeaseDuration
+                                role = currentUser.relationshipToProperty.ifBlank { "Property owner" },
+                                isTitleOwnerConfirmed = true,
+                                ownerIdType = "Verified National ID (PhilSys)",
+                                ownerIdNumber = "PH-VERIFIED-LEVEL-2",
+                                contactPreference = "Direct Phone & App Chat",
+                                landlordFullName = currentUser.fullName,
+                                representativeRelationship = currentUser.relationshipToProperty,
+                                isAuthorizedByOwner = currentUser.isAuthorizedByOwner
                             )
 
                             val categorySpecifications = when (selectedPropertyType) {
                                 "Boarding House" -> PropertyCategorySpecifications(
                                     category = "Boarding House",
                                     boardingHouse = BoardingHouseDetails(
-                                        pricingModel = bhState.pricingModel,
-                                        monthlyRent = bhState.monthlyRentStr.toDoubleOrNull() ?: 2500.0,
-                                        roomCapacity = bhState.roomCapacity,
-                                        tenantPreference = bhState.tenantPreference,
-                                        bathroomType = bhState.bathroomType,
-                                        utilities = bhState.utilities.toList(),
-                                        floorAreaSqm = bhState.floorAreaStr.toDoubleOrNull() ?: 18.0,
-                                        furnishing = bhState.furnishing,
-                                        parking = bhState.parking,
-                                        curfewRule = bhState.curfew,
-                                        visitorsRule = bhState.visitors,
-                                        petPolicy = bhState.petPolicy,
-                                        cookingRule = bhState.cooking,
-                                        leaseTermMinimum = bhState.leaseTerm
+                                        pricingModel = if (roomLayoutType.contains("Bedspace")) "Per Person/Bed" else "Per Room",
+                                        monthlyRent = monthlyRentStr.toDoubleOrNull() ?: 2500.0,
+                                        roomCapacity = "$totalBeds-bed bunk",
+                                        tenantPreference = genderAllowed,
+                                        bathroomType = bathroomType,
+                                        utilities = listOf(waterBillingSetup, electricityBillingSetup).let {
+                                            if (freeWifiIncluded) it + "Free Wi-Fi included" else it
+                                        },
+                                        floorAreaSqm = floorAreaStr.toDoubleOrNull() ?: 18.0,
+                                        furnishing = furnishing,
+                                        parking = parkingPolicy,
+                                        curfewRule = curfewRule,
+                                        visitorsRule = visitorsRule,
+                                        petPolicy = petPolicy,
+                                        cookingRule = cookingRule,
+                                        leaseTermMinimum = leaseTerm
                                     ),
                                     roleVerification = roleVerification
                                 )
                                 "Apartment" -> PropertyCategorySpecifications(
                                     category = "Apartment",
                                     apartment = ApartmentDetails(
-                                        monthlyRent = aptState.monthlyRentStr.toDoubleOrNull() ?: 12000.0,
-                                        totalFloorAreaSqm = aptState.floorAreaStr.toDoubleOrNull() ?: 42.0,
-                                        bedrooms = aptState.bedrooms,
-                                        bathrooms = aptState.bathrooms,
-                                        leaseTermMinimum = aptState.leaseTermMin,
-                                        furnishing = aptState.furnishing,
-                                        kitchenType = aptState.kitchenType,
-                                        utilityBilling = aptState.utilityBilling,
-                                        parking = aptState.parking,
-                                        petPolicy = aptState.petPolicy,
-                                        curfewRule = aptState.curfew
+                                        monthlyRent = monthlyRentStr.toDoubleOrNull() ?: 12000.0,
+                                        totalFloorAreaSqm = floorAreaStr.toDoubleOrNull() ?: 42.0,
+                                        bedrooms = maxOf(1, totalBeds / 2),
+                                        bathrooms = if (bathroomType.contains("Private")) 1 else 1,
+                                        leaseTermMinimum = leaseTerm,
+                                        furnishing = furnishing,
+                                        kitchenType = cookingRule,
+                                        utilityBilling = "$waterBillingSetup • $electricityBillingSetup",
+                                        parking = parkingPolicy,
+                                        petPolicy = petPolicy,
+                                        curfewRule = curfewRule
                                     ),
                                     roleVerification = roleVerification
                                 )
-                                "Condo", "Condominium", "Studio" -> PropertyCategorySpecifications(
+                                "Condominium", "Condo", "Studio" -> PropertyCategorySpecifications(
                                     category = selectedPropertyType,
                                     condominium = CondominiumDetails(
-                                        monthlyRent = condoState.monthlyRentStr.toDoubleOrNull() ?: 22000.0,
-                                        associationDues = condoState.assocDuesStatus,
-                                        unitLayout = condoState.unitLayout,
-                                        totalFloorAreaSqm = condoState.floorAreaStr.toDoubleOrNull() ?: 28.0,
-                                        floorLevel = condoState.floorLevel,
-                                        parking = condoState.parking,
-                                        amenities = condoState.amenities.toList(),
-                                        petPolicy = condoState.petPolicy,
-                                        furnishing = condoState.furnishing,
-                                        leaseTermMinimum = condoState.leaseTerm,
-                                        visitorsRule = condoState.visitors,
-                                        kitchenType = condoState.kitchen
+                                        monthlyRent = monthlyRentStr.toDoubleOrNull() ?: 22000.0,
+                                        associationDues = "Inclusive in rent",
+                                        unitLayout = if (selectedPropertyType == "Studio") "Studio" else "1-Bedroom",
+                                        totalFloorAreaSqm = floorAreaStr.toDoubleOrNull() ?: 28.0,
+                                        floorLevel = "High Floor",
+                                        parking = parkingPolicy,
+                                        amenities = listOf("Pool", "Gym", "24/7 Security", "WiFi"),
+                                        petPolicy = petPolicy,
+                                        furnishing = furnishing,
+                                        leaseTermMinimum = leaseTerm,
+                                        visitorsRule = visitorsRule,
+                                        kitchenType = cookingRule
                                     ),
                                     roleVerification = roleVerification
                                 )
                                 else -> PropertyCategorySpecifications(
                                     category = "Townhouse",
                                     townhouse = TownhouseDetails(
-                                        monthlyRent = thState.monthlyRentStr.toDoubleOrNull() ?: 30000.0,
-                                        lotAreaSqm = thState.lotAreaStr.toDoubleOrNull() ?: 120.0,
-                                        floorAreaSqm = thState.floorAreaStr.toDoubleOrNull() ?: 95.0,
-                                        stories = thState.stories,
-                                        bedrooms = thState.bedrooms,
-                                        bathrooms = thState.bathrooms,
-                                        garageCapacity = thState.garageCapacity,
-                                        hasMaidsRoom = thState.hasMaidsRoom,
-                                        isGatedSubdivision = thState.isGatedSubdivision,
-                                        furnishing = thState.furnishing,
-                                        petPolicy = thState.petPolicy,
-                                        associationDues = thState.assocDues,
-                                        leaseTermMinimum = thState.leaseTerm,
-                                        kitchenType = thState.kitchen
+                                        monthlyRent = monthlyRentStr.toDoubleOrNull() ?: 30000.0,
+                                        lotAreaSqm = 120.0,
+                                        floorAreaSqm = floorAreaStr.toDoubleOrNull() ?: 95.0,
+                                        stories = 2,
+                                        bedrooms = 3,
+                                        bathrooms = 2,
+                                        garageCapacity = 2,
+                                        hasMaidsRoom = false,
+                                        isGatedSubdivision = true,
+                                        furnishing = furnishing,
+                                        petPolicy = petPolicy,
+                                        associationDues = "Inclusive in rent",
+                                        leaseTermMinimum = leaseTerm,
+                                        kitchenType = cookingRule
                                     ),
                                     roleVerification = roleVerification
                                 )
                             }
 
-                            val rent = when (selectedPropertyType) {
-                                "Boarding House" -> bhState.monthlyRentStr.toDoubleOrNull() ?: 2500.0
-                                "Apartment" -> aptState.monthlyRentStr.toDoubleOrNull() ?: 12000.0
-                                "Condo", "Condominium", "Studio" -> condoState.monthlyRentStr.toDoubleOrNull() ?: 22000.0
-                                else -> thState.monthlyRentStr.toDoubleOrNull() ?: 30000.0
-                            }
-
+                            val rent = monthlyRentStr.toDoubleOrNull() ?: 2500.0
                             val beds = when (selectedPropertyType) {
-                                "Apartment" -> aptState.bedrooms
-                                "Townhouse" -> thState.bedrooms
-                                "Condo", "Condominium", "Studio" -> if (condoState.unitLayout == "Studio") 0 else if (condoState.unitLayout == "2BR") 2 else 1
-                                else -> 1
+                                "Apartment" -> maxOf(1, totalBeds / 2)
+                                "Townhouse" -> 3
+                                "Studio" -> 0
+                                else -> totalBeds
                             }
-
-                            val baths = when (selectedPropertyType) {
-                                "Apartment" -> aptState.bathrooms
-                                "Townhouse" -> thState.bathrooms
-                                else -> 1
-                            }
-
-                            val area = when (selectedPropertyType) {
-                                "Apartment" -> aptState.floorAreaStr.toDoubleOrNull() ?: 42.0
-                                "Condo", "Condominium", "Studio" -> condoState.floorAreaStr.toDoubleOrNull() ?: 28.0
-                                "Townhouse" -> thState.floorAreaStr.toDoubleOrNull() ?: 95.0
-                                else -> bhState.floorAreaStr.toDoubleOrNull() ?: 18.0
-                            }
-
-                            val dues = when (selectedPropertyType) {
-                                "Condo", "Condominium", "Studio" -> if (condoState.assocDuesStatus.contains("Exclusive")) 2000.0 else 0.0
-                                "Townhouse" -> if (thState.assocDues.contains("Exclusive")) 1500.0 else 0.0
-                                else -> 0.0
-                            }
-
-                            val furnished = when (selectedPropertyType) {
-                                "Apartment" -> aptState.furnishing
-                                "Condo", "Condominium", "Studio" -> condoState.furnishing
-                                "Townhouse" -> thState.furnishing
-                                else -> bhState.furnishing
-                            }
-
-                            val parking = when (selectedPropertyType) {
-                                "Condo", "Condominium", "Studio" -> !condoState.parking.contains("None")
-                                "Townhouse" -> thState.garageCapacity > 0
-                                "Apartment" -> !aptState.parking.contains("None")
-                                else -> !bhState.parking.contains("None")
-                            }
-
-                            val pets = when (selectedPropertyType) {
-                                "Condo", "Condominium", "Studio" -> condoState.petPolicy
-                                "Townhouse" -> thState.petPolicy
-                                "Apartment" -> aptState.petPolicy
-                                else -> bhState.petPolicy
-                            }
-
-                            val internetIncluded = when (selectedPropertyType) {
-                                "Boarding House" -> bhState.utilities.contains("Free Wi-Fi included")
-                                "Condo", "Condominium", "Studio" -> condoState.amenities.contains("24/7 Security") || condoState.amenities.contains("WiFi")
-                                else -> true
-                            }
+                            val baths = if (bathroomType.contains("Private")) 1 else 1
+                            val area = floorAreaStr.toDoubleOrNull() ?: 18.0
 
                             viewModel.postProperty(
                                 title = listingTitle,
-                                description = listingDescription.ifBlank { "Clean, secure Philippine rental listing with verified universal specifications." },
+                                description = listingDescription.ifBlank {
+                                    "$selectedPropertyType in $streetAddress. Features $genderAllowed occupancy, $waterBillingSetup, $electricityBillingSetup, $depositTerms."
+                                },
                                 type = selectedPropertyType,
                                 rent = rent,
                                 provinceId = selectedProvinceId,
                                 cityId = selectedCityId,
                                 barangayId = selectedBarangayId,
                                 neighborhood = neighborhood,
-                                landmark = landmark,
+                                landmark = effectiveLandmark,
                                 streetAddress = streetAddress,
-                                privacy = "APPROXIMATE",
-                                lat = 9.589,
-                                lng = 123.774,
+                                privacy = "EXACT",
+                                lat = currentLatitude,
+                                lng = currentLongitude,
                                 beds = beds,
                                 baths = baths,
                                 area = area,
-                                furnished = furnished,
-                                parking = parking,
-                                pets = pets,
-                                dues = dues,
-                                internetIncluded = internetIncluded,
-                                relationship = userRole,
-                                isAuthorized = if (userRole == "Property owner") true else (isAuthorizedByOwner == "Yes"),
-                                amenities = listOf("Air Conditioning", "WiFi", "24/7 Security"),
+                                furnished = furnishing,
+                                parking = !parkingPolicy.contains("None"),
+                                pets = petPolicy,
+                                dues = 0.0,
+                                internetIncluded = freeWifiIncluded,
+                                relationship = currentUser.relationshipToProperty.ifBlank { "Property owner" },
+                                isAuthorized = currentUser.isAuthorizedByOwner,
+                                amenities = listOfNotNull(
+                                    airConditioningType,
+                                    if (freeWifiIncluded) "WiFi" else null,
+                                    "24/7 Security",
+                                    if (bathroomType.contains("Private")) "Private Bathroom" else null
+                                ),
                                 imageUrls = uploadedPhotos.toList(),
                                 categorySpecsJson = categorySpecifications.toJson(),
                                 onSuccess = {
@@ -625,14 +666,14 @@ fun PostPropertyScreen(
 }
 
 // -----------------------------------------------------------------------------
-// MULTI-STEP PROGRESS HEADER
+// MULTI-STEP PROGRESS HEADER (3 Steps)
 // -----------------------------------------------------------------------------
 @Composable
 private fun MultiStepProgressHeader(
     currentStep: Int,
     onStepClick: (Int) -> Unit
 ) {
-    val stepTitles = listOf("1. Role", "2. Base Info", "3. Specs", "4. Publish")
+    val stepTitles = listOf("1. Property Info", "2. Specs & Utilities", "3. Review & Publish")
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
@@ -680,10 +721,10 @@ private fun MultiStepProgressHeader(
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = title,
-                            fontSize = 11.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                             color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -693,7 +734,7 @@ private fun MultiStepProgressHeader(
 
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
-                progress = { currentStep / 4f },
+                progress = { currentStep / 3f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
@@ -706,61 +747,71 @@ private fun MultiStepProgressHeader(
 }
 
 // -----------------------------------------------------------------------------
-// STEP 1: ROLE-BASED VERIFICATION
+// STEP 1: PROPERTY INFORMATION & PHOTOS
 // -----------------------------------------------------------------------------
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Step1RoleVerification(
-    userRole: String,
-    onRoleChange: (String) -> Unit,
-    isTitleOwnerConfirmed: Boolean,
-    onTitleOwnerConfirmedChange: (Boolean) -> Unit,
-    ownerIdType: String,
-    onOwnerIdTypeChange: (String) -> Unit,
-    ownerIdNumber: String,
-    onOwnerIdNumberChange: (String) -> Unit,
-    ownerContactPref: String,
-    onOwnerContactPrefChange: (String) -> Unit,
-    landlordFullName: String,
-    onLandlordFullNameChange: (String) -> Unit,
-    repRelationship: String,
-    onRepRelationshipChange: (String) -> Unit,
-    isAuthorizedByOwner: String,
-    onIsAuthorizedByOwnerChange: (String) -> Unit,
-    authorizationDocType: String,
-    onAuthorizationDocTypeChange: (String) -> Unit,
-    repPhoneNumber: String,
-    onRepPhoneNumberChange: (String) -> Unit,
-    masterLandlordName: String,
-    onMasterLandlordNameChange: (String) -> Unit,
-    hasSubleasePermission: String,
-    onHasSubleasePermissionChange: (String) -> Unit,
-    masterLeaseDuration: String,
-    onMasterLeaseDurationChange: (String) -> Unit,
+private fun Step1PropertyInfoAndPhotos(
+    allProvinces: List<ProvinceEntity>,
+    allCities: List<CityMunicipalityEntity>,
+    allBarangays: List<BarangayEntity>,
+    selectedProvinceId: String,
+    onProvinceSelected: (String) -> Unit,
+    selectedCityId: String,
+    onCitySelected: (String) -> Unit,
+    selectedBarangayId: String,
+    onBarangaySelected: (String) -> Unit,
+    streetAddress: String,
+    onStreetAddressChange: (String) -> Unit,
+    neighborhood: String,
+    onNeighborhoodChange: (String) -> Unit,
+    selectedLandmarkOption: String,
+    onLandmarkOptionSelected: (String) -> Unit,
+    customLandmarkText: String,
+    onCustomLandmarkChange: (String) -> Unit,
+    currentLatitude: Double,
+    currentLongitude: Double,
+    onOpenMaps: () -> Unit,
+    selectedPropertyType: String,
+    onPropertyTypeSelected: (String) -> Unit,
+    uploadedPhotos: List<String>,
+    onLaunchPhotoPicker: () -> Unit,
+    onAddDemoPhotos: () -> Unit,
+    onRemovePhoto: (Int) -> Unit,
+    listingTitle: String,
+    onListingTitleChange: (String) -> Unit,
+    listingDescription: String,
+    onListingDescriptionChange: (String) -> Unit,
     onNext: () -> Unit
 ) {
+    val suggestedLandmarks = remember(selectedCityId, selectedProvinceId) {
+        LocationCoordinatesHelper.getSuggestedLandmarks(selectedCityId, selectedProvinceId)
+    }
+
+    val selectedCityName = allCities.find { it.id == selectedCityId }?.name ?: "Selected Location"
+    val selectedProvName = allProvinces.find { it.id == selectedProvinceId }?.name ?: "Central Visayas"
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         item {
             Text(
-                text = "Step 1: Role-Based Verification",
+                text = "Step 1: Property Information & Photos",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Philippine marketplace regulations require transparent disclosure of your relationship to the property.",
+                text = "Location, photos, and property category for your Philippine rental space.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        // Role Selector Chips
+        // 1. PROPERTY TYPE SELECTOR (RADIO BUTTON REQUIREMENT)
         item {
             Card(
                 shape = RoundedCornerShape(14.dp),
@@ -769,48 +820,54 @@ private fun Step1RoleVerification(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "What is your role?",
+                        text = "Property Type *",
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Select the rental category that best fits your space:",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    val roles = listOf(
-                        "Property owner",
-                        "Authorized representative / Caretaker",
-                        "Sublessor / Master tenant"
+                    val propertyTypes = listOf(
+                        Triple("Boarding House", "Boarding House", "Bedspacer & room rentals with shared or private amenities"),
+                        Triple("Apartment", "Apartment", "Self-contained multi-room units with kitchen & living space"),
+                        Triple("Condominium", "Condominium", "High-rise residential units with building amenities & security"),
+                        Triple("Studio", "Studio", "Compact open-plan single living unit with private bath"),
+                        Triple("Townhouse", "Townhouse", "Multi-floor residential home or attached dwelling unit")
                     )
 
-                    roles.forEach { role ->
+                    propertyTypes.forEach { (typeKey, typeLabel, typeDesc) ->
+                        val isSelected = selectedPropertyType == typeKey
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = if (userRole == role) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            border = if (userRole == role) BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary) else null,
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = if (isSelected) BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary) else null,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onRoleChange(role) }
+                                .clickable { onPropertyTypeSelected(typeKey) }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                             ) {
                                 RadioButton(
-                                    selected = userRole == role,
-                                    onClick = { onRoleChange(role) }
+                                    selected = isSelected,
+                                    onClick = { onPropertyTypeSelected(typeKey) },
+                                    modifier = Modifier.testTag("radio_prop_type_$typeKey")
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
-                                        text = role,
+                                        text = typeLabel,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                         fontSize = 13.5.sp,
-                                        fontWeight = if (userRole == role) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (userRole == role) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = when (role) {
-                                            "Property owner" -> "Direct registered owner or title deed holder"
-                                            "Authorized representative / Caretaker" -> "Caretaker, manager, or broker with owner authorization"
-                                            else -> "Tenant leasing out spare rooms or master sublease"
-                                        },
+                                        text = typeDesc,
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -822,7 +879,7 @@ private fun Step1RoleVerification(
             }
         }
 
-        // Branching Details based on Your Role
+        // 2. GEOGRAPHIC LOCATION (REGION VII & REGION VIII CASCADING)
         item {
             Card(
                 shape = RoundedCornerShape(14.dp),
@@ -830,279 +887,32 @@ private fun Step1RoleVerification(
                 border = CardDefaults.outlinedCardBorder()
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    when (userRole) {
-                        "Property owner" -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Geographic Location",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
                             Text(
-                                text = "Owner Verification & Contact Details",
+                                text = "Region VII & VIII",
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onTitleOwnerConfirmedChange(!isTitleOwnerConfirmed) }
-                            ) {
-                                Checkbox(
-                                    checked = isTitleOwnerConfirmed,
-                                    onCheckedChange = onTitleOwnerConfirmedChange
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "I confirm that I am the registered title deed holder or legitimate owner of this property.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            SearchableDropdownField(
-                                label = "Verification Government ID",
-                                selectedText = ownerIdType,
-                                items = listOf(
-                                    "Philippine National ID (PhilSys)",
-                                    "Philippine Passport",
-                                    "UMID / SSS ID",
-                                    "Driver's License (LTO)",
-                                    "PRC Professional ID"
-                                ),
-                                onItemSelected = onOwnerIdTypeChange
-                            )
-
-                            OutlinedTextField(
-                                value = ownerIdNumber,
-                                onValueChange = onOwnerIdNumberChange,
-                                label = { Text("Government ID Reference (Optional)") },
-                                placeholder = { Text("e.g. 1234-5678-9012") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-
-                            SearchableDropdownField(
-                                label = "Preferred Inquiry Contact Channel",
-                                selectedText = ownerContactPref,
-                                items = listOf(
-                                    "Direct Phone Call & SMS",
-                                    "In-App Chat Only",
-                                    "Viber / WhatsApp"
-                                ),
-                                onItemSelected = onOwnerContactPrefChange
-                            )
-                        }
-
-                        "Authorized representative / Caretaker" -> {
-                            Text(
-                                text = "Owner Authorization & Caretaker Information",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            OutlinedTextField(
-                                value = landlordFullName,
-                                onValueChange = onLandlordFullNameChange,
-                                label = { Text("Property Owner / Landlord's Full Name *") },
-                                placeholder = { Text("e.g. Don Ramon Valdez") },
-                                modifier = Modifier.fillMaxWidth().testTag("owner_name_input"),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-
-                            SearchableDropdownField(
-                                label = "Your Relationship to Owner",
-                                selectedText = repRelationship,
-                                items = listOf(
-                                    "Caretaker / Property Custodian",
-                                    "Family Member / Relative",
-                                    "Property Manager",
-                                    "Licensed Real-Estate Broker / Agent"
-                                ),
-                                onItemSelected = onRepRelationshipChange
-                            )
-
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Are you authorized by the owner to advertise this property? *",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    listOf("Yes", "No").forEach { opt ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(
-                                                selected = isAuthorizedByOwner == opt,
-                                                onClick = { onIsAuthorizedByOwnerChange(opt) }
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(opt, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            SearchableDropdownField(
-                                label = "Authorization Document Held",
-                                selectedText = authorizationDocType,
-                                items = listOf(
-                                    "Special Power of Attorney (SPA)",
-                                    "Written Authorization Letter",
-                                    "Notarized Management Agreement",
-                                    "Verbal Authorization with Owner Contact"
-                                ),
-                                onItemSelected = onAuthorizationDocTypeChange
-                            )
-
-                            OutlinedTextField(
-                                value = repPhoneNumber,
-                                onValueChange = onRepPhoneNumberChange,
-                                label = { Text("Representative Phone Number (Optional)") },
-                                placeholder = { Text("0917-XXX-XXXX") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                        }
-
-                        else -> {
-                            // Sublessor / Master tenant
-                            Text(
-                                text = "Sublease Permission & Master Lease",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            OutlinedTextField(
-                                value = masterLandlordName,
-                                onValueChange = onMasterLandlordNameChange,
-                                label = { Text("Head Landlord / Building Owner Name *") },
-                                placeholder = { Text("e.g. Tagbilaran Realty Corp") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Has the head landlord granted permission to sublease? *",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    listOf("Yes", "No").forEach { opt ->
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            RadioButton(
-                                                selected = hasSubleasePermission == opt,
-                                                onClick = { onHasSubleasePermissionChange(opt) }
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(opt, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            SearchableDropdownField(
-                                label = "Remaining Master Lease Duration",
-                                selectedText = masterLeaseDuration,
-                                items = listOf(
-                                    "Less than 6 months",
-                                    "6 to 12 months",
-                                    "1 to 2 years",
-                                    "2+ years"
-                                ),
-                                onItemSelected = onMasterLeaseDurationChange
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
                     }
-                }
-            }
-        }
 
-        item {
-            Button(
-                onClick = onNext,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .testTag("step1_continue_btn"),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Continue to Base Information", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
-            }
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// STEP 2: BASE PROPERTY INFORMATION (ALWAYS VISIBLE)
-// -----------------------------------------------------------------------------
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun Step2BasePropertyInformation(
-    allProvinces: List<com.example.data.local.entity.ProvinceEntity>,
-    allCities: List<com.example.data.local.entity.CityMunicipalityEntity>,
-    allBarangays: List<com.example.data.local.entity.BarangayEntity>,
-    selectedProvinceId: String,
-    onProvinceSelected: (String) -> Unit,
-    selectedCityId: String,
-    onCitySelected: (String) -> Unit,
-    selectedBarangayId: String,
-    onBarangaySelected: (String) -> Unit,
-    streetAddress: String,
-    onStreetAddressChange: (String) -> Unit,
-    neighborhood: String,
-    onNeighborhoodChange: (String) -> Unit,
-    landmark: String,
-    onLandmarkChange: (String) -> Unit,
-    selectedPropertyType: String,
-    onPropertyTypeSelected: (String) -> Unit,
-    uploadedPhotos: List<String>,
-    onLaunchPhotoPicker: () -> Unit,
-    onRemovePhoto: (Int) -> Unit,
-    listingTitle: String,
-    onListingTitleChange: (String) -> Unit,
-    listingDescription: String,
-    onListingDescriptionChange: (String) -> Unit,
-    onBack: () -> Unit,
-    onNext: () -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
-    ) {
-        item {
-            Text(
-                text = "Step 2: Base Property Information",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "Universal fields required across all rental listings in the Philippines.",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        // Location Card
-        item {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "Geographic Location",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
+                    // Cascading Province -> City -> Barangay
                     CascadingLocationSelector(
                         countries = emptyList(),
                         selectedCountryId = "ctry_ph",
@@ -1126,84 +936,124 @@ private fun Step2BasePropertyInformation(
                         value = streetAddress,
                         onValueChange = onStreetAddressChange,
                         label = { Text("Street Address / Building Name *") },
-                        placeholder = { Text("e.g. Unit 402, Sunset Boulevard Condos") },
-                        modifier = Modifier.fillMaxWidth().testTag("post_address_input"),
+                        placeholder = { Text("e.g. Unit 302, Greenview Residences, Mango Ave") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("post_address_input"),
                         shape = RoundedCornerShape(10.dp)
                     )
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = neighborhood,
-                            onValueChange = onNeighborhoodChange,
-                            label = { Text("Subdivision / Zone") },
-                            placeholder = { Text("e.g. Alona Beach Zone") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                    OutlinedTextField(
+                        value = neighborhood,
+                        onValueChange = onNeighborhoodChange,
+                        label = { Text("Subdivision / Zone / Compound") },
+                        placeholder = { Text("e.g. Villa Aurora Subdivision") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    // Nearby Landmark (Dropdown with standard landmarks + Others)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Nearby Landmark", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        val landmarkOptions = suggestedLandmarks + listOf("Others (Specify Custom Landmark)")
+
+                        SearchableDropdownField(
+                            label = "Select Nearby Landmark",
+                            selectedText = selectedLandmarkOption.ifBlank { "Select landmark or choose Others" },
+                            items = landmarkOptions,
+                            onItemSelected = { chosen ->
+                                onLandmarkOptionSelected(chosen)
+                                if (chosen != "Others (Specify Custom Landmark)") {
+                                    onCustomLandmarkChange(chosen)
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            modifier = Modifier.testTag("landmark_dropdown")
                         )
-                        OutlinedTextField(
-                            value = landmark,
-                            onValueChange = onLandmarkChange,
-                            label = { Text("Nearby Landmark") },
-                            placeholder = { Text("Near BPI / Mall") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                    }
-                }
-            }
-        }
 
-        // Property Type Dropdown / Chip Selector (Triggers Step 3 Conditional Logic)
-        item {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Property Type *",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Select one. This selection triggers the conditional specifications in Step 3:",
-                        fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    val types = listOf(
-                        "Boarding House" to "🛏️",
-                        "Apartment" to "🚪",
-                        "Condo" to "🏢",
-                        "Studio" to "🛋️",
-                        "Townhouse" to "🏡"
-                    )
-
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        types.forEach { (type, emoji) ->
-                            val isSelected = selectedPropertyType == type
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { onPropertyTypeSelected(type) },
-                                label = { Text("$emoji $type", fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
+                        if (selectedLandmarkOption == "Others (Specify Custom Landmark)" || selectedLandmarkOption.isEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = customLandmarkText,
+                                onValueChange = onCustomLandmarkChange,
+                                label = { Text("Custom Nearby Landmark / Reference") },
+                                placeholder = { Text("e.g. Beside 7-Eleven, 200m from Church") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
                             )
+                        }
+                    }
+
+                    // Location Coordinates Display below subdivision and landmark (Clickable Google Maps)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenMaps() }
+                            .testTag("location_coordinates_card")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Auto-Pinned GPS Coordinates",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = String.format(Locale.US, "%.4f° N, %.4f° E • %s, %s", currentLatitude, currentLongitude, selectedCityName, selectedProvName),
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Tap to preview pin in Google Maps",
+                                    fontSize = 10.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Button(
+                                onClick = onOpenMaps,
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Map", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Media & Marketing Card (Min 3 Photos, Max 10 Photos)
+        // 3. PROPERTY PHOTOS & DEMO ASSETS
         item {
             Card(
                 shape = RoundedCornerShape(14.dp),
@@ -1224,133 +1074,197 @@ private fun Step2BasePropertyInformation(
                         )
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (uploadedPhotos.size >= 3) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                            color = if (uploadedPhotos.isNotEmpty()) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                text = "${uploadedPhotos.size} / 10 (Min 3)",
+                                text = "${uploadedPhotos.size} photo(s)",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (uploadedPhotos.size >= 3) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                     }
 
-                    if (uploadedPhotos.isEmpty()) {
-                        OutlinedButton(
+                    Text(
+                        text = "Upload real photos of the room, bedspace, bathroom, and kitchen.",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
                             onClick = onLaunchPhotoPicker,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .testTag("pick_photos_btn"),
+                            modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Upload Property Photos (Min 3, Max 10)")
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Upload Photos", fontSize = 12.sp)
                         }
-                    } else {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            itemsIndexed(uploadedPhotos) { index, photoPath ->
-                                Box(modifier = Modifier.size(80.dp)) {
+
+                        // DEMO PHOTO BUTTON (REQUIREMENT 3)
+                        OutlinedButton(
+                            onClick = onAddDemoPhotos,
+                            modifier = Modifier.weight(1.1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Sample Photos (Demo)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (uploadedPhotos.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            itemsIndexed(uploadedPhotos) { index, photoUrl ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(90.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                ) {
                                     AsyncImage(
-                                        model = photoPath,
+                                        model = photoUrl,
                                         contentDescription = "Photo $index",
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(RoundedCornerShape(8.dp)),
+                                        modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
                                     )
-                                    IconButton(
-                                        onClick = { onRemovePhoto(index) },
+                                    Surface(
+                                        color = Color.Black.copy(alpha = 0.65f),
+                                        shape = CircleShape,
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
+                                            .padding(4.dp)
                                             .size(22.dp)
-                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
-                                    ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(14.dp))
-                                    }
-                                }
-                            }
-                            if (uploadedPhotos.size < 10) {
-                                item {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                        modifier = Modifier
-                                            .size(80.dp)
-                                            .clickable { onLaunchPhotoPicker() }
+                                            .clickable { onRemovePhoto(index) }
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add More", tint = MaterialTheme.colorScheme.primary)
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // 4. LISTING TITLE & DESCRIPTION
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Listing Overview *",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
 
                     OutlinedTextField(
                         value = listingTitle,
                         onValueChange = onListingTitleChange,
                         label = { Text("Listing Title *") },
-                        placeholder = { Text("e.g. Modern Furnished Studio near IT Park") },
-                        modifier = Modifier.fillMaxWidth().testTag("post_title_input"),
+                        placeholder = { Text("e.g. Spacious Air-conditioned Bedspace near IT Park") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("post_title_input"),
                         shape = RoundedCornerShape(10.dp)
                     )
 
                     OutlinedTextField(
                         value = listingDescription,
                         onValueChange = onListingDescriptionChange,
-                        label = { Text("Property Description *") },
-                        placeholder = { Text("Describe property space, locality, nearby landmarks, transit access, and tenant rules...") },
-                        modifier = Modifier.fillMaxWidth().testTag("post_desc_input"),
-                        maxLines = 4,
+                        label = { Text("Description & House Rules") },
+                        placeholder = { Text("Describe room amenities, accessibility to public transport, curfew, and terms.") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .testTag("post_description_input"),
                         shape = RoundedCornerShape(10.dp)
                     )
                 }
             }
         }
 
-        // Navigation Row
+        // Next Button
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Button(
+                onClick = onNext,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .testTag("step1_next_btn"),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Back to Role")
-                }
-                Button(
-                    onClick = onNext,
-                    modifier = Modifier.weight(1.5f).height(50.dp).testTag("step2_continue_btn"),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Continue to Specs", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
+                Text("Continue to Specs & Utilities", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
     }
 }
 
 // -----------------------------------------------------------------------------
-// STEP 3: CONDITIONAL PROPERTY SPECIFICATIONS
+// STEP 2: SPECIFICATIONS, UTILITIES & TERMS
 // -----------------------------------------------------------------------------
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Step3ConditionalSpecifications(
+private fun Step2SpecificationsUtilitiesTerms(
     propertyType: String,
-    bhState: BhFormState,
-    aptState: AptFormState,
-    condoState: CondoFormState,
-    thState: TownhouseFormState,
+    monthlyRentStr: String,
+    onMonthlyRentChange: (String) -> Unit,
+    depositTerms: String,
+    onDepositTermsChange: (String) -> Unit,
+    genderAllowed: String,
+    onGenderAllowedChange: (String) -> Unit,
+    waterBillingSetup: String,
+    onWaterBillingChange: (String) -> Unit,
+    electricityBillingSetup: String,
+    onElectricityBillingChange: (String) -> Unit,
+    freeWifiIncluded: Boolean,
+    onFreeWifiChange: (Boolean) -> Unit,
+    roomLayoutType: String,
+    onRoomLayoutChange: (String) -> Unit,
+    totalBeds: Int,
+    onTotalBedsChange: (Int) -> Unit,
+    availableBeds: Int,
+    onAvailableBedsChange: (Int) -> Unit,
+    totalCapacity: Int,
+    onTotalCapacityChange: (Int) -> Unit,
+    bathroomType: String,
+    onBathroomTypeChange: (String) -> Unit,
+    airConditioningType: String,
+    onAirConditioningChange: (String) -> Unit,
+    floorAreaStr: String,
+    onFloorAreaChange: (String) -> Unit,
+    furnishing: String,
+    onFurnishingChange: (String) -> Unit,
+    cookingRule: String,
+    onCookingRuleChange: (String) -> Unit,
+    curfewRule: String,
+    onCurfewRuleChange: (String) -> Unit,
+    visitorsRule: String,
+    onVisitorsRuleChange: (String) -> Unit,
+    petPolicy: String,
+    onPetPolicyChange: (String) -> Unit,
+    parkingPolicy: String,
+    onParkingPolicyChange: (String) -> Unit,
+    leaseTerm: String,
+    onLeaseTermChange: (String) -> Unit,
     onBack: () -> Unit,
     onNext: () -> Unit
 ) {
@@ -1359,374 +1273,404 @@ private fun Step3ConditionalSpecifications(
             .fillMaxSize()
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         item {
             Text(
-                text = "Step 3: Conditional Specifications",
+                text = "Step 2: Specifications, Utilities & Terms",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.padding(top = 4.dp)
+            Text(
+                text = "Deposit terms, allowed gender, water & electric billing, and room layout details.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // 1. RENT & DEPOSIT TERMS (REQUIREMENT 4)
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
             ) {
-                Text(
-                    text = "Active Property Type: $propertyType",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Rent & Deposit Terms *",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = monthlyRentStr,
+                        onValueChange = onMonthlyRentChange,
+                        label = { Text("Monthly Rent (PHP) *") },
+                        placeholder = { Text("2500") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("post_rent_input"),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    // Deposit Question
+                    Text(
+                        text = "Advance Rent & Security Deposit Terms *",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.5.sp
+                    )
+                    val depositOptions = listOf(
+                        "1 Month Advance + 1 Month Deposit",
+                        "1 Month Advance + 2 Months Deposit",
+                        "1 Month Advance Only (No Deposit)",
+                        "No Advance / No Deposit"
+                    )
+
+                    depositOptions.forEach { option ->
+                        val isSelected = depositTerms == option
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onDepositTermsChange(option) }
+                                .padding(vertical = 2.dp)
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onDepositTermsChange(option) }
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = option,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Lease term
+                    Text("Minimum Lease Duration", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
+                        listOf("1 month", "3 months", "6 months", "1 year").forEach { term ->
+                            FilterChip(
+                                selected = leaseTerm == term,
+                                onClick = { onLeaseTermChange(term) },
+                                label = { Text(term, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        // =====================================================================
-        // UNIVERSAL HEADING 1: UNIT SPECIFICATIONS
-        // =====================================================================
+        // 2. GENDER POLICY (REQUIREMENT 4: "What gender is allowed?")
         item {
-            FormSectionCard(
-                title = "Unit Specifications"
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
             ) {
-                when (propertyType) {
-                    "Boarding House" -> {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Pricing Model *", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                listOf("Per Person/Bed", "Per Room").forEach { model ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        RadioButton(
-                                            selected = bhState.pricingModel == model,
-                                            onClick = { bhState.pricingModel = model }
-                                        )
-                                        Text(model, fontSize = 12.sp)
-                                    }
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Allowed Gender Policy *",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "What gender is allowed to rent this space?",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    val genderOptions = listOf(
+                        Triple("Any / Co-ed / Mixed", "👫 Any / Co-ed / Mixed", "Open to all genders, working professionals, students, couples"),
+                        Triple("Female Only", "👩 Female Only", "Strictly female tenants only (All-female boarding house or dorm)"),
+                        Triple("Male Only", "👨 Male Only", "Strictly male tenants only (All-male boarding house or dorm)")
+                    )
+
+                    genderOptions.forEach { (key, label, desc) ->
+                        val isSelected = genderAllowed == key
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = if (isSelected) BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary) else null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onGenderAllowedChange(key) }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { onGenderAllowedChange(key) }
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column {
+                                    Text(
+                                        text = label,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(text = desc, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
 
-                        OutlinedTextField(
-                            value = bhState.monthlyRentStr,
-                            onValueChange = { bhState.monthlyRentStr = it },
-                            label = { Text("Monthly Rent (PHP) *") },
-                            placeholder = { Text("2500") },
-                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
-                            shape = RoundedCornerShape(10.dp)
-                        )
+        // 3. WATER, UTILITIES & ELECTRICITY (REQUIREMENT 4: "the most important is water, utilities")
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Water & Utilities Billing Setup *",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
 
-                        OutlinedTextField(
-                            value = bhState.floorAreaStr,
-                            onValueChange = { bhState.floorAreaStr = it },
-                            label = { Text("Room Floor Area (sq.m)") },
-                            placeholder = { Text("18") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        ChipSelectGroup(
-                            label = "Room Capacity",
-                            options = listOf("Single occupancy", "2-bed bunk", "4-bed bunk", "6-bed bunk"),
-                            selected = bhState.roomCapacity,
-                            onSelected = { bhState.roomCapacity = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Bathroom Setup",
-                            options = listOf("Shared/Communal", "Private en-suite"),
-                            selected = bhState.bathroomType,
-                            onSelected = { bhState.bathroomType = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Furnishing Level",
-                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
-                            selected = bhState.furnishing,
-                            onSelected = { bhState.furnishing = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Tenant Preference",
-                            options = listOf("Mixed", "Female Only", "Male Only", "Students Only"),
-                            selected = bhState.tenantPreference,
-                            onSelected = { bhState.tenantPreference = it }
-                        )
+                    // Water Billing
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.WaterDrop, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Water Billing Setup *", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
-                    "Apartment" -> {
-                        OutlinedTextField(
-                            value = aptState.monthlyRentStr,
-                            onValueChange = { aptState.monthlyRentStr = it },
-                            label = { Text("Monthly Rent (PHP) *") },
-                            placeholder = { Text("12000") },
-                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
-                            shape = RoundedCornerShape(10.dp)
-                        )
+                    val waterOptions = listOf(
+                        "Sub-metered Water (pay based on actual cu.m reading)",
+                        "Fixed Monthly Rate (e.g. ₱150/head/month)",
+                        "Free / Inclusive in Monthly Rent",
+                        "Direct Water District Meter (MCWD / BWUI / etc.)"
+                    )
 
-                        OutlinedTextField(
-                            value = aptState.floorAreaStr,
-                            onValueChange = { aptState.floorAreaStr = it },
-                            label = { Text("Total Floor Area (sq.m)") },
-                            placeholder = { Text("42") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
+                    waterOptions.forEach { opt ->
+                        val isSelected = waterBillingSetup == opt
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onWaterBillingChange(opt) }
+                                .padding(vertical = 2.dp)
                         ) {
-                            CounterStepper(
-                                label = "Bedrooms",
-                                value = aptState.bedrooms,
-                                onValueChange = { aptState.bedrooms = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                            CounterStepper(
-                                label = "Bathrooms",
-                                value = aptState.bathrooms,
-                                onValueChange = { aptState.bathrooms = it },
-                                modifier = Modifier.weight(1f)
-                            )
+                            RadioButton(selected = isSelected, onClick = { onWaterBillingChange(opt) })
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(opt, fontSize = 12.sp, color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                         }
-
-                        ChipSelectGroup(
-                            label = "Furnishing Level",
-                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
-                            selected = aptState.furnishing,
-                            onSelected = { aptState.furnishing = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Kitchen Setup",
-                            options = listOf("Indoor/Integral", "Studio Kitchenette", "Dirty Kitchen (Outdoor)"),
-                            selected = aptState.kitchenType,
-                            onSelected = { aptState.kitchenType = it }
-                        )
                     }
 
-                    "Condo", "Condominium", "Studio" -> {
-                        OutlinedTextField(
-                            value = condoState.monthlyRentStr,
-                            onValueChange = { condoState.monthlyRentStr = it },
-                            label = { Text("Monthly Rent (PHP) *") },
-                            placeholder = { Text("22000") },
-                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
-                            shape = RoundedCornerShape(10.dp)
-                        )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                        ChipSelectGroup(
-                            label = "Unit Layout",
-                            options = listOf("Studio", "1-Bedroom", "2-Bedroom", "3-Bedroom", "Penthouse / Loft"),
-                            selected = condoState.unitLayout,
-                            onSelected = { condoState.unitLayout = it }
-                        )
-
-                        OutlinedTextField(
-                            value = condoState.floorAreaStr,
-                            onValueChange = { condoState.floorAreaStr = it },
-                            label = { Text("Floor Area (sq.m)") },
-                            placeholder = { Text("28") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = condoState.floorLevel,
-                            onValueChange = { condoState.floorLevel = it },
-                            label = { Text("Floor Level / Unit Position") },
-                            placeholder = { Text("14th Floor, Tower 1") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        ChipSelectGroup(
-                            label = "Furnishing Level",
-                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
-                            selected = condoState.furnishing,
-                            onSelected = { condoState.furnishing = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Kitchen Setup",
-                            options = listOf("Equipped Kitchenette", "Full Modular Kitchen", "Open Concept Kitchen"),
-                            selected = condoState.kitchen,
-                            onSelected = { condoState.kitchen = it }
-                        )
+                    // Electricity Billing
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Bolt, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Electricity Billing Setup *", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
-                    else -> { // Townhouse
-                        OutlinedTextField(
-                            value = thState.monthlyRentStr,
-                            onValueChange = { thState.monthlyRentStr = it },
-                            label = { Text("Monthly Rent (PHP) *") },
-                            placeholder = { Text("30000") },
-                            modifier = Modifier.fillMaxWidth().testTag("post_rent_input"),
-                            shape = RoundedCornerShape(10.dp)
-                        )
+                    val electricityOptions = listOf(
+                        "Individual Electric Sub-meter",
+                        "Shared Equal Split among Tenants",
+                        "Inclusive in Monthly Rent (with appliance surcharge)",
+                        "Direct Utility Meter (VECO / MECO / BOHECO / SAMELCO)"
+                    )
 
+                    electricityOptions.forEach { opt ->
+                        val isSelected = electricityBillingSetup == opt
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onElectricityBillingChange(opt) }
+                                .padding(vertical = 2.dp)
                         ) {
-                            OutlinedTextField(
-                                value = thState.lotAreaStr,
-                                onValueChange = { thState.lotAreaStr = it },
-                                label = { Text("Lot Area (sq.m)") },
-                                placeholder = { Text("120") },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            OutlinedTextField(
-                                value = thState.floorAreaStr,
-                                onValueChange = { thState.floorAreaStr = it },
-                                label = { Text("Floor Area (sq.m)") },
-                                placeholder = { Text("95") },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
-                            )
+                            RadioButton(selected = isSelected, onClick = { onElectricityBillingChange(opt) })
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(opt, fontSize = 12.sp, color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                         }
+                    }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CounterStepper(
-                                label = "Stories",
-                                value = thState.stories,
-                                onValueChange = { thState.stories = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                            CounterStepper(
-                                label = "Bedrooms",
-                                value = thState.bedrooms,
-                                onValueChange = { thState.bedrooms = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                            CounterStepper(
-                                label = "Bathrooms",
-                                value = thState.bathrooms,
-                                onValueChange = { thState.bathrooms = it },
-                                modifier = Modifier.weight(1f)
-                            )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    // Wi-Fi toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Free High-Speed Wi-Fi Included", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("Included in rent with no extra charge", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Maid's / Helper Room Included?", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Switch(
-                                checked = thState.hasMaidsRoom,
-                                onCheckedChange = { thState.hasMaidsRoom = it }
-                            )
-                        }
-
-                        ChipSelectGroup(
-                            label = "Furnishing Level",
-                            options = listOf("Unfurnished", "Semi-Furnished", "Fully-Furnished"),
-                            selected = thState.furnishing,
-                            onSelected = { thState.furnishing = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Kitchen Setup",
-                            options = listOf("Indoor Kitchen + Dirty Kitchen", "Single Modern Kitchen", "Enclosed Chef's Kitchen"),
-                            selected = thState.kitchen,
-                            onSelected = { thState.kitchen = it }
+                        Switch(
+                            checked = freeWifiIncluded,
+                            onCheckedChange = onFreeWifiChange
                         )
                     }
                 }
             }
         }
 
-        // =====================================================================
-        // UNIVERSAL HEADING 2: AMENITIES & FACILITIES
-        // =====================================================================
+        // 4. ROOM SPECIFICATIONS (REQUIREMENT 4: "and the room specs")
         item {
-            FormSectionCard(
-                title = "Amenities & Facilities"
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
             ) {
-                when (propertyType) {
-                    "Boarding House" -> {
-                        ChipSelectGroup(
-                            label = "Vehicle Parking",
-                            options = listOf("Motorcycle Parking Included", "Street Parking Only", "No Parking", "Paid Car Parking"),
-                            selected = bhState.parking,
-                            onSelected = { bhState.parking = it }
-                        )
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Room Specifications *",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
 
-                        ChipSelectGroup(
-                            label = "Kitchen & Cooking Access",
-                            options = listOf("No Cooking", "Light Cooking Allowed", "Full Shared Kitchen Access"),
-                            selected = bhState.cooking,
-                            onSelected = { bhState.cooking = it }
-                        )
-
-                        MultiChipSelectGroup(
-                            label = "Utilities & Amenities Included",
-                            options = listOf("Sub-metered Electricity", "Sub-metered Water", "Free Wi-Fi included", "Filtered Drinking Water", "CCTV Security", "Study Lounge"),
-                            selectedItems = bhState.utilities,
-                            onToggle = { item ->
-                                if (bhState.utilities.contains(item)) bhState.utilities.remove(item)
-                                else bhState.utilities.add(item)
-                            }
-                        )
+                    // Room Layout
+                    Text("Room Layout Type", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
+                        listOf("Bedspace / Dormitory", "Private Room", "Entire Unit / Studio").forEach { layout ->
+                            FilterChip(
+                                selected = roomLayoutType == layout,
+                                onClick = { onRoomLayoutChange(layout) },
+                                label = { Text(layout, fontSize = 12.sp) }
+                            )
+                        }
                     }
 
-                    "Apartment" -> {
-                        ChipSelectGroup(
-                            label = "Utility Billing Setup",
-                            options = listOf("Own Meter", "Sub-metered", "Fixed Rate"),
-                            selected = aptState.utilityBilling,
-                            onSelected = { aptState.utilityBilling = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Vehicle Parking",
-                            options = listOf("Covered Garage Slot", "Street Parking", "Motorcycle Only", "No Parking"),
-                            selected = aptState.parking,
-                            onSelected = { aptState.parking = it }
-                        )
-                    }
-
-                    "Condo", "Condominium", "Studio" -> {
-                        ChipSelectGroup(
-                            label = "Vehicle Parking",
-                            options = listOf("Dedicated Parking Slot Included", "Available for extra fee", "No Parking Slot"),
-                            selected = condoState.parking,
-                            onSelected = { condoState.parking = it }
-                        )
-
-                        MultiChipSelectGroup(
-                            label = "Building Amenities & Facilities",
-                            options = listOf("Pool", "Gym", "24/7 Security", "Function Room", "Sky Deck", "Backup Generator"),
-                            selectedItems = condoState.amenities,
-                            onToggle = { item ->
-                                if (condoState.amenities.contains(item)) condoState.amenities.remove(item)
-                                else condoState.amenities.add(item)
-                            }
-                        )
-                    }
-
-                    else -> { // Townhouse
+                    // Beds & Capacity steppers
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         CounterStepper(
-                            label = "Garage / Carport Capacity (Cars)",
-                            value = thState.garageCapacity,
-                            onValueChange = { thState.garageCapacity = it }
+                            label = "Total Beds",
+                            value = totalBeds,
+                            onValueChange = onTotalBedsChange,
+                            modifier = Modifier.weight(1f)
                         )
+                        CounterStepper(
+                            label = "Available Beds",
+                            value = availableBeds,
+                            onValueChange = onAvailableBedsChange,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
+                    OutlinedTextField(
+                        value = floorAreaStr,
+                        onValueChange = onFloorAreaChange,
+                        label = { Text("Room Floor Area (sq.m)") },
+                        placeholder = { Text("18") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    // Bathroom Setup
+                    Text("Bathroom Setup", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Private En-Suite Bathroom", "Shared / Communal Bathroom").forEach { bath ->
+                            FilterChip(
+                                selected = bathroomType == bath,
+                                onClick = { onBathroomTypeChange(bath) },
+                                label = { Text(bath, fontSize = 11.5.sp) }
+                            )
+                        }
+                    }
+
+                    // Air Conditioning
+                    Text("Cooling & Airflow", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Air-Conditioned", "Non-Aircon / Fan-Cooled").forEach { ac ->
+                            FilterChip(
+                                selected = airConditioningType == ac,
+                                onClick = { onAirConditioningChange(ac) },
+                                label = { Text(ac, fontSize = 11.5.sp) }
+                            )
+                        }
+                    }
+
+                    // Furnishing
+                    Text("Furnishing Level", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Fully-Furnished", "Semi-Furnished", "Unfurnished").forEach { f ->
+                            FilterChip(
+                                selected = furnishing == f,
+                                onClick = { onFurnishingChange(f) },
+                                label = { Text(f, fontSize = 11.5.sp) }
+                            )
+                        }
+                    }
+
+                    // Kitchen & Cooking
+                    Text("Cooking Policy", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    val cookingOptions = listOf(
+                        "Light Cooking Allowed (Electric kettle/rice cooker)",
+                        "Full Cooking Allowed (Dirty Kitchen / Stove)",
+                        "Strictly No Cooking Allowed"
+                    )
+                    cookingOptions.forEach { cook ->
+                        val isSelected = cookingRule == cook
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onCookingRuleChange(cook) }
+                                .padding(vertical = 2.dp)
                         ) {
-                            Text("Located inside a gated subdivision?", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Switch(
-                                checked = thState.isGatedSubdivision,
-                                onCheckedChange = { thState.isGatedSubdivision = it }
+                            RadioButton(selected = isSelected, onClick = { onCookingRuleChange(cook) })
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(cook, fontSize = 12.sp)
+                        }
+                    }
+
+                    // Curfew & Visitors
+                    Text("Curfew & Gate Schedule", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
+                        listOf("No Curfew (24/7 Access)", "10:00 PM Gate Lock", "11:00 PM Gate Lock").forEach { c ->
+                            FilterChip(
+                                selected = curfewRule == c,
+                                onClick = { onCurfewRuleChange(c) },
+                                label = { Text(c, fontSize = 11.5.sp) }
+                            )
+                        }
+                    }
+
+                    // Pet Policy
+                    Text("Pet Policy", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Strictly No Pets", "Pets Allowed").forEach { pet ->
+                            FilterChip(
+                                selected = petPolicy == pet,
+                                onClick = { onPetPolicyChange(pet) },
+                                label = { Text(pet, fontSize = 11.5.sp) }
                             )
                         }
                     }
@@ -1734,124 +1678,7 @@ private fun Step3ConditionalSpecifications(
             }
         }
 
-        // =====================================================================
-        // UNIVERSAL HEADING 3: RULES & LEASE TERMS
-        // =====================================================================
-        item {
-            FormSectionCard(
-                title = "Rules & Lease Terms"
-            ) {
-                when (propertyType) {
-                    "Boarding House" -> {
-                        ChipSelectGroup(
-                            label = "Curfew & Gate Access",
-                            options = listOf("No Curfew (24/7 Access)", "10:00 PM Gate Lock", "11:00 PM Gate Lock"),
-                            selected = bhState.curfew,
-                            onSelected = { bhState.curfew = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Visitor Policy",
-                            options = listOf("Visitors Allowed Anytime", "Lobby Visitors Only", "Strictly No Visitors"),
-                            selected = bhState.visitors,
-                            onSelected = { bhState.visitors = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Pet Policy",
-                            options = listOf("Strictly No Pets", "Small Pets Allowed", "Pets Allowed"),
-                            selected = bhState.petPolicy,
-                            onSelected = { bhState.petPolicy = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Minimum Lease Requirement",
-                            options = listOf("1 month", "3 months", "6 months", "1 year"),
-                            selected = bhState.leaseTerm,
-                            onSelected = { bhState.leaseTerm = it }
-                        )
-                    }
-
-                    "Apartment" -> {
-                        ChipSelectGroup(
-                            label = "Minimum Lease Requirement",
-                            options = listOf("6 months", "1 year", "2 years"),
-                            selected = aptState.leaseTermMin,
-                            onSelected = { aptState.leaseTermMin = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Pet Policy",
-                            options = listOf("Pets Allowed", "No Pets Allowed", "Cats Only", "Small Dogs Allowed"),
-                            selected = aptState.petPolicy,
-                            onSelected = { aptState.petPolicy = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Curfew / Access",
-                            options = listOf("No Curfew (24/7 Access)", "Main Gate Locked at 11PM"),
-                            selected = aptState.curfew,
-                            onSelected = { aptState.curfew = it }
-                        )
-                    }
-
-                    "Condo", "Condominium", "Studio" -> {
-                        ChipSelectGroup(
-                            label = "Condo / Association Dues",
-                            options = listOf("Inclusive in rent", "Exclusive (Paid separately)", "Included with dues receipt"),
-                            selected = condoState.assocDuesStatus,
-                            onSelected = { condoState.assocDuesStatus = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Minimum Lease Requirement",
-                            options = listOf("6 months", "1 year", "2 years"),
-                            selected = condoState.leaseTerm,
-                            onSelected = { condoState.leaseTerm = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Pet Policy",
-                            options = listOf("Pet-Friendly", "Small Pets with Admin Permit", "Strictly No Pets"),
-                            selected = condoState.petPolicy,
-                            onSelected = { condoState.petPolicy = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Visitor & Guest Registration",
-                            options = listOf("24/7 Concierge & Guest Registration", "Guest ID Required at Lobby", "Restricted Visitors"),
-                            selected = condoState.visitors,
-                            onSelected = { condoState.visitors = it }
-                        )
-                    }
-
-                    else -> { // Townhouse
-                        ChipSelectGroup(
-                            label = "Village / HOA Dues",
-                            options = listOf("Inclusive in rent", "Exclusive (Paid to HOA)", "No HOA Dues"),
-                            selected = thState.assocDues,
-                            onSelected = { thState.assocDues = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Minimum Lease Requirement",
-                            options = listOf("1 year", "2 years"),
-                            selected = thState.leaseTerm,
-                            onSelected = { thState.leaseTerm = it }
-                        )
-
-                        ChipSelectGroup(
-                            label = "Pet Policy",
-                            options = listOf("Pet-Friendly", "Pets Allowed with Security Deposit", "Strictly No Pets"),
-                            selected = thState.petPolicy,
-                            onSelected = { thState.petPolicy = it }
-                        )
-                    }
-                }
-            }
-        }
-
-        // Navigation Row
+        // Navigation Buttons
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1859,19 +1686,23 @@ private fun Step3ConditionalSpecifications(
             ) {
                 OutlinedButton(
                     onClick = onBack,
-                    modifier = Modifier.weight(1f).height(50.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Back to Base")
+                    Text("Back")
                 }
+
                 Button(
                     onClick = onNext,
-                    modifier = Modifier.weight(1.5f).height(50.dp).testTag("step3_continue_btn"),
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(50.dp)
+                        .testTag("step2_next_btn"),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Review Details", fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("Review & Publish", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }
@@ -1879,149 +1710,62 @@ private fun Step3ConditionalSpecifications(
 }
 
 // -----------------------------------------------------------------------------
-// HELPER FORM COMPONENTS
+// STEP 3: REVIEW & PUBLISH
 // -----------------------------------------------------------------------------
 @Composable
-private fun FormSectionCard(
-    title: String,
-    subtitle: String? = null,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder(),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                if (!subtitle.isNullOrBlank()) {
-                    Text(
-                        text = subtitle,
-                        fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            content()
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ChipSelectGroup(
-    label: String,
-    options: List<String>,
-    selected: String,
-    onSelected: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            options.forEach { option ->
-                FilterChip(
-                    selected = selected == option,
-                    onClick = { onSelected(option) },
-                    label = { Text(option, fontSize = 11.5.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun MultiChipSelectGroup(
-    label: String,
-    options: List<String>,
-    selectedItems: List<String>,
-    onToggle: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            options.forEach { option ->
-                val isSelected = selectedItems.contains(option)
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onToggle(option) },
-                    label = { Text(option, fontSize = 11.5.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                )
-            }
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// STEP 4: SUBMISSION STATE (REVIEW & PUBLISH - UNIVERSAL HEADINGS)
-// -----------------------------------------------------------------------------
-@Composable
-private fun Step4ReviewAndPublish(
-    userRole: String,
+private fun Step3ReviewAndPublish(
+    currentUser: com.example.data.local.entity.UserEntity,
     propertyType: String,
     title: String,
     description: String,
     streetAddress: String,
+    neighborhood: String,
+    landmark: String,
+    latitude: Double,
+    longitude: Double,
     photoCount: Int,
-    bhState: BhFormState,
-    aptState: AptFormState,
-    condoState: CondoFormState,
-    thState: TownhouseFormState,
+    photos: List<String>,
+    monthlyRent: Double,
+    depositTerms: String,
+    genderAllowed: String,
+    waterBilling: String,
+    electricityBilling: String,
+    freeWifi: Boolean,
+    roomLayout: String,
+    totalBeds: Int,
+    availableBeds: Int,
+    bathroomType: String,
+    airConditioning: String,
+    floorArea: Double,
+    furnishing: String,
+    cookingRule: String,
+    curfew: String,
+    visitors: String,
+    petPolicy: String,
+    parking: String,
+    leaseTerm: String,
     onBack: () -> Unit,
+    onOpenMaps: () -> Unit,
     onPublish: () -> Unit
 ) {
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("en-PH")).apply {
-        maximumFractionDigits = 0
-    }
-
-    val finalRent = when (propertyType) {
-        "Boarding House" -> bhState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-        "Apartment" -> aptState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-        "Condo", "Condominium", "Studio" -> condoState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-        else -> thState.monthlyRentStr.toDoubleOrNull() ?: 0.0
-    }
+    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH")).apply { maximumFractionDigits = 0 }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         item {
             Text(
-                text = "Step 4: Review & Publish",
+                text = "Step 3: Review & Publish",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Review your listing details organized under the Three Universal Headings.",
+                text = "Verify your listing specifications, utilities, and terms before publishing.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -2041,23 +1785,59 @@ private fun Step4ReviewAndPublish(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "₱${currencyFormat.format(finalRent).replace("PHP", "").trim()} / month",
-                        fontSize = 18.sp,
+                        text = "₱${currencyFormat.format(monthlyRent).replace("PHP", "").trim()} / month",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                    ReviewDetailRow("Role Verification", userRole)
                     ReviewDetailRow("Property Type", propertyType)
                     ReviewDetailRow("Address", streetAddress)
-                    ReviewDetailRow("Photos Uploaded", "$photoCount verified photos")
+                    if (neighborhood.isNotBlank()) ReviewDetailRow("Subdivision / Zone", neighborhood)
+                    if (landmark.isNotBlank()) ReviewDetailRow("Landmark", landmark)
+                    ReviewDetailRow("Photos", "$photoCount photo(s) uploaded")
                 }
             }
         }
 
-        // 1. UNIT SPECIFICATIONS CARD
+        // Auto Coordinates & Map
+        item {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = CardDefaults.outlinedCardBorder()
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto-Pinned Coordinates", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        Text(
+                            String.format(Locale.US, "%.4f° N, %.4f° E", latitude, longitude),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Button(
+                        onClick = onOpenMaps,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Open Map", fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+
+        // Specifications & Terms
         item {
             Card(
                 shape = RoundedCornerShape(14.dp),
@@ -2066,148 +1846,32 @@ private fun Step4ReviewAndPublish(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Unit Specifications",
+                        text = "Specifications & Utilities",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                    when (propertyType) {
-                        "Boarding House" -> {
-                            ReviewDetailRow("Pricing Model", bhState.pricingModel)
-                            ReviewDetailRow("Floor Area", "${bhState.floorAreaStr} sq.m")
-                            ReviewDetailRow("Room Capacity", bhState.roomCapacity)
-                            ReviewDetailRow("Bathroom Setup", bhState.bathroomType)
-                            ReviewDetailRow("Furnishing Level", bhState.furnishing)
-                            ReviewDetailRow("Tenant Preference", bhState.tenantPreference)
-                        }
-                        "Apartment" -> {
-                            ReviewDetailRow("Floor Area", "${aptState.floorAreaStr} sq.m")
-                            ReviewDetailRow("Rooms", "${aptState.bedrooms} Bed, ${aptState.bathrooms} Bath")
-                            ReviewDetailRow("Furnishing Level", aptState.furnishing)
-                            ReviewDetailRow("Kitchen Setup", aptState.kitchenType)
-                        }
-                        "Condo", "Condominium", "Studio" -> {
-                            ReviewDetailRow("Unit Layout", condoState.unitLayout)
-                            ReviewDetailRow("Floor Area", "${condoState.floorAreaStr} sq.m")
-                            ReviewDetailRow("Floor Level", condoState.floorLevel)
-                            ReviewDetailRow("Furnishing Level", condoState.furnishing)
-                            ReviewDetailRow("Kitchen Setup", condoState.kitchen)
-                        }
-                        else -> { // Townhouse
-                            ReviewDetailRow("Lot & Floor Area", "${thState.lotAreaStr} sqm lot / ${thState.floorAreaStr} sqm floor")
-                            ReviewDetailRow("Structure", "${thState.stories} Stories, ${thState.bedrooms} Beds, ${thState.bathrooms} Baths")
-                            ReviewDetailRow("Maid's Room", if (thState.hasMaidsRoom) "Yes" else "No")
-                            ReviewDetailRow("Furnishing Level", thState.furnishing)
-                            ReviewDetailRow("Kitchen Setup", thState.kitchen)
-                        }
-                    }
+                    ReviewDetailRow("Security Deposit Terms", depositTerms)
+                    ReviewDetailRow("Gender Allowed", genderAllowed)
+                    ReviewDetailRow("Water Billing", waterBilling)
+                    ReviewDetailRow("Electricity Billing", electricityBilling)
+                    ReviewDetailRow("Wi-Fi Included", if (freeWifi) "Yes (Free)" else "No")
+                    ReviewDetailRow("Room Setup", roomLayout)
+                    ReviewDetailRow("Bed Capacity", "$totalBeds total / $availableBeds available")
+                    ReviewDetailRow("Bathroom Setup", bathroomType)
+                    ReviewDetailRow("Air Conditioning", airConditioning)
+                    ReviewDetailRow("Floor Area", "$floorArea sq.m")
+                    ReviewDetailRow("Furnishing", furnishing)
+                    ReviewDetailRow("Cooking Allowed", cookingRule)
+                    ReviewDetailRow("Curfew Policy", curfew)
+                    ReviewDetailRow("Pet Policy", petPolicy)
                 }
             }
         }
 
-        // 2. AMENITIES & FACILITIES CARD
-        item {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Amenities & Facilities",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                    when (propertyType) {
-                        "Boarding House" -> {
-                            ReviewDetailRow("Vehicle Parking", bhState.parking)
-                            ReviewDetailRow("Kitchen Access", bhState.cooking)
-                            ReviewDetailRow("Utilities / Inclusions", if (bhState.utilities.isEmpty()) "None selected" else bhState.utilities.joinToString(", "))
-                        }
-                        "Apartment" -> {
-                            ReviewDetailRow("Vehicle Parking", aptState.parking)
-                            ReviewDetailRow("Utility Billing", aptState.utilityBilling)
-                        }
-                        "Condo", "Condominium", "Studio" -> {
-                            ReviewDetailRow("Vehicle Parking", condoState.parking)
-                            ReviewDetailRow("Building Amenities", if (condoState.amenities.isEmpty()) "None selected" else condoState.amenities.joinToString(", "))
-                        }
-                        else -> { // Townhouse
-                            ReviewDetailRow("Garage Capacity", "${thState.garageCapacity} Car Slot(s)")
-                            ReviewDetailRow("Gated Subdivision", if (thState.isGatedSubdivision) "Yes" else "No")
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. RULES & LEASE TERMS CARD
-        item {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Rules & Lease Terms",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                    when (propertyType) {
-                        "Boarding House" -> {
-                            ReviewDetailRow("Curfew Rule", bhState.curfew)
-                            ReviewDetailRow("Visitor Policy", bhState.visitors)
-                            ReviewDetailRow("Pet Policy", bhState.petPolicy)
-                            ReviewDetailRow("Minimum Lease", bhState.leaseTerm)
-                        }
-                        "Apartment" -> {
-                            ReviewDetailRow("Minimum Lease", aptState.leaseTermMin)
-                            ReviewDetailRow("Pet Policy", aptState.petPolicy)
-                            ReviewDetailRow("Curfew / Access", aptState.curfew)
-                        }
-                        "Condo", "Condominium", "Studio" -> {
-                            ReviewDetailRow("HOA / Condo Dues", condoState.assocDuesStatus)
-                            ReviewDetailRow("Minimum Lease", condoState.leaseTerm)
-                            ReviewDetailRow("Pet Policy", condoState.petPolicy)
-                            ReviewDetailRow("Visitor Rules", condoState.visitors)
-                        }
-                        else -> { // Townhouse
-                            ReviewDetailRow("HOA / Village Dues", thState.assocDues)
-                            ReviewDetailRow("Minimum Lease", thState.leaseTerm)
-                            ReviewDetailRow("Pet Policy", thState.petPolicy)
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-            ) {
-                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "All required fields based on your active role and property type are validated and ready to save.",
-                        fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-        }
-
-        // Action Buttons
+        // Publish Actions
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2215,35 +1879,55 @@ private fun Step4ReviewAndPublish(
             ) {
                 OutlinedButton(
                     onClick = onBack,
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Edit Specs")
                 }
+
                 Button(
                     onClick = onPublish,
                     modifier = Modifier
-                        .weight(1.8f)
-                        .height(52.dp)
+                        .weight(1.6f)
+                        .height(50.dp)
                         .testTag("publish_listing_btn"),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Publish Listing", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Publish Property", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }
     }
 }
 
+// -----------------------------------------------------------------------------
+// HELPER COMPONENTS
+// -----------------------------------------------------------------------------
 @Composable
 private fun ReviewDetailRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
     ) {
-        Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1.3f)
+        )
     }
 }
 
@@ -2254,48 +1938,35 @@ private fun CounterStepper(
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-        modifier = modifier
-    ) {
-        Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable(enabled = value > 1) { onValueChange(value - 1) }
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("-", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Text(
-                    text = "$value",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 14.dp)
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(10.dp)
                 )
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable { onValueChange(value + 1) }
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("+", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            IconButton(
+                onClick = { if (value > 1) onValueChange(value - 1) },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Text("-", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                text = "$value",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+            IconButton(
+                onClick = { onValueChange(value + 1) },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

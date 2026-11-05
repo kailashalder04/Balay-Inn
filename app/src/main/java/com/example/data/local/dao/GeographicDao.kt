@@ -23,6 +23,9 @@ interface GeographicDao {
     @Query("SELECT * FROM regions WHERE country_id = :countryId AND is_active = 1 ORDER BY name ASC")
     fun getRegionsByCountry(countryId: String): Flow<List<RegionEntity>>
 
+    @Query("SELECT * FROM regions WHERE is_active = 1 ORDER BY name ASC")
+    fun getAllActiveRegions(): Flow<List<RegionEntity>>
+
     @Query("SELECT * FROM provinces WHERE region_id = :regionId AND is_active = 1 ORDER BY name ASC")
     fun getProvincesByRegion(regionId: String): Flow<List<ProvinceEntity>>
 

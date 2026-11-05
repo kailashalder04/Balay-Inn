@@ -12,16 +12,30 @@ import java.util.concurrent.TimeUnit
 
 object SupabaseClient {
 
+    const val DEFAULT_SUPABASE_URL = "https://eqmciquwocwyutlxgdje.supabase.co"
+    const val DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxbWNpcXV3b2N3eXV0bHhnZGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NDE1ODksImV4cCI6MjEwNjIxNzU4OX0.YSSGxEkXXbQcBmwnERjo2_OY_ZQx9seDvzIzAPKVTsI"
+    const val DEFAULT_PUBLISHABLE_KEY = "sb_publishable_bMskPNyml5LD8idQoOiozg_LffpG8ib"
+
     val url: String get() = try {
-        BuildConfig.SUPABASE_URL.trimEnd('/')
+        val configured = BuildConfig.SUPABASE_URL.trimEnd('/')
+        if (configured.isNotBlank() && !configured.contains("your-project.supabase.co")) {
+            configured
+        } else {
+            DEFAULT_SUPABASE_URL
+        }
     } catch (e: Throwable) {
-        ""
+        DEFAULT_SUPABASE_URL
     }
 
     val anonKey: String get() = try {
-        BuildConfig.SUPABASE_ANON_KEY.trim()
+        val configured = BuildConfig.SUPABASE_ANON_KEY.trim()
+        if (configured.isNotBlank() && configured != "your-supabase-anon-key-here") {
+            configured
+        } else {
+            DEFAULT_SUPABASE_ANON_KEY
+        }
     } catch (e: Throwable) {
-        ""
+        DEFAULT_SUPABASE_ANON_KEY
     }
 
     val isConfigured: Boolean
@@ -46,8 +60,8 @@ object SupabaseClient {
         get() = !currentAccessToken.isNullOrBlank()
 
     fun saveSession(accessToken: String?, refreshToken: String?, user: SupabaseAuthUser? = null) {
-        currentAccessToken = accessToken
-        currentRefreshToken = refreshToken
+        currentAccessToken = accessToken?.takeIf { it.isNotBlank() }
+        currentRefreshToken = refreshToken?.takeIf { it.isNotBlank() }
         if (user != null) {
             currentAuthUser = user
         }
@@ -59,13 +73,62 @@ object SupabaseClient {
         currentAuthUser = null
     }
 
-    fun parseAuthError(errorBodyString: String?): String {
-        if (errorBodyString.isNullOrBlank()) return "Authentication failed"
-        return try {
-            val adapter = moshi.adapter(SupabaseAuthError::class.java)
-            adapter.fromJson(errorBodyString)?.readableMessage() ?: errorBodyString
-        } catch (_: Throwable) {
-            errorBodyString
+    fun parseAuthError(errorBodyString: String?, isSignUp: Boolean = false): String {
+        val raw = if (errorBodyString.isNullOrBlank()) {
+            null
+        } else {
+            try {
+                val adapter = moshi.adapter(SupabaseAuthError::class.java)
+                adapter.fromJson(errorBodyString)?.readableMessage() ?: errorBodyString
+            } catch (_: Throwable) {
+                errorBodyString
+            }
+        }
+        return toUserFriendlyErrorMessage(raw, isSignUp = isSignUp)
+    }
+
+    fun toUserFriendlyErrorMessage(rawError: String?, isSignUp: Boolean = false): String {
+        if (rawError.isNullOrBlank()) {
+            return if (isSignUp) "Could not create account. Please check your details and try again."
+            else "Could not sign in. Please check your credentials and try again."
+        }
+
+        val lower = rawError.lowercase()
+
+        return when {
+            lower.contains("already registered") || lower.contains("user already exists") || lower.contains("email address already in use") || lower.contains("unique constraint") ->
+                "An account with this email already exists. Please sign in instead."
+
+            lower.contains("invalid login credentials") || lower.contains("invalid_grant") || lower.contains("invalid credentials") || lower.contains("wrong password") ->
+                "Incorrect email or password. Please verify your details and try again."
+
+            lower.contains("email not confirmed") || lower.contains("unconfirmed") ->
+                if (isSignUp) "Account created! Welcome to Balay-Inn."
+                else "Email confirmation is not required. You can sign in directly."
+
+            lower.contains("password should be at least") || lower.contains("password is too short") || lower.contains("weak password") || lower.contains("at least 6") ->
+                "Password must be at least 6 characters long."
+
+            lower.contains("invalid email") || lower.contains("valid email") || (lower.contains("format") && lower.contains("email")) ->
+                "Please enter a valid email address (e.g. name@example.com)."
+
+            lower.contains("rate limit") || lower.contains("too many requests") || lower.contains("over quota") ->
+                "Too many attempts. Please wait a moment before trying again."
+
+            lower.contains("unable to resolve host") || lower.contains("failed to connect") || lower.contains("timeout") || lower.contains("network") || lower.contains("connection refused") ->
+                "Unable to connect to the server. Please check your internet connection."
+
+            lower.contains("missing") && lower.contains("email") ->
+                "Please enter your email address."
+
+            lower.contains("missing") && lower.contains("password") ->
+                "Please enter your password."
+
+            else -> if (isSignUp) {
+                "Could not complete account creation. Please check your information and try again."
+            } else {
+                "Could not sign in. Please check your email and password, then try again."
+            }
         }
     }
 
@@ -93,7 +156,7 @@ object SupabaseClient {
 
         val authInterceptor = Interceptor { chain ->
             val original = chain.request()
-            val token = currentAccessToken ?: anonKey
+            val token = currentAccessToken?.takeIf { it.isNotBlank() } ?: anonKey
             val requestBuilder = original.newBuilder()
                 .header("apikey", anonKey)
                 .header("Authorization", "Bearer $token")

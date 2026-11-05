@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,12 +42,21 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.local.entity.NotificationEntity
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.local.entity.UserEntity
 import com.example.data.local.entity.ViewingRequestEntity
@@ -86,6 +97,7 @@ fun LandlordHomeScreen(
     val managedProperties by viewModel.managedProperties.collectAsState()
     val userViewings by viewModel.userViewings.collectAsState()
     val conversations by viewModel.conversations.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
 
     val activeListings = managedProperties.filter { it.status == "ACTIVE" }
     val pendingListings = managedProperties.filter { it.status == "PENDING" }
@@ -94,12 +106,29 @@ fun LandlordHomeScreen(
     val totalViews = managedProperties.sumOf { it.viewsCount }
     val totalSaves = managedProperties.sumOf { it.savesCount }
     val pendingViewings = userViewings.filter { it.status == "REQUESTED" }
+    val unreadHostNotifs = notifications.count { !it.isRead }
+    val unreadMessagesCount = conversations.sumOf { it.unreadForPoster }
+    val totalHostAlerts = pendingViewings.size + unreadHostNotifs + unreadMessagesCount
+
+    var showVerificationWarningDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showNotificationsSheet by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var propertyToEdit by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<PropertyEntity?>(null) }
+
+    fun handlePostPropertyClick() {
+        if (!currentUser.isHostVerified) {
+            showVerificationWarningDialog = true
+        } else {
+            onNavigateToPostProperty()
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Full-width App name bar matching other screens
+        // Host Dashboard Header: Notification Icon instead of Theme Icon
         BalayInnLogoHeader(
             isDark = isDark,
-            onToggleDarkMode = { viewModel.toggleDarkMode() }
+            showThemeToggle = false,
+            onNotificationsClick = { showNotificationsSheet = true },
+            notificationsCount = totalHostAlerts
         )
 
         LazyColumn(
@@ -142,7 +171,7 @@ fun LandlordHomeScreen(
                         }
 
                         Button(
-                            onClick = onNavigateToPostProperty,
+                            onClick = { handlePostPropertyClick() },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -189,12 +218,7 @@ fun LandlordHomeScreen(
                         softWrap = false
                     )
 
-                    // Persona Switcher
-                    QuickPersonaSwitcherRow(
-                        viewModel = viewModel,
-                        currentUser = currentUser,
-                        isDark = isDark
-                    )
+
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -478,7 +502,7 @@ fun LandlordHomeScreen(
                         softWrap = false
                     )
                 }
-                TextButton(onClick = onNavigateToPostProperty) {
+                TextButton(onClick = { handlePostPropertyClick() }) {
                     Text("+ Add Another", fontSize = 12.sp, maxLines = 1, softWrap = false)
                 }
             }
@@ -488,6 +512,7 @@ fun LandlordHomeScreen(
             LandlordPropertyManagementCard(
                 property = prop,
                 locationDisplay = viewModel.getLocationDisplay(prop),
+                onEdit = { propertyToEdit = prop },
                 onToggleStatus = {
                     val nextStatus = if (prop.status == "ACTIVE") "RENTED" else "ACTIVE"
                     viewModel.updatePropertyListingStatus(prop.id, nextStatus)
@@ -536,6 +561,63 @@ fun LandlordHomeScreen(
         }
     }
 }
+
+    if (showVerificationWarningDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showVerificationWarningDialog = false },
+            icon = {
+                Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = {
+                Text("Verification Required", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Sorry, verification is needed before adding property. Please complete your identity and host verification in your Profile Settings to start listing properties.",
+                    fontSize = 13.5.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showVerificationWarningDialog = false
+                        onNavigateToVerificationCenter()
+                    }
+                ) {
+                    Text("Verify in Profile")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showVerificationWarningDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showNotificationsSheet) {
+        HostNotificationsDialog(
+            conversations = conversations,
+            pendingViewings = pendingViewings,
+            notifications = notifications,
+            totalViews = totalViews,
+            totalSaves = totalSaves,
+            onDismiss = { showNotificationsSheet = false }
+        )
+    }
+
+    propertyToEdit?.let { prop ->
+        EditPropertyDialog(
+            property = prop,
+            onDismiss = { propertyToEdit = null },
+            onSave = { updated ->
+                viewModel.updatePropertyDetails(
+                    property = updated,
+                    onSuccess = { propertyToEdit = null }
+                )
+            }
+        )
+    }
 }
 
 @Composable
@@ -669,6 +751,7 @@ private fun LandlordViewingActionCard(
 private fun LandlordPropertyManagementCard(
     property: PropertyEntity,
     locationDisplay: String,
+    onEdit: () -> Unit,
     onToggleStatus: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -744,7 +827,7 @@ private fun LandlordPropertyManagementCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -759,19 +842,464 @@ private fun LandlordPropertyManagementCard(
                     softWrap = false
                 )
 
-                OutlinedButton(
-                    onClick = onToggleStatus,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (isActive) "Mark as Rented" else "Mark as Active",
-                        fontSize = 10.sp,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    OutlinedButton(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.testTag("landlord_edit_prop_${property.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Property",
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Edit",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onToggleStatus,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (isActive) "Mark Rented" else "Mark Active",
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+fun EditPropertyDialog(
+    property: PropertyEntity,
+    onDismiss: () -> Unit,
+    onSave: (PropertyEntity) -> Unit
+) {
+    var title by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.title) }
+    var rentText by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.monthlyRent.toInt().toString()) }
+    var selectedType by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.propertyType) }
+    var location by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.location) }
+    var bedroomsText by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.bedrooms.toString()) }
+    var bathroomsText by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.bathrooms.toString()) }
+    var floorAreaText by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.floorAreaSqm.toInt().toString()) }
+    var description by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.description) }
+    var furnishedStatus by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.furnishedStatus) }
+    var petPolicy by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.petPolicy) }
+    var status by androidx.compose.runtime.remember(property) { androidx.compose.runtime.mutableStateOf(property.status) }
+    var errorMessage by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+
+    val propertyTypes = listOf("Boarding House", "Apartment", "Condominium", "Studio", "Townhouse", "Single Family House")
+    val furnishedOptions = listOf("Furnished", "Semi-Furnished", "Unfurnished")
+    val petPolicies = listOf("Pets Allowed", "Small Pets Only", "No Pets")
+    val statusOptions = listOf("ACTIVE", "RENTED", "PAUSED")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Edit Property Listing",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (errorMessage != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = errorMessage ?: "",
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontSize = 11.5.sp,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it; errorMessage = null },
+                    label = { Text("Listing Title *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("edit_prop_title_input"),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = rentText,
+                        onValueChange = { rentText = it.filter { ch -> ch.isDigit() }; errorMessage = null },
+                        label = { Text("Rent (₱/mo) *") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f).testTag("edit_prop_rent_input"),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    OutlinedTextField(
+                        value = floorAreaText,
+                        onValueChange = { floorAreaText = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Area (sqm)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+
+                Text("Property Type", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    propertyTypes.forEach { pType ->
+                        FilterChip(
+                            selected = selectedType == pType,
+                            onClick = { selectedType = pType },
+                            label = { Text(pType, fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = location,
+                    onValueChange = { location = it },
+                    label = { Text("Location (Barangay, City, Province)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("edit_prop_location_input"),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = bedroomsText,
+                        onValueChange = { bedroomsText = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Bedrooms") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    OutlinedTextField(
+                        value = bathroomsText,
+                        onValueChange = { bathroomsText = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Bathrooms") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+
+                Text("Furnishing", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    furnishedOptions.forEach { f ->
+                        FilterChip(
+                            selected = furnishedStatus == f,
+                            onClick = { furnishedStatus = f },
+                            label = { Text(f, fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                Text("Pet Policy", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    petPolicies.forEach { p ->
+                        FilterChip(
+                            selected = petPolicy == p,
+                            onClick = { petPolicy = p },
+                            label = { Text(p, fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                Text("Listing Status", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    statusOptions.forEach { s ->
+                        FilterChip(
+                            selected = status == s,
+                            onClick = { status = s },
+                            label = { Text(s, fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description & Notes") },
+                    minLines = 3,
+                    maxLines = 5,
+                    modifier = Modifier.fillMaxWidth().testTag("edit_prop_desc_input"),
+                    shape = RoundedCornerShape(10.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (title.isBlank()) {
+                        errorMessage = "Please provide a listing title."
+                        return@Button
+                    }
+                    val rent = rentText.toDoubleOrNull() ?: 0.0
+                    if (rent <= 0) {
+                        errorMessage = "Monthly rent must be greater than zero."
+                        return@Button
+                    }
+                    val updated = property.copy(
+                        title = title.trim(),
+                        monthlyRent = rent,
+                        propertyType = selectedType,
+                        location = location.trim(),
+                        bedrooms = bedroomsText.toIntOrNull() ?: property.bedrooms,
+                        bathrooms = bathroomsText.toIntOrNull() ?: property.bathrooms,
+                        floorAreaSqm = floorAreaText.toDoubleOrNull() ?: property.floorAreaSqm,
+                        description = description.trim(),
+                        furnishedStatus = furnishedStatus,
+                        petPolicy = petPolicy,
+                        status = status
+                    )
+                    onSave(updated)
+                },
+                modifier = Modifier.testTag("save_edited_property_btn")
+            ) {
+                Text("Save Changes", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun HostNotificationsDialog(
+    conversations: List<com.example.data.local.entity.ConversationEntity>,
+    pendingViewings: List<ViewingRequestEntity>,
+    notifications: List<NotificationEntity>,
+    totalViews: Int,
+    totalSaves: Int,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Host Notifications & Alerts", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // 1. Live Notifications from Tenants & System
+                if (notifications.isNotEmpty()) {
+                    Text("Live Alerts (${notifications.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    notifications.take(8).forEach { notif ->
+                        val categoryColor = when (notif.category) {
+                            "VIEWING" -> Color(0xFFD97706)
+                            "MESSAGE" -> MaterialTheme.colorScheme.primary
+                            "VERIFICATION" -> Color(0xFF16A34A)
+                            else -> MaterialTheme.colorScheme.secondary
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = categoryColor.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, categoryColor.copy(alpha = 0.3f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = notif.title,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = categoryColor
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = categoryColor.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = notif.category,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = categoryColor,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = notif.message,
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Pending Viewings Alert
+                if (pendingViewings.isNotEmpty()) {
+                    Text("Pending Viewing Requests (${pendingViewings.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    pendingViewings.forEach { req ->
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFFFEF3C7),
+                            border = BorderStroke(1.dp, BadgeAmber.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Viewing: ${req.preferredDate} @ ${req.preferredTime}",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = BadgeAmber
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = BadgeAmber.copy(alpha = 0.2f)
+                                    ) {
+                                        Text(
+                                            text = "Awaiting Host Action",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = BadgeAmber,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                                if (req.tenantMessage.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = "\"${req.tenantMessage}\"",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Active Inquiries / Conversations
+                val activeConvs = conversations.filter { it.lastMessageText.isNotBlank() }
+                if (activeConvs.isNotEmpty()) {
+                    Text("Recent Tenant Messages (${activeConvs.size})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    activeConvs.take(5).forEach { conv ->
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "From: ${conv.tenantName} (Re: ${conv.propertyTitle})",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "\"${conv.lastMessageText}\"",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 4. Listing Performance Notification
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "30-Day Listing Performance",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Your properties gained $totalViews views and $totalSaves tenant saves this month.",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }

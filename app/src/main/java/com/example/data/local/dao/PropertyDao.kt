@@ -60,9 +60,18 @@ interface PropertyDao {
     @Query("DELETE FROM property_images WHERE property_id NOT IN (:validIds)")
     suspend fun deletePropertyImagesNotIn(validIds: List<String>)
 
+    @Query("DELETE FROM properties")
+    suspend fun deleteAllProperties()
+
+    @Query("DELETE FROM property_images")
+    suspend fun deleteAllPropertyImages()
+
     // Images
     @Query("SELECT * FROM property_images WHERE property_id = :propertyId ORDER BY order_index ASC")
     fun getImagesForProperty(propertyId: String): Flow<List<PropertyImageEntity>>
+
+    @Query("SELECT * FROM property_images WHERE property_id = :propertyId ORDER BY order_index ASC")
+    suspend fun getImagesForPropertySync(propertyId: String): List<PropertyImageEntity>
 
     @Query("SELECT * FROM property_images ORDER BY order_index ASC")
     fun getAllPropertyImages(): Flow<List<PropertyImageEntity>>

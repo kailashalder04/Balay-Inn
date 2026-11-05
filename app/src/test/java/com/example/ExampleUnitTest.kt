@@ -43,4 +43,33 @@ class ExampleUnitTest {
     val client = SupabaseClient
     assertNotNull(client)
   }
+
+  @Test
+  fun testViewingDtoSchemaAndEmailNullability() {
+    val req = com.example.data.local.entity.ViewingRequestEntity(
+      id = "view_12345",
+      propertyId = "prop_boh_01",
+      tenantId = "usr_tenant_1",
+      posterId = "usr_landlord_1",
+      preferredDate = "Tomorrow, 2:00 PM",
+      preferredTime = "2:00 PM - 3:00 PM",
+      numberOfVisitors = 2,
+      tenantMessage = "Interested in viewing the space",
+      status = "REQUESTED"
+    )
+
+    // Case 1: When user unchecks email alert, recipientEmail must be null
+    val dtoNoEmail = SupabaseViewingDto.fromEntity(req, recipientEmail = null)
+    assertNull("recipientEmail must be null when unchecked", dtoNoEmail.recipientEmail)
+    assertNotNull("userId must be generated as UUID", dtoNoEmail.userId)
+    assertNotNull("propertyId must be valid UUID", dtoNoEmail.propertyId)
+    assertNotNull("scheduledDate must be SQL date format", dtoNoEmail.scheduledDate)
+    assertNotNull("scheduledTime must be SQL time format", dtoNoEmail.scheduledTime)
+    assertEquals("pending", dtoNoEmail.status)
+    assertEquals("Interested in viewing the space", dtoNoEmail.notes)
+
+    // Case 2: When user checks email alert, recipientEmail is populated
+    val dtoWithEmail = SupabaseViewingDto.fromEntity(req, recipientEmail = "host@balayinn.ph")
+    assertEquals("host@balayinn.ph", dtoWithEmail.recipientEmail)
+  }
 }

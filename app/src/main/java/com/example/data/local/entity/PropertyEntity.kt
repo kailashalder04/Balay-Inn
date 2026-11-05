@@ -67,6 +67,8 @@ data class PropertyEntity(
 
     val neighborhood: String = "",
     @ColumnInfo(name = "nearby_landmark") val nearbyLandmark: String = "",
+    val location: String = "",
+    val coordinates: String = "",
     @ColumnInfo(name = "street_address_private") val streetAddressPrivate: String = "",
     @ColumnInfo(name = "location_privacy") val locationPrivacy: String = "APPROXIMATE", // EXACT, APPROXIMATE, HIDDEN
 

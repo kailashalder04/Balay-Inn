@@ -16,6 +16,9 @@ interface SupabaseAuthApi {
     @POST("logout")
     suspend fun logout(): Response<Unit>
 
+    @POST("recover")
+    suspend fun recover(@Body body: Map<String, String>): Response<Unit>
+
     @GET("user")
     suspend fun getCurrentUser(): Response<SupabaseAuthUser>
 }

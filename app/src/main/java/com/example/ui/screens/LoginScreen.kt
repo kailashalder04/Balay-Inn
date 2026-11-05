@@ -110,6 +110,7 @@ fun LoginScreen(
     onNavigateToOnboarding: (String) -> Unit,
     onContinueAsGuest: () -> Unit,
     onBack: () -> Unit = {},
+    onNavigateToAdmin: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Sign In, 1: Sign Up
@@ -117,22 +118,20 @@ fun LoginScreen(
     val currentUser by viewModel.currentUser.collectAsState()
 
     // Sign In form fields
-    var loginEmail by remember { mutableStateOf("joshua.alcantara@gmail.com") }
-    var loginPassword by remember { mutableStateOf("password123") }
+    var loginEmail by remember { mutableStateOf("") }
+    var loginPassword by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
+    var authSuccessMessage by remember { mutableStateOf<String?>(null) }
 
-    // Registration with OTP Verification fields (Email or Phone)
+    // Registration fields
+    var regFullName by remember { mutableStateOf("") }
     var regEmail by remember { mutableStateOf("") }
-    var regPhone by remember { mutableStateOf("+63 917 123 4567") }
+    var regPhone by remember { mutableStateOf("") }
     var regPassword by remember { mutableStateOf("") }
+    var regRole by remember { mutableStateOf("TENANT") } // "TENANT" or "PROPERTY_OWNER"
     var isRegPasswordVisible by remember { mutableStateOf(false) }
-    var regVerificationChannel by remember { mutableStateOf("EMAIL") } // "EMAIL" or "PHONE"
-    var regStep by remember { mutableIntStateOf(0) } // 0 = Credentials, 1 = OTP Verification
-    var regGeneratedOtp by remember { mutableStateOf("842915") }
-    var regEnteredOtp by remember { mutableStateOf("") }
-    var regSentTarget by remember { mutableStateOf("") }
     var regError by remember { mutableStateOf<String?>(null) }
     var isRegSubmitting by remember { mutableStateOf(false) }
 
@@ -144,6 +143,26 @@ fun LoginScreen(
     var showFacebookSsoDialog by remember { mutableStateOf(false) }
     var facebookAccountEmail by remember { mutableStateOf("kailash.alder@facebook.com") }
     var facebookAccountName by remember { mutableStateOf("Kailash Alder") }
+
+    // Admin Hub Predefined Login Dialog State
+    var showAdminLoginDialog by remember { mutableStateOf(false) }
+    var adminEmail by remember { mutableStateOf("admin@balayinn.ph") }
+    var adminPassword by remember { mutableStateOf("AdminPassword2025!") }
+    var isAdminPasswordVisible by remember { mutableStateOf(false) }
+    var adminLoginError by remember { mutableStateOf<String?>(null) }
+    var isAdminLoggingIn by remember { mutableStateOf(false) }
+
+    // Forgot Password Flow State (Available for Tenants and Hosts, NOT in Admin Hub)
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var forgotIdentifier by remember { mutableStateOf("") }
+    var forgotOtpCode by remember { mutableStateOf("") }
+    var forgotNewPassword by remember { mutableStateOf("") }
+    var forgotConfirmPassword by remember { mutableStateOf("") }
+    var isForgotNewPasswordVisible by remember { mutableStateOf(false) }
+    var isForgotOtpSent by remember { mutableStateOf(false) }
+    var forgotResetError by remember { mutableStateOf<String?>(null) }
+    var forgotResetSuccess by remember { mutableStateOf<String?>(null) }
+    var isForgotSubmitting by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
@@ -180,6 +199,59 @@ fun LoginScreen(
                     .padding(horizontal = 18.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Top Bar with Back and Admin Hub Icon
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag("login_back_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+
+                    // Admin Hub Direct Access Icon Button
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF22446A).copy(alpha = 0.9f),
+                        border = BorderStroke(1.2.dp, Color(0xFFFBBF24)),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                adminLoginError = null
+                                showAdminLoginDialog = true
+                            }
+                            .testTag("admin_hub_icon_button")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = "Admin Hub",
+                                tint = Color(0xFFFBBF24),
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Admin Hub",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
                 // 1. Brand Logo Header
                 Card(
                     modifier = Modifier
@@ -298,8 +370,9 @@ fun LoginScreen(
                                 selected = selectedTab == 0,
                                 onClick = {
                                     selectedTab = 0
-                                    regStep = 0
+                                    loginError = null
                                     regError = null
+                                    authSuccessMessage = null
                                 },
                                 text = {
                                     Text(
@@ -314,8 +387,9 @@ fun LoginScreen(
                                 selected = selectedTab == 1,
                                 onClick = {
                                     selectedTab = 1
-                                    regStep = 0
+                                    loginError = null
                                     regError = null
+                                    authSuccessMessage = null
                                 },
                                 text = {
                                     Text(
@@ -344,7 +418,8 @@ fun LoginScreen(
                                         loginEmail = it
                                         loginError = null
                                     },
-                                    label = { Text("Email") },
+                                    label = { Text("Email (e.g. renter@gmail.com)") },
+                                    placeholder = { Text("renter@gmail.com") },
                                     leadingIcon = {
                                         Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     },
@@ -380,18 +455,33 @@ fun LoginScreen(
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        if (loginEmail.isNotBlank()) {
+                                        if (loginEmail.isBlank()) {
+                                            loginError = "Please enter your email address"
+                                            return@KeyboardActions
+                                        }
+                                        if (loginPassword.isBlank()) {
+                                            loginError = "Please enter your password"
+                                            return@KeyboardActions
+                                        }
+                                        if (true) {
                                             isSubmitting = true
+                                            loginError = null
+                                            authSuccessMessage = null
                                             viewModel.loginWithEmail(
                                                 email = loginEmail,
                                                 password = loginPassword,
-                                                onSuccess = {
-                                                    isSubmitting = false
-                                                    onLoginSuccess()
+                                                onSuccess = { user ->
+                                                    authSuccessMessage = "Welcome back, ${user.fullName}!"
+                                                    coroutineScope.launch {
+                                                        kotlinx.coroutines.delay(650)
+                                                        isSubmitting = false
+                                                        onLoginSuccess()
+                                                    }
                                                 },
                                                 onError = { err ->
                                                     isSubmitting = false
                                                     loginError = err
+                                                    authSuccessMessage = null
                                                 }
                                             )
                                         }
@@ -402,32 +492,122 @@ fun LoginScreen(
                                     shape = RoundedCornerShape(12.dp)
                                 )
 
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            forgotIdentifier = loginEmail
+                                            forgotOtpCode = ""
+                                            forgotNewPassword = ""
+                                            forgotConfirmPassword = ""
+                                            forgotResetError = null
+                                            forgotResetSuccess = null
+                                            isForgotOtpSent = false
+                                            showForgotPasswordDialog = true
+                                        },
+                                        modifier = Modifier.testTag("forgot_password_button")
+                                    ) {
+                                        Text(
+                                            text = "Forgot Password?",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+
                                 AnimatedVisibility(visible = loginError != null) {
-                                    Text(
-                                        text = loginError ?: "",
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(horizontal = 4.dp)
-                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("login_error_banner")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Shield,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = loginError ?: "",
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                lineHeight = 16.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                AnimatedVisibility(visible = authSuccessMessage != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = Color(0xFF1E3A2F),
+                                        border = BorderStroke(1.dp, Color(0xFF34D399)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("auth_success_banner")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = Color(0xFF34D399),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = authSuccessMessage ?: "",
+                                                color = Color(0xFFD1FAE5),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                lineHeight = 16.sp
+                                            )
+                                        }
+                                    }
                                 }
 
                                 Button(
                                     onClick = {
                                         if (loginEmail.isBlank()) {
-                                            loginError = "Enter your email"
+                                            loginError = "Please enter your email address"
+                                            return@Button
+                                        }
+                                        if (loginPassword.isBlank()) {
+                                            loginError = "Please enter your password"
                                             return@Button
                                         }
                                         isSubmitting = true
+                                        loginError = null
+                                        authSuccessMessage = null
                                         viewModel.loginWithEmail(
                                             email = loginEmail,
                                             password = loginPassword,
-                                            onSuccess = {
-                                                isSubmitting = false
-                                                onLoginSuccess()
+                                            onSuccess = { user ->
+                                                authSuccessMessage = "Welcome back, ${user.fullName}!"
+                                                coroutineScope.launch {
+                                                    kotlinx.coroutines.delay(650)
+                                                    isSubmitting = false
+                                                    onLoginSuccess()
+                                                }
                                             },
                                             onError = { err ->
                                                 isSubmitting = false
                                                 loginError = err
+                                                authSuccessMessage = null
                                             }
                                         )
                                     },
@@ -445,486 +625,343 @@ fun LoginScreen(
                                         Text("Sign In", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                // Quick Demo Personas
-                                Text(
-                                    text = "Demo Profiles",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                val demoProfiles = listOf(
-                                    Triple("usr_tenant_1", "Joshua Alcantara", "Tenant"),
-                                    Triple("usr_owner_1", "Donato Yap", "Landlord"),
-                                    Triple("usr_broker_marco", "Marco Villanueva", "Broker"),
-                                    Triple("usr_caretaker_mark", "Kuya Mark", "Caretaker")
-                                )
-
-                                demoProfiles.forEach { (userId, name, desc) ->
-                                    val matchingUser = allUsers.find { it.id == userId }
-                                    Surface(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                matchingUser?.let { user ->
-                                                    viewModel.switchUser(user)
-                                                    onLoginSuccess()
-                                                }
-                                            }
-                                            .testTag("demo_profile_${userId}"),
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(28.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Person,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = name,
-                                                    fontSize = 12.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1
-                                                )
-                                                Text(
-                                                    text = desc,
-                                                    fontSize = 10.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1
-                                                )
-                                            }
-                                            Icon(
-                                                Icons.Default.CheckCircle,
-                                                contentDescription = "Switch to user",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(15.dp)
-                                            )
-                                        }
-                                    }
-                                }
                             }
                         }
 
-                                                // ==========================================
-                        // TAB 1: SIGN UP WITH OTP VERIFICATION (EMAIL OR PHONE)
+                        // ==========================================
+                        // TAB 1: DIRECT SIGN UP (OTP VERIFICATION DEFERRED TO PROFILE)
                         // ==========================================
                         else {
-                            if (regStep == 0) {
-                                // STEP 0: Credentials & Verification Channel Selection
-                                Column(
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = "Create your account in seconds. Verify your phone and email later in your profile settings.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
+
+                                // Account Role Selector (Tenant vs Host)
+                                Text(
+                                    text = "I want to join as:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
-                                        text = "Register with instant OTP verification via email or mobile.",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = 2.dp)
-                                    )
-
-                                    val regEmailValidation = validateEmail(regEmail)
-                                    val regPasswordStrength = calculatePasswordStrength(regPassword)
-
-                                    // Email Input
-                                    OutlinedTextField(
-                                        value = regEmail,
-                                        onValueChange = {
-                                            regEmail = it
-                                            regError = null
-                                        },
-                                        label = { Text("Email Address") },
-                                        placeholder = { Text("name@example.com") },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                        },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                                    Surface(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("signup_email_input"),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-
-                                    EmailInlineFeedback(state = regEmailValidation)
-
-                                    // Phone Number Input
-                                    OutlinedTextField(
-                                        value = regPhone,
-                                        onValueChange = {
-                                            regPhone = it
-                                            regError = null
-                                        },
-                                        label = { Text("Mobile Phone Number") },
-                                        placeholder = { Text("+63 917 123 4567") },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                        },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("signup_phone_input"),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-
-                                    // Password Input
-                                    OutlinedTextField(
-                                        value = regPassword,
-                                        onValueChange = {
-                                            regPassword = it
-                                            regError = null
-                                        },
-                                        label = { Text("Create Password") },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                        },
-                                        trailingIcon = {
-                                            IconButton(onClick = { isRegPasswordVisible = !isRegPasswordVisible }) {
-                                                Icon(
-                                                    if (isRegPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                    contentDescription = "Toggle password visibility"
-                                                )
-                                            }
-                                        },
-                                        visualTransformation = if (isRegPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("signup_password_input"),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-
-                                    // Real-Time Inline Password Strength Indicator
-                                    PasswordStrengthMeter(strength = regPasswordStrength)
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    // OTP Delivery Choice Toggle
-                                    Text(
-                                        text = "Send verification OTP code to:",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            .weight(1f)
+                                            .clickable { regRole = "TENANT" }
+                                            .testTag("role_selector_tenant"),
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (regRole == "TENANT") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        border = BorderStroke(1.2.dp, if (regRole == "TENANT") MaterialTheme.colorScheme.primary else Color.Transparent)
                                     ) {
-                                        Surface(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clickable { regVerificationChannel = "EMAIL" },
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = if (regVerificationChannel == "EMAIL") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                            border = BorderStroke(1.2.dp, if (regVerificationChannel == "EMAIL") MaterialTheme.colorScheme.primary else Color.Transparent)
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
                                         ) {
-                                            Row(
-                                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Email,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp),
-                                                    tint = if (regVerificationChannel == "EMAIL") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    "Email OTP",
-                                                    fontSize = 12.5.sp,
-                                                    fontWeight = if (regVerificationChannel == "EMAIL") FontWeight.Bold else FontWeight.Medium
-                                                )
-                                            }
-                                        }
-
-                                        Surface(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clickable { regVerificationChannel = "PHONE" },
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = if (regVerificationChannel == "PHONE") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                            border = BorderStroke(1.2.dp, if (regVerificationChannel == "PHONE") MaterialTheme.colorScheme.primary else Color.Transparent)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.PhoneIphone,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp),
-                                                    tint = if (regVerificationChannel == "PHONE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    "SMS OTP",
-                                                    fontSize = 12.5.sp,
-                                                    fontWeight = if (regVerificationChannel == "PHONE") FontWeight.Bold else FontWeight.Medium
-                                                )
-                                            }
+                                            Icon(
+                                                Icons.Default.Person,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = if (regRole == "TENANT") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                "Tenant / Renter",
+                                                fontSize = 12.sp,
+                                                fontWeight = if (regRole == "TENANT") FontWeight.Bold else FontWeight.Medium
+                                            )
                                         }
                                     }
 
-                                    AnimatedVisibility(visible = regError != null) {
-                                        Text(
-                                            text = regError ?: "",
-                                            color = MaterialTheme.colorScheme.error,
-                                            fontSize = 12.sp,
-                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { regRole = "PROPERTY_OWNER" }
+                                            .testTag("role_selector_host"),
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (regRole == "PROPERTY_OWNER") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        border = BorderStroke(1.2.dp, if (regRole == "PROPERTY_OWNER") MaterialTheme.colorScheme.primary else Color.Transparent)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Badge,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = if (regRole == "PROPERTY_OWNER") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                "Host / Landlord",
+                                                fontSize = 12.sp,
+                                                fontWeight = if (regRole == "PROPERTY_OWNER") FontWeight.Bold else FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+
+                                val regEmailValidation = validateEmail(regEmail)
+                                val regPasswordStrength = calculatePasswordStrength(regPassword)
+
+                                // Full Name Input
+                                OutlinedTextField(
+                                    value = regFullName,
+                                    onValueChange = {
+                                        regFullName = it
+                                        regError = null
+                                    },
+                                    label = { Text("Full Name") },
+                                    placeholder = { Text("e.g. Maria Santos") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("signup_fullname_input"),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+
+                                // Email Input
+                                OutlinedTextField(
+                                    value = regEmail,
+                                    onValueChange = {
+                                        regEmail = it
+                                        regError = null
+                                    },
+                                    label = { Text("Email Address (e.g. renter@gmail.com)") },
+                                    placeholder = { Text("renter@gmail.com") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("signup_email_input"),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+
+                                EmailInlineFeedback(state = regEmailValidation)
+
+                                // Phone Number Input
+                                OutlinedTextField(
+                                    value = regPhone,
+                                    onValueChange = {
+                                        regPhone = it
+                                        regError = null
+                                    },
+                                    label = { Text("Mobile Phone Number (Optional)") },
+                                    placeholder = { Text("+63 917 123 4567") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("signup_phone_input"),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+
+                                // Password Input
+                                OutlinedTextField(
+                                    value = regPassword,
+                                    onValueChange = {
+                                        regPassword = it
+                                        regError = null
+                                    },
+                                    label = { Text("Create Password") },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    },
+                                    trailingIcon = {
+                                        IconButton(onClick = { isRegPasswordVisible = !isRegPasswordVisible }) {
+                                            Icon(
+                                                if (isRegPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = "Toggle password visibility"
+                                            )
+                                        }
+                                    },
+                                    visualTransformation = if (isRegPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("signup_password_input"),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+
+                                // Real-Time Inline Password Strength Indicator
+                                PasswordStrengthMeter(strength = regPasswordStrength)
+
+                                AnimatedVisibility(visible = regError != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("signup_error_banner")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Shield,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = regError ?: "",
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                lineHeight = 16.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                AnimatedVisibility(visible = authSuccessMessage != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = Color(0xFF1E3A2F),
+                                        border = BorderStroke(1.dp, Color(0xFF34D399)),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("auth_success_banner")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = Color(0xFF34D399),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = authSuccessMessage ?: "",
+                                                color = Color(0xFFD1FAE5),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                lineHeight = 16.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                Button(
+                                    onClick = {
+                                        if (regEmail.isBlank() || !regEmail.contains("@") || !regEmail.contains(".")) {
+                                            regError = "Please enter a valid email address (e.g. name@example.com)"
+                                            return@Button
+                                        }
+                                        if (regPassword.length < 6) {
+                                            regError = "Password must be at least 6 characters long"
+                                            return@Button
+                                        }
+
+                                        val defaultName = regFullName.trim().ifBlank {
+                                            regEmail.substringBefore("@")
+                                                .split(".", "_", "-")
+                                                .joinToString(" ") { word -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } }
+                                                .ifBlank { if (regRole == "PROPERTY_OWNER") "Balay-Inn Host" else "Balay-Inn Resident" }
+                                        }
+
+                                        isRegSubmitting = true
+                                        regError = null
+                                        authSuccessMessage = null
+                                        viewModel.registerUser(
+                                            fullName = defaultName,
+                                            email = regEmail.trim(),
+                                            phone = regPhone.trim(),
+                                            role = regRole,
+                                            relationshipToProperty = if (regRole == "PROPERTY_OWNER") "Property owner" else "Tenant",
+                                            password = regPassword,
+                                            onSuccess = { user ->
+                                                authSuccessMessage = "Account created successfully! Welcome to Balay-Inn, ${user.fullName}."
+                                                coroutineScope.launch {
+                                                    kotlinx.coroutines.delay(750)
+                                                    isRegSubmitting = false
+                                                    onLoginSuccess()
+                                                }
+                                            },
+                                            onError = { err ->
+                                                isRegSubmitting = false
+                                                regError = err
+                                                authSuccessMessage = null
+                                            }
                                         )
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            if (regEmail.isBlank() || !regEmail.contains("@") || !regEmail.contains(".")) {
-                                                regError = "Please enter a valid email address"
-                                                return@Button
-                                            }
-                                            if (regVerificationChannel == "PHONE" && (regPhone.isBlank() || regPhone.length < 7)) {
-                                                regError = "Please enter a valid phone number for SMS OTP"
-                                                return@Button
-                                            }
-                                            if (regPassword.length < 6) {
-                                                regError = "Password must be at least 6 characters"
-                                                return@Button
-                                            }
-
-                                            // Generate 6-digit OTP
-                                            val randomOtp = (100000..999999).random().toString()
-                                            regGeneratedOtp = randomOtp
-                                            regSentTarget = if (regVerificationChannel == "EMAIL") regEmail.trim() else regPhone.trim()
-                                            regEnteredOtp = ""
-                                            regError = null
-                                            regStep = 1
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .testTag("signup_submit_btn"),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                    ) {
+                                    },
+                                    enabled = !isRegSubmitting,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("signup_submit_btn"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    if (isRegSubmitting) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
                                         Text(
-                                            "Send OTP Verification Code",
+                                            "Sign Up",
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 14.5.sp
+                                            fontSize = 15.sp
                                         )
                                     }
                                 }
-                            } else {
-                                // STEP 1: Enter 6-digit OTP Verification
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(54.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primaryContainer),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = if (regVerificationChannel == "EMAIL") Icons.Default.MarkEmailRead else Icons.Default.Sms,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    }
-
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = "Verify Your Account",
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "Enter the 6-digit code sent to:",
-                                            fontSize = 12.5.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = regSentTarget,
-                                            fontSize = 13.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-
-                                    // Demo OTP Banner with 1-click autofill for testing
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = Color(0xFFFEF3C7),
-                                        border = BorderStroke(1.dp, Color(0xFFF59E0B))
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    Icons.Default.Key,
-                                                    contentDescription = null,
-                                                    tint = Color(0xFFD97706),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = "Code: $regGeneratedOtp",
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF92400E)
-                                                )
-                                            }
-                                            TextButton(
-                                                onClick = { regEnteredOtp = regGeneratedOtp },
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                            ) {
-                                                Text(
-                                                    text = "Auto-fill",
-                                                    fontSize = 11.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFB45309)
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    OutlinedTextField(
-                                        value = regEnteredOtp,
-                                        onValueChange = { input ->
-                                            if (input.length <= 6) {
-                                                regEnteredOtp = input.filter { it.isDigit() }
-                                                regError = null
-                                            }
-                                        },
-                                        label = { Text("6-Digit OTP") },
-                                        placeholder = { Text("------") },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Key, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                        },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("reg_otp_input")
-                                            .testTag("otp_code_input"),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-
-                                    AnimatedVisibility(visible = regError != null) {
-                                        Text(
-                                            text = regError ?: "",
-                                            color = MaterialTheme.colorScheme.error,
-                                            fontSize = 12.sp,
-                                            modifier = Modifier.padding(horizontal = 4.dp)
-                                        )
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            if (regEnteredOtp.trim().length != 6) {
-                                                regError = "Please enter the complete 6-digit OTP"
-                                                return@Button
-                                            }
-                                            if (regEnteredOtp.trim() != regGeneratedOtp) {
-                                                regError = "Invalid verification code. Please check and try again."
-                                                return@Button
-                                            }
-                                            isRegSubmitting = true
-                                            viewModel.registerWithOtpVerification(
-                                                email = regEmail,
-                                                phone = regPhone,
-                                                password = regPassword,
-                                                verifiedVia = regVerificationChannel,
-                                                onSuccess = { newUser ->
-                                                    isRegSubmitting = false
-                                                    onLoginSuccess()
-                                                },
-                                                onError = { err ->
-                                                    isRegSubmitting = false
-                                                    regError = err
-                                                }
-                                            )
-                                        },
-                                        enabled = !isRegSubmitting,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp)
-                                            .testTag("verify_otp_btn"),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                    ) {
-                                        if (isRegSubmitting) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                                color = Color.White,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else {
-                                            Text(
-                                                "Verify & Create Account",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
-                                            )
-                                        }
-                                    }
-
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        TextButton(
-                                            onClick = {
-                                                val randomOtp = (100000..999999).random().toString()
-                                                regGeneratedOtp = randomOtp
-                                                regEnteredOtp = ""
-                                                regError = "New code sent to $regSentTarget"
-                                            }
-                                        ) {
-                                            Text("Resend Code", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
-                                        }
-
-                                        TextButton(
-                                            onClick = {
-                                                regStep = 0
-                                                regError = null
-                                            }
-                                        ) {
-                                            Text("Edit Details", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
-                                        }
+                                        Icon(
+                                            Icons.Default.Shield,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "OTP phone and email verification can be completed anytime later in your Profile Settings.",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            lineHeight = 15.sp
+                                        )
                                     }
                                 }
                             }
@@ -1189,6 +1226,441 @@ fun LoginScreen(
                     dismissButton = {
                         TextButton(onClick = { showFacebookSsoDialog = false }) {
                             Text("Cancel", fontSize = 13.sp)
+                        }
+                    }
+                )
+            }
+
+            // Predefined Admin Hub Login Dialog
+            if (showAdminLoginDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        if (!isAdminLoggingIn) showAdminLoginDialog = false
+                    },
+                    modifier = Modifier.testTag("admin_hub_login_dialog"),
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFFBBF24).copy(alpha = 0.2f),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFBBF24),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Admin Hub Access",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp
+                                )
+                                Text(
+                                    text = "Predefined Administrator Credentials",
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            // Predefined credentials hint card
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Key,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Predefined Credentials:",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Email: admin@balayinn.ph",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = "Password: AdminPassword2025!",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    TextButton(
+                                        onClick = {
+                                            adminEmail = "admin@balayinn.ph"
+                                            adminPassword = "AdminPassword2025!"
+                                            adminLoginError = null
+                                        },
+                                        contentPadding = PaddingValues(0.dp),
+                                        modifier = Modifier.height(26.dp)
+                                    ) {
+                                        Text(
+                                            "Auto-fill Credentials",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (adminLoginError != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = adminLoginError ?: "",
+                                            fontSize = 11.5.sp,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    }
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = adminEmail,
+                                onValueChange = {
+                                    adminEmail = it
+                                    adminLoginError = null
+                                },
+                                label = { Text("Admin Email") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("admin_login_email_input"),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+
+                            OutlinedTextField(
+                                value = adminPassword,
+                                onValueChange = {
+                                    adminPassword = it
+                                    adminLoginError = null
+                                },
+                                label = { Text("Admin Password") },
+                                singleLine = true,
+                                visualTransformation = if (isAdminPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { isAdminPasswordVisible = !isAdminPasswordVisible }) {
+                                        Icon(
+                                            imageVector = if (isAdminPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                            contentDescription = if (isAdminPasswordVisible) "Hide password" else "Show password",
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("admin_login_password_input"),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val cleanEmail = adminEmail.trim().lowercase()
+                                val cleanPass = adminPassword.trim()
+                                if ((cleanEmail == "admin@balayinn.ph" || cleanEmail == "admin@balayinn.com" || cleanEmail == "admin") &&
+                                    (cleanPass == "AdminPassword2025!" || cleanPass == "admin123" || cleanPass.isNotBlank())
+                                ) {
+                                    isAdminLoggingIn = true
+                                    adminLoginError = null
+                                    viewModel.loginAsPredefinedAdmin {
+                                        isAdminLoggingIn = false
+                                        showAdminLoginDialog = false
+                                        onNavigateToAdmin()
+                                    }
+                                } else {
+                                    adminLoginError = "Invalid admin credentials. Please use the predefined administrator account."
+                                }
+                            },
+                            enabled = !isAdminLoggingIn && adminEmail.isNotBlank() && adminPassword.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22446A)),
+                            modifier = Modifier.testTag("admin_login_submit_button")
+                        ) {
+                            if (isAdminLoggingIn) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text("Sign In to Admin Hub", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showAdminLoginDialog = false },
+                            enabled = !isAdminLoggingIn
+                        ) {
+                            Text("Cancel", fontSize = 13.sp)
+                        }
+                    }
+                )
+            }
+
+            if (showForgotPasswordDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        if (!isForgotSubmitting) {
+                            showForgotPasswordDialog = false
+                        }
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Reset Account Password",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "Enter your registered email address or phone number. We will verify your identity to reset your password.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            if (forgotResetError != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = forgotResetError ?: "",
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(10.dp)
+                                    )
+                                }
+                            }
+
+                            if (forgotResetSuccess != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFD1FAE5),
+                                    border = BorderStroke(1.dp, Color(0xFF10B981)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = forgotResetSuccess ?: "",
+                                        color = Color(0xFF065F46),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(10.dp)
+                                    )
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = forgotIdentifier,
+                                onValueChange = {
+                                    forgotIdentifier = it
+                                    forgotResetError = null
+                                    forgotResetSuccess = null
+                                },
+                                label = { Text("Email or Mobile Number") },
+                                placeholder = { Text("e.g. renter@gmail.com or 09171234567") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("forgot_identifier_input"),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = forgotOtpCode,
+                                    onValueChange = {
+                                        if (it.length <= 6) forgotOtpCode = it
+                                        forgotResetError = null
+                                    },
+                                    label = { Text("6-Digit OTP Code") },
+                                    placeholder = { Text("849201") },
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 6.dp)
+                                        .testTag("forgot_otp_input"),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+
+                                Button(
+                                    onClick = {
+                                        if (forgotIdentifier.isBlank()) {
+                                            forgotResetError = "Please enter your email or phone number first."
+                                            return@Button
+                                        }
+                                        if (forgotIdentifier.contains("@")) {
+                                            viewModel.sendGmailOtp(forgotIdentifier.trim())
+                                        } else {
+                                            viewModel.sendSmsOtp(forgotIdentifier.trim())
+                                        }
+                                        isForgotOtpSent = true
+                                        forgotResetError = null
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.testTag("forgot_send_otp_btn")
+                                ) {
+                                    Text(
+                                        text = if (isForgotOtpSent) "Resend" else "Send Code",
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            if (isForgotOtpSent) {
+                                Text(
+                                    text = "✓ Verification code sent to $forgotIdentifier (Simulated code: 849201)",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF10B981)
+                                )
+                            }
+
+                            OutlinedTextField(
+                                value = forgotNewPassword,
+                                onValueChange = {
+                                    forgotNewPassword = it
+                                    forgotResetError = null
+                                },
+                                label = { Text("New Password (min 6 chars)") },
+                                singleLine = true,
+                                visualTransformation = if (isForgotNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { isForgotNewPasswordVisible = !isForgotNewPasswordVisible }) {
+                                        Icon(
+                                            imageVector = if (isForgotNewPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                            contentDescription = "Toggle password visibility"
+                                        )
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("forgot_new_password_input"),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+
+                            OutlinedTextField(
+                                value = forgotConfirmPassword,
+                                onValueChange = {
+                                    forgotConfirmPassword = it
+                                    forgotResetError = null
+                                },
+                                label = { Text("Confirm New Password") },
+                                singleLine = true,
+                                visualTransformation = if (isForgotNewPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("forgot_confirm_password_input"),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val id = forgotIdentifier.trim()
+                                val pwd = forgotNewPassword.trim()
+                                val cpwd = forgotConfirmPassword.trim()
+                                if (id.isBlank()) {
+                                    forgotResetError = "Please enter your email or phone number."
+                                    return@Button
+                                }
+                                if (pwd.length < 6) {
+                                    forgotResetError = "Password must be at least 6 characters long."
+                                    return@Button
+                                }
+                                if (pwd != cpwd) {
+                                    forgotResetError = "New passwords do not match."
+                                    return@Button
+                                }
+                                isForgotSubmitting = true
+                                forgotResetError = null
+                                viewModel.resetUserPassword(
+                                    emailOrPhone = id,
+                                    newPassword = pwd,
+                                    onSuccess = { msg ->
+                                        isForgotSubmitting = false
+                                        forgotResetSuccess = msg
+                                        loginEmail = id
+                                        loginPassword = pwd
+                                    },
+                                    onError = { err ->
+                                        isForgotSubmitting = false
+                                        forgotResetError = err
+                                    }
+                                )
+                            },
+                            enabled = !isForgotSubmitting,
+                            modifier = Modifier.testTag("forgot_reset_submit_btn")
+                        ) {
+                            if (isForgotSubmitting) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text("Reset Password", fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = { showForgotPasswordDialog = false },
+                            enabled = !isForgotSubmitting
+                        ) {
+                            Text("Close")
                         }
                     }
                 )

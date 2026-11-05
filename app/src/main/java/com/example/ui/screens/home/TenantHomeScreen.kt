@@ -35,9 +35,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import com.example.data.local.entity.ConversationEntity
+import com.example.data.local.entity.NotificationEntity
 import com.example.data.local.entity.PropertyEntity
 import com.example.data.local.entity.UserEntity
+import com.example.data.local.entity.ViewingRequestEntity
 import com.example.ui.components.BalayInnLogoHeader
 import com.example.ui.components.ComparisonMatrixSheet
 import com.example.ui.components.GuestAuthPromptDialog
@@ -68,6 +70,10 @@ fun TenantHomeScreen(
     val recentlyViewed by viewModel.recentlyViewedProperties.collectAsState()
     val recommended by viewModel.recommendedProperties.collectAsState()
     val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
+    val unavailableSavedProperties by viewModel.unavailableSavedProperties.collectAsState()
+    val conversations by viewModel.conversations.collectAsState()
+    val tenantViewings by viewModel.tenantViewings.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
 
     val savedPropIds = savedProperties.map { it.propertyId }.toSet()
     val savedItems = properties.filter { it.id in savedPropIds }
@@ -75,6 +81,7 @@ fun TenantHomeScreen(
     val comparedPropertyIds = remember(comparedProperties) { comparedProperties.map { it.id }.toSet() }
     var showComparisonMatrix by remember { mutableStateOf(false) }
     var guestActionPromptReason by remember { mutableStateOf<String?>(null) }
+    var showRenterNotifications by remember { mutableStateOf(false) }
 
     val categoryConfigs = remember {
         listOf(
@@ -132,10 +139,16 @@ fun TenantHomeScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Full-width App name bar matching other screens
+        val totalRenterAlerts = unavailableSavedProperties.size + 
+            notifications.count { !it.isRead } + 
+            tenantViewings.count { it.status in listOf("CONFIRMED", "RESCHEDULED") } +
+            conversations.count { it.unreadForTenant > 0 }
+
         BalayInnLogoHeader(
             isDark = isDark,
-            onToggleDarkMode = { viewModel.toggleDarkMode() }
+            showThemeToggle = false,
+            onNotificationsClick = { showRenterNotifications = true },
+            notificationsCount = totalRenterAlerts
         )
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -251,13 +264,6 @@ fun TenantHomeScreen(
                             color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569),
                             lineHeight = 18.sp
                         )
-
-                        // Demo Persona Switcher
-                        QuickPersonaSwitcherRow(
-                            viewModel = viewModel,
-                            currentUser = currentUser,
-                            isDark = isDark
-                        )
                     }
                 }
             }
@@ -340,9 +346,74 @@ fun TenantHomeScreen(
                 }
             }
 
-            categoryConfigs.forEach { config ->
-                val categoryProperties = allUnfilteredProperties.filter { config.matcher(it) }
-                if (categoryProperties.isNotEmpty()) {
+            if (allUnfilteredProperties.isEmpty()) {
+                item(key = "no_live_properties_empty") {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .testTag("empty_cloud_properties_card"),
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (isDark) Color(0xFF1E293B).copy(alpha = 0.6f) else Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155).copy(alpha = 0.5f) else Color(0xFFE2E8F0))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9),
+                                modifier = Modifier.size(52.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.HomeWork,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No properties listed yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F172A),
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "No live rental properties found in the database. When hosts publish listings to Supabase, they will appear here live.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = { viewModel.refreshFromCloud() },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.height(38.dp).testTag("btn_refresh_live_properties")
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Refresh from Cloud", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Dynamically display ONLY categories that have live properties from Supabase
+                val liveCategories = categoryConfigs.filter { config ->
+                    allUnfilteredProperties.any { config.matcher(it) }
+                }
+
+                liveCategories.forEach { config ->
+                    val categoryProperties = allUnfilteredProperties.filter { config.matcher(it) }
                     item(key = "cat_header_${config.id}") {
                         Spacer(modifier = Modifier.height(2.dp))
                         CategoryCarouselHeader(
@@ -563,71 +634,28 @@ fun TenantHomeScreen(
             }
         )
     }
-}
 
-@Composable
-fun QuickPersonaSwitcherRow(
-    viewModel: MarketplaceViewModel,
-    currentUser: UserEntity,
-    isDark: Boolean
-) {
-    val allUsers by viewModel.allUsers.collectAsState()
-
-    Column(modifier = Modifier.padding(top = 10.dp)) {
-        Text(
-            text = "DEMO PERSONA SWITCHER",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val personas = listOf(
-                Triple("usr_tenant_1", "Joshua Alcantara (Tenant)", "TENANT"),
-                Triple("usr_owner_1", "Donato Yap (Owner)", "PROPERTY_OWNER"),
-                Triple("usr_broker_marco", "Marco Villanueva (Broker)", "REAL_ESTATE_BROKER"),
-                Triple("usr_caretaker_mark", "Kuya Mark (Caretaker)", "CARETAKER"),
-                Triple("usr_admin_1", "Balay-Inn Compliance Admin (Admin)", "ADMIN")
-            )
-
-            items(personas) { (id, label, roleStr) ->
-                val isSelected = currentUser.id == id || currentUser.role.contains(roleStr, ignoreCase = true)
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = when {
-                        isSelected -> MaterialTheme.colorScheme.primary
-                        isDark -> Color(0xFF0F172A)
-                        else -> Color(0xFFF1F5F9)
-                    },
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.primary else if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
-                    ),
-                    modifier = Modifier
-                        .clickable {
-                            val match = allUsers.find { it.id == id } ?: allUsers.find { it.role.contains(roleStr, ignoreCase = true) }
-                            if (match != null) {
-                                viewModel.switchUser(match)
-                            }
-                        }
-                        .testTag("persona_chip_$id")
-                ) {
-                    Text(
-                        text = label,
-                        fontSize = 11.5.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
+    if (showRenterNotifications) {
+        RenterNotificationsDialog(
+            isDark = isDark,
+            unavailableProperties = unavailableSavedProperties,
+            conversations = conversations,
+            tenantViewings = tenantViewings,
+            notifications = notifications,
+            currentUserId = currentUser.id,
+            onDismiss = { showRenterNotifications = false },
+            onNavigateToDetail = { propId ->
+                showRenterNotifications = false
+                onNavigateToPropertyDetail(propId)
+            },
+            onRemoveSaved = { propId ->
+                viewModel.toggleSave(propId)
             }
-        }
+        )
     }
 }
+
+
 
 @Composable
 private fun RecentPropertyMiniCard(
@@ -903,5 +931,497 @@ fun HorizontalCategoryPropertyCard(
     )
 }
 
+@Composable
+fun RenterNotificationsDialog(
+    isDark: Boolean,
+    unavailableProperties: List<PropertyEntity>,
+    conversations: List<ConversationEntity>,
+    tenantViewings: List<ViewingRequestEntity>,
+    notifications: List<NotificationEntity>,
+    currentUserId: String,
+    onDismiss: () -> Unit,
+    onNavigateToDetail: (String) -> Unit,
+    onRemoveSaved: (String) -> Unit
+) {
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Alerts & Unavailable, 1 = Host Messages, 2 = Viewing Updates
 
+    // Filter conversations where host sent a message or last message is from host
+    val hostMessages = remember(conversations) {
+        conversations.filter { it.lastMessageText.isNotBlank() }
+    }
 
+    // Filter viewing updates
+    val viewingUpdates = remember(tenantViewings) {
+        tenantViewings.filter { it.status in listOf("CONFIRMED", "RESCHEDULED", "CANCELLED", "PENDING") }
+    }
+
+    val totalAlerts = unavailableProperties.size + hostMessages.size + viewingUpdates.size
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("renter_notifications_dialog"),
+        shape = RoundedCornerShape(24.dp),
+        containerColor = if (isDark) Color(0xFF1E293B) else Color.White,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Notifications & Alerts",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = if (isDark) Color.White else Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = if (totalAlerts > 0) "$totalAlerts active alert(s)" else "All caught up",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp)
+            ) {
+                // Category Tabs
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Color.Transparent,
+                    divider = {}
+                ) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = {
+                            Text(
+                                text = "Unavailable (${unavailableProperties.size})",
+                                fontSize = 11.sp,
+                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = {
+                            Text(
+                                text = "Host Messages (${hostMessages.size})",
+                                fontSize = 11.sp,
+                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = {
+                            Text(
+                                text = "Viewings (${viewingUpdates.size})",
+                                fontSize = 11.sp,
+                                fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    when (selectedTab) {
+                        0 -> {
+                            // Unavailable Saved Properties Tab
+                            if (unavailableProperties.isEmpty()) {
+                                item {
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = Color(0xFF16A34A),
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "All saved listings are currently available",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                textAlign = TextAlign.Center,
+                                                color = if (isDark) Color.White else Color(0xFF0F172A)
+                                            )
+                                            Text(
+                                                text = "You'll be alerted here if any saved room or property gets rented out or paused by the host.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                items(unavailableProperties, key = { "unavail_${it.id}" }) { prop ->
+                                    Card(
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                                        ),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.45f)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = MaterialTheme.colorScheme.error
+                                                ) {
+                                                    Text(
+                                                        text = "⚠️ NO LONGER AVAILABLE",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = Color.White,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+
+                                                Text(
+                                                    text = "Status: ${prop.status.uppercase()}",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                            Text(
+                                                text = prop.title,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = if (isDark) Color.White else Color(0xFF0F172A)
+                                            )
+
+                                            Text(
+                                                text = "₱${prop.monthlyRent.toInt()}/mo • ${prop.propertyType}",
+                                                fontSize = 11.5.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                OutlinedButton(
+                                                    onClick = { onRemoveSaved(prop.id) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.DeleteOutline,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("Remove", fontSize = 11.sp)
+                                                }
+
+                                                Button(
+                                                    onClick = { onNavigateToDetail(prop.id) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text("View Details", fontSize = 11.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        1 -> {
+                            // Messages from Host Tab
+                            if (hostMessages.isEmpty()) {
+                                item {
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Chat,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "No new host messages",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (isDark) Color.White else Color(0xFF0F172A)
+                                            )
+                                            Text(
+                                                text = "Replies and inquiries from property hosts will appear here live.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                items(hostMessages, key = { "host_msg_${it.id}" }) { conv ->
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Host: ${conv.posterName}",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.5.sp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = MaterialTheme.colorScheme.primaryContainer
+                                                ) {
+                                                    Text(
+                                                        text = "Active Chat",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Re: ${conv.propertyTitle}",
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (isDark) Color.White else Color(0xFF0F172A)
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "\"${conv.lastMessageText}\"",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        2 -> {
+                            // Viewing Updates Tab
+                            if (viewingUpdates.isEmpty() && notifications.isEmpty()) {
+                                item {
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Event,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "No viewing updates",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (isDark) Color.White else Color(0xFF0F172A)
+                                            )
+                                            Text(
+                                                text = "When landlords confirm or reschedule your viewing requests, updates will display here.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                items(viewingUpdates, key = { "viewing_upd_${it.id}" }) { req ->
+                                    val statusColor = when (req.status) {
+                                        "CONFIRMED" -> Color(0xFF16A34A)
+                                        "RESCHEDULED" -> Color(0xFFD97706)
+                                        "CANCELLED" -> MaterialTheme.colorScheme.error
+                                        else -> MaterialTheme.colorScheme.primary
+                                    }
+
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Viewing: ${req.preferredDate} @ ${req.preferredTime}",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = statusColor.copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = req.status,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = statusColor,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            if (req.posterResponse.isNotBlank()) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Host Note: ${req.posterResponse}",
+                                                    fontSize = 11.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                items(notifications, key = { "notif_${it.id}" }) { notif ->
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text(
+                                                text = notif.title,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                color = if (isDark) Color.White else Color(0xFF0F172A)
+                                            )
+                                            Text(
+                                                text = notif.message,
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Done")
+            }
+        }
+    )
+}

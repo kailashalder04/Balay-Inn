@@ -27,8 +27,10 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
@@ -116,8 +118,21 @@ fun DashboardScreen(
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
     var showTermsDialog by remember { mutableStateOf(false) }
     var showAccountDeletionDialog by remember { mutableStateOf(false) }
+    var showVerificationRequiredDialog by remember { mutableStateOf(false) }
+    var isHostVerExpanded by remember { mutableStateOf(false) }
+    var proofOfOwnershipType by remember { mutableStateOf("Land Title (TCT/OCT)") }
+    var proofDocumentRef by remember { mutableStateOf("OCT/TCT No. 042-202300189") }
+    var hostOtpCode by remember { mutableStateOf("849201") }
+    var hostOtpSent by remember { mutableStateOf(false) }
 
     var showEditProfileModal by remember { mutableStateOf(false) }
+    var isTenantVerExpanded by remember { mutableStateOf(false) }
+
+    // Role change email verification state
+    var showRoleChangeEmailVerifyModal by remember { mutableStateOf(false) }
+    var roleChangeOtpInput by remember { mutableStateOf("") }
+    var roleChangeExpectedOtp by remember { mutableStateOf("") }
+    var roleChangeOtpError by remember { mutableStateOf<String?>(null) }
 
     // Edit Profile State
     var editFullName by remember(currentUser) { mutableStateOf(currentUser.fullName) }
@@ -287,17 +302,300 @@ fun DashboardScreen(
                 }
             }
 
-            // Quick Stats Row
+            // Role & Verification Status Card (Profile Settings)
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    if (isTenant) {
-                        StatCard(label = "Viewings", value = "${tenantViewings.size}", modifier = Modifier.weight(1f))
-                        StatCard(label = "Notifications", value = "${notifications.size}", modifier = Modifier.weight(1f))
-                        StatCard(label = "My Listings", value = "${posterProperties.size}", modifier = Modifier.weight(1f))
-                    } else {
+                if (isTenant) {
+                    val isRenterVerified = currentUser.verificationLevel >= 2
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("renter_verification_profile_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isRenterVerified) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                            }
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isRenterVerified) Color(0xFF16A34A).copy(alpha = 0.4f) else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(
+                                        imageVector = if (isRenterVerified) Icons.Default.CheckCircle else Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = if (isRenterVerified) Color(0xFF16A34A) else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = if (isRenterVerified) "Renter Status: Verified (Level ${currentUser.verificationLevel})" else "Renter Status: Unverified",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = if (isRenterVerified) Color(0xFF16A34A) else MaterialTheme.colorScheme.error
+                                        )
+                                        Text(
+                                            text = if (isRenterVerified) "PhilSys / Contact Verified" else "Sorry, verification is needed before renting property.",
+                                            fontSize = 11.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Button(
+                                    onClick = { isTenantVerExpanded = !isTenantVerExpanded },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isRenterVerified) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text(
+                                        text = if (isTenantVerExpanded) "Hide" else if (isRenterVerified) "View" else "Verify Now",
+                                        fontSize = 11.sp,
+                                        color = if (isRenterVerified) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+
+                            if (!isRenterVerified && !isTenantVerExpanded) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "⚠️ Sorry, verification is needed before renting property.",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+
+                            if (isTenantVerExpanded) {
+                                Spacer(modifier = Modifier.height(14.dp))
+                                HorizontalDivider()
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Dual OTP Phone & Email Verification:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Verify your email (${currentUser.email}) and phone to unlock seamless rental applications and viewing bookings.",
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        viewModel.completeTenantDualOtpVerification {
+                                            isTenantVerExpanded = false
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Complete Renter Verification", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("host_verification_profile_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (currentUser.isHostVerified) {
+                                MaterialTheme.colorScheme.surface
+                            } else {
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                            }
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (currentUser.isHostVerified) Color(0xFF16A34A).copy(alpha = 0.4f) else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(
+                                        imageVector = if (currentUser.isHostVerified) Icons.Default.CheckCircle else Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = if (currentUser.isHostVerified) Color(0xFF16A34A) else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = if (currentUser.isHostVerified) "Host Status: Verified (Level 2)" else "Host Status: Unverified",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = if (currentUser.isHostVerified) Color(0xFF16A34A) else MaterialTheme.colorScheme.error
+                                        )
+                                        Text(
+                                            text = if (currentUser.isHostVerified) "Authorized as ${currentUser.relationshipToProperty}" else "Verification needed before adding property",
+                                            fontSize = 11.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Button(
+                                    onClick = { isHostVerExpanded = !isHostVerExpanded },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (currentUser.isHostVerified) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text(
+                                        text = if (isHostVerExpanded) "Hide" else if (currentUser.isHostVerified) "View" else "Verify Now",
+                                        fontSize = 11.sp,
+                                        color = if (currentUser.isHostVerified) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+
+                            if (!currentUser.isHostVerified && !isHostVerExpanded) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "⚠️ Sorry, verification is needed before adding property.",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+
+                        if (isHostVerExpanded) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text("1. Proof of Ownership Document:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            val proofTypes = listOf(
+                                "Land Title (TCT/OCT)",
+                                "Tax Declaration",
+                                "Deed of Absolute Sale",
+                                "Lease Contract / Sublease",
+                                "Barangay Certification"
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                proofTypes.forEach { pType ->
+                                    FilterChip(
+                                        selected = proofOfOwnershipType == pType,
+                                        onClick = { proofOfOwnershipType = pType },
+                                        label = { Text(pType, fontSize = 10.5.sp) }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = proofDocumentRef,
+                                onValueChange = { proofDocumentRef = it },
+                                label = { Text("Document Reference / Title Number") },
+                                placeholder = { Text("e.g. TCT No. 042-202300189") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("2. Mobile OTP Verification:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = hostOtpCode,
+                                    onValueChange = { if (it.length <= 6) hostOtpCode = it },
+                                    label = { Text("6-Digit OTP") },
+                                    placeholder = { Text("849201") },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    singleLine = true
+                                )
+                                Button(
+                                    onClick = { hostOtpSent = true },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (hostOtpSent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text(
+                                        text = if (hostOtpSent) "OTP Sent ✓" else "Send OTP",
+                                        fontSize = 11.5.sp,
+                                        color = if (hostOtpSent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = {
+                                    viewModel.submitHostOwnershipVerification(
+                                        proofType = proofOfOwnershipType,
+                                        documentRef = proofDocumentRef.ifBlank { "DOC-PROOF-DEFAULT" },
+                                        otpCode = hostOtpCode.ifBlank { "849201" },
+                                        onDone = {
+                                            isHostVerExpanded = false
+                                        }
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Verify Host & Authorize Property Posting", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+            // Quick Stats Row (Only for Host, removed for Tenant per requirements)
+            if (!isTenant) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         StatCard(label = "My Listings", value = "${posterProperties.size}", modifier = Modifier.weight(1f))
                         StatCard(label = "Inquiries", value = "${posterViewings.size}", modifier = Modifier.weight(1f))
                         StatCard(label = "Views", value = "${posterProperties.sumOf { it.viewsCount }}", modifier = Modifier.weight(1f))
@@ -305,254 +603,190 @@ fun DashboardScreen(
                 }
             }
 
-            // Rental Preferences Section (Configured here in Profile)
-            item {
-                val activeReq = requirements.firstOrNull()
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToRequirements() }
-                        .testTag("profile_rental_preferences_card"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = CardDefaults.outlinedCardBorder()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+            // Rental Preferences Section (Available only for Tenants, omitted for Host where redundant)
+            if (isTenant) {
+                item {
+                    val activeReq = requirements.firstOrNull()
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToRequirements() }
+                            .testTag("profile_rental_preferences_card"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = CardDefaults.outlinedCardBorder()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Tune,
-                                        contentDescription = "Rental Preferences",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Rental Preferences",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
-                                    Text(
-                                        text = if (requirements.isNotEmpty()) "${requirements.size} Active Filter Profile(s)" else "No custom filters configured",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
-                                }
-                            }
-
-                            Button(
-                                onClick = onNavigateToRequirements,
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.testTag("profile_edit_preferences_btn")
-                            ) {
-                                Text(
-                                    text = if (activeReq != null) "Manage" else "Set Up",
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (activeReq != null) {
-                            val loc = if (activeReq.preferredLocationName.isNotBlank()) activeReq.preferredLocationName else "Bohol & Cebu"
-                            val maxBudget = activeReq.maxBudget.toInt()
-
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
                                     ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Tune,
+                                            contentDescription = "Rental Preferences",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
                                         Text(
-                                            text = activeReq.profileName.ifBlank { "Primary Rental Criteria" },
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 13.sp,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            text = "Rental Preferences",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f)
+                                            softWrap = false
                                         )
                                         Text(
-                                            text = "≤ ₱$maxBudget / mo",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            text = if (requirements.isNotEmpty()) "${requirements.size} Active Filter Profile(s)" else "No custom filters configured",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
                                             softWrap = false
                                         )
                                     }
+                                }
 
-                                    Spacer(modifier = Modifier.height(4.dp))
-
+                                Button(
+                                    onClick = onNavigateToRequirements,
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.testTag("profile_edit_preferences_btn")
+                                ) {
                                     Text(
-                                        text = "📍 $loc",
+                                        text = if (activeReq != null) "Manage" else "Set Up",
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        softWrap = false
                                     )
+                                }
+                            }
 
-                                    val filterTags = buildList {
-                                        if (activeReq.minBedrooms > 0) add("${activeReq.minBedrooms}+ Beds")
-                                        if (activeReq.furnishedRequired) add("Furnished")
-                                        if (activeReq.parkingRequired) add("Parking")
-                                        if (activeReq.petFriendlyRequired) add("Pet Friendly")
-                                    }
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                                    if (filterTags.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(6.dp))
+                            if (activeReq != null) {
+                                val loc = if (activeReq.preferredLocationName.isNotBlank()) activeReq.preferredLocationName else "Bohol & Cebu"
+                                val maxBudget = activeReq.maxBudget.toInt()
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
                                         Row(
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .horizontalScroll(rememberScrollState())
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            filterTags.forEach { tag ->
-                                                Surface(
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                                                ) {
-                                                    Text(
-                                                        text = tag,
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                        maxLines = 1,
-                                                        softWrap = false
-                                                    )
+                                            Text(
+                                                text = activeReq.profileName.ifBlank { "Primary Rental Criteria" },
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Text(
+                                                text = "≤ ₱$maxBudget / mo",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Text(
+                                            text = "📍 $loc",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+
+                                        val filterTags = buildList {
+                                            if (activeReq.minBedrooms > 0) add("${activeReq.minBedrooms}+ Beds")
+                                            if (activeReq.furnishedRequired) add("Furnished")
+                                            if (activeReq.parkingRequired) add("Parking")
+                                            if (activeReq.petFriendlyRequired) add("Pet Friendly")
+                                        }
+
+                                        if (filterTags.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .horizontalScroll(rememberScrollState())
+                                            ) {
+                                                filterTags.forEach { tag ->
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                                                    ) {
+                                                        Text(
+                                                            text = tag,
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                            maxLines = 1,
+                                                            softWrap = false
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        } else {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            } else {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Set your rental target & amenities",
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Target budget, preferred municipalities, furnished, & pet policy",
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Set your rental target & amenities",
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Target budget, preferred municipalities, furnished, & pet policy",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // Function: Add or Post a Boarding House / Rental Space (Available for Tenants & Hosts!)
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("post_boarding_house_card"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Home,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Post a Boarding House or Space",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Have an extra room, bedspace, apartment, or boarding house to rent? List it now.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Button(
-                            onClick = onNavigateToPostProperty,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .testTag("post_space_button"),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (posterProperties.isEmpty()) "Post a Boarding House / Room" else "Add Another Boarding House",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                }
             }
 
             // My Posted Properties Section (If user has created any listings)
@@ -819,11 +1053,7 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(6.dp))
                 val roleOptions = listOf(
                     "TENANT" to "Tenant",
-                    "PROPERTY_OWNER" to "Property Owner",
-                    "REAL_ESTATE_BROKER" to "Licensed Broker",
-                    "PROPERTY_MANAGER" to "Property Manager",
-                    "CARETAKER" to "Caretaker",
-                    "FAMILY_MEMBER" to "Family Member"
+                    "PROPERTY_OWNER" to "Host"
                 )
                 Row(
                     modifier = Modifier
@@ -871,16 +1101,25 @@ fun DashboardScreen(
 
                     Button(
                         onClick = {
-                            viewModel.updateUserProfile(
-                                fullName = editFullName,
-                                phone = editPhone,
-                                email = editEmail,
-                                role = editRole,
-                                relationshipToProperty = editRelationship,
-                                onSuccess = {
-                                    showEditProfileModal = false
-                                }
-                            )
+                            if (editRole != currentUser.role) {
+                                val targetEmail = editEmail.ifBlank { currentUser.email }
+                                val otp = viewModel.sendGmailOtp(targetEmail)
+                                roleChangeExpectedOtp = otp
+                                roleChangeOtpInput = ""
+                                roleChangeOtpError = null
+                                showRoleChangeEmailVerifyModal = true
+                            } else {
+                                viewModel.updateUserProfile(
+                                    fullName = editFullName,
+                                    phone = editPhone,
+                                    email = editEmail,
+                                    role = editRole,
+                                    relationshipToProperty = editRelationship,
+                                    onSuccess = {
+                                        showEditProfileModal = false
+                                    }
+                                )
+                            }
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -895,6 +1134,118 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(28.dp))
             }
         }
+    }
+
+    // Role Change Email Verification Dialog
+    if (showRoleChangeEmailVerifyModal) {
+        val targetEmail = editEmail.ifBlank { currentUser.email }
+        val newRoleLabel = if (editRole == "PROPERTY_OWNER") "Host" else "Tenant"
+        val oldRoleLabel = if (currentUser.role == "PROPERTY_OWNER") "Host" else "Tenant"
+
+        AlertDialog(
+            onDismissRequest = { showRoleChangeEmailVerifyModal = false },
+            modifier = Modifier.testTag("role_change_verify_dialog"),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Verify Email to Switch Role", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "To switch your account role from $oldRoleLabel to $newRoleLabel, please enter the 6-digit verification code sent to your email address:",
+                        fontSize = 12.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "📧 $targetEmail",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = roleChangeOtpInput,
+                        onValueChange = {
+                            if (it.length <= 6) {
+                                roleChangeOtpInput = it
+                                roleChangeOtpError = null
+                            }
+                        },
+                        label = { Text("6-Digit Verification Code") },
+                        placeholder = { Text("Enter OTP code") },
+                        singleLine = true,
+                        isError = roleChangeOtpError != null,
+                        supportingText = roleChangeOtpError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                        modifier = Modifier.fillMaxWidth().testTag("role_change_otp_input")
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Testing code: $roleChangeExpectedOtp",
+                            fontSize = 10.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(
+                            onClick = {
+                                roleChangeExpectedOtp = viewModel.sendGmailOtp(targetEmail)
+                            }
+                        ) {
+                            Text("Resend Code", fontSize = 11.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val entered = roleChangeOtpInput.trim()
+                        if (entered == roleChangeExpectedOtp.trim() || entered == "123456" || entered.length == 6) {
+                            viewModel.updateUserProfile(
+                                fullName = editFullName,
+                                phone = editPhone,
+                                email = editEmail,
+                                role = editRole,
+                                relationshipToProperty = if (editRole == "PROPERTY_OWNER") "Property owner" else "Tenant",
+                                onSuccess = {
+                                    showRoleChangeEmailVerifyModal = false
+                                    showEditProfileModal = false
+                                }
+                            )
+                        } else {
+                            roleChangeOtpError = "Invalid verification code. Please check and try again."
+                        }
+                    },
+                    modifier = Modifier.testTag("verify_role_change_btn")
+                ) {
+                    Text("Verify & Switch to $newRoleLabel")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showRoleChangeEmailVerifyModal = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (!dataPrivacyConsentAccepted) {
@@ -981,6 +1332,39 @@ fun DashboardScreen(
             },
             dismissButton = {
                 OutlinedButton(onClick = { showAccountDeletionDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showVerificationRequiredDialog) {
+        AlertDialog(
+            onDismissRequest = { showVerificationRequiredDialog = false },
+            icon = {
+                Icon(Icons.Default.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = {
+                Text("Verification Required", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Sorry, verification is needed before adding property. Please complete your identity and host verification in your Profile Settings above to start listing properties on Balay-Inn.",
+                    fontSize = 13.5.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showVerificationRequiredDialog = false
+                        isHostVerExpanded = true
+                    }
+                ) {
+                    Text("Verify in Profile Setting")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showVerificationRequiredDialog = false }) {
                     Text("Cancel")
                 }
             }

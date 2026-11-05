@@ -54,6 +54,28 @@ fun formatBarangayProvinceOnly(locationDisplay: String, property: PropertyEntity
     return "$district, $province"
 }
 
+/**
+ * Resolves a reliable, high-quality photograph matching the property category
+ * so cards never display blank or broken boxes when properties are loaded.
+ */
+fun getDefaultPropertyThumbnail(propertyType: String?): String {
+    val t = (propertyType ?: "").lowercase()
+    return when {
+        t.contains("board") || t.contains("bed") || t.contains("dorm") || t == "room" ->
+            "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=1200&auto=format&fit=crop&q=80"
+        t.contains("apart") || t.contains("flat") ->
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&auto=format&fit=crop&q=80"
+        t.contains("condo") ->
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1200&auto=format&fit=crop&q=80"
+        t.contains("studio") ->
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&auto=format&fit=crop&q=80"
+        t.contains("town") || (t.contains("house") && !t.contains("board")) ->
+            "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=1200&auto=format&fit=crop&q=80"
+        else ->
+            "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&auto=format&fit=crop&q=80"
+    }
+}
+
 @Composable
 fun PropertyCard(
     property: PropertyEntity,
@@ -83,7 +105,12 @@ fun PropertyCard(
         formatBarangayProvinceOnly(locationDisplay, property)
     }
 
-    val primaryImage = imageUrls.firstOrNull()
+    val defaultFallback = remember(property.propertyType) {
+        getDefaultPropertyThumbnail(property.propertyType)
+    }
+    val primaryImage = remember(imageUrls, defaultFallback) {
+        imageUrls.firstOrNull()?.takeIf { it.isNotBlank() } ?: defaultFallback
+    }
 
     Card(
         modifier = modifier
@@ -99,29 +126,25 @@ fun PropertyCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Base background while image loads
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF0F172A))
+            )
+
             // Full-bleed Property Image covering the WHOLE card
-            if (!primaryImage.isNullOrEmpty()) {
-                AsyncImage(
-                    model = primaryImage,
-                    contentDescription = property.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFF0F172A)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.size(56.dp)
-                    )
-                }
-            }
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(primaryImage)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = property.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("property_card_image_${property.id}")
+            )
 
             // Dark gradient overlay to guarantee text legibility over any photo
             Box(
@@ -169,18 +192,25 @@ fun PropertyCard(
                         )
                     }
 
-                    IconButton(
+                    Surface(
                         onClick = onSaveToggle,
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = 0.55f),
                         modifier = Modifier
-                            .size(34.dp)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                            .size(40.dp)
+                            .testTag("property_card_save_${property.id}")
                     ) {
-                        Icon(
-                            imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isSaved) "Remove from saved" else "Save property",
-                            tint = if (isSaved) Color(0xFFE11D48) else Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isSaved) "Remove from saved" else "Save property",
+                                tint = if (isSaved) Color(0xFFE11D48) else Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
@@ -375,31 +405,19 @@ fun ReusablePropertyCard(
                     .height(180.dp)
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
-                if (!imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(imageUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .testTag("property_card_image")
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Home,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                }
+                val effectiveImage = imageUrl?.takeIf { it.isNotBlank() }
+                    ?: getDefaultPropertyThumbnail(propertyType)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(effectiveImage)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("property_card_image")
+                )
 
                 // Optional Property Type Badge
                 if (!propertyType.isNullOrBlank()) {

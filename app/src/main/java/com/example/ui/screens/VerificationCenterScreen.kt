@@ -103,13 +103,19 @@ fun VerificationCenterScreen(
     }
 
     var showUploadDialog by remember { mutableStateOf(false) }
+    var showPhoneOtpDialog by remember { mutableStateOf(false) }
+    var showEmailOtpDialog by remember { mutableStateOf(false) }
+    var phoneOtpInput by remember { mutableStateOf("123456") }
+    var emailOtpInput by remember { mutableStateOf("123456") }
+    var verificationError by remember { mutableStateOf<String?>(null) }
+    var verificationSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val isTenant = currentUser.canonicalRole == com.example.data.model.UserRole.TENANT
 
     val levels = if (isTenant) {
         listOf(
-            VerificationLevelItem(1, "Mobile Number Verified", "Philippine mobile number verified via SMS OTP", if (currentUser.phoneVerified) "VERIFIED" else "NOT_STARTED"),
-            VerificationLevelItem(2, "Gmail ID Verified", "Gmail account authenticated via Email OTP", if (currentUser.emailVerified) "VERIFIED" else "NOT_STARTED")
+            VerificationLevelItem(1, "Mobile Number Verified", "Philippine mobile number verified via SMS OTP (${currentUser.phone.ifBlank { "Unset" }})", if (currentUser.phoneVerified) "VERIFIED" else "NOT_STARTED"),
+            VerificationLevelItem(2, "Gmail ID Verified", "Gmail account authenticated via Email OTP (${currentUser.email.ifBlank { "Unset" }})", if (currentUser.emailVerified) "VERIFIED" else "NOT_STARTED")
         )
     } else {
         listOf(
@@ -252,7 +258,19 @@ fun VerificationCenterScreen(
             // Verification Level List
             items(levels) { item ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = item.status != "VERIFIED") {
+                            verificationError = null
+                            verificationSuccessMessage = null
+                            if (item.levelNumber == 1) {
+                                showPhoneOtpDialog = true
+                            } else if (item.levelNumber == 2) {
+                                showEmailOtpDialog = true
+                            } else if (!isTenant) {
+                                showUploadDialog = true
+                            }
+                        },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = CardDefaults.outlinedCardBorder()
@@ -301,21 +319,21 @@ fun VerificationCenterScreen(
                             color = when (item.status) {
                                 "VERIFIED" -> if (isDark) SoftGreenDarkBg else SoftGreenBg
                                 "SUBMITTED" -> if (isDark) BadgeBlue.copy(alpha = 0.22f) else Color(0xFFEFF6FF)
-                                else -> if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
+                                else -> if (item.levelNumber == 1 || item.levelNumber == 2) MaterialTheme.colorScheme.primaryContainer else if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF1F5F9)
                             }
                         ) {
                             Text(
                                 text = when (item.status) {
                                     "VERIFIED" -> "✓ Verified"
                                     "SUBMITTED" -> "Under Review"
-                                    else -> "Verify Later"
+                                    else -> if (item.levelNumber == 1 || item.levelNumber == 2) "Verify OTP →" else "Verify Later"
                                 },
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = when (item.status) {
                                     "VERIFIED" -> if (isDark) SoftGreenDark else BadgeGreen
                                     "SUBMITTED" -> if (isDark) Color(0xFF60A5FA) else BadgeBlue
-                                    else -> if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
+                                    else -> if (item.levelNumber == 1 || item.levelNumber == 2) MaterialTheme.colorScheme.primary else if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF64748B)
                                 },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 maxLines = 1,
@@ -326,6 +344,134 @@ fun VerificationCenterScreen(
                 }
             }
         }
+    }
+
+    // Phone OTP Verification Dialog
+    if (showPhoneOtpDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhoneOtpDialog = false },
+            title = { Text("Verify Mobile Number via OTP") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "An SMS verification code has been dispatched to ${currentUser.phone.ifBlank { "your registered phone number" }}. Enter the 6-digit code below:",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = phoneOtpInput,
+                        onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) phoneOtpInput = it },
+                        label = { Text("6-Digit SMS Code") },
+                        placeholder = { Text("e.g. 123456") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("phone_otp_dialog_input")
+                    )
+
+                    if (verificationError != null) {
+                        Text(verificationError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ) {
+                        Text(
+                            "💡 Tip: For testing or demo purposes, you can use OTP code '123456'.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.verifyPhoneWithOtp(
+                            otpCode = phoneOtpInput,
+                            onSuccess = {
+                                verificationError = null
+                                showPhoneOtpDialog = false
+                            },
+                            onError = { err ->
+                                verificationError = err
+                            }
+                        )
+                    },
+                    modifier = Modifier.testTag("confirm_phone_otp_btn")
+                ) {
+                    Text("Confirm OTP")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPhoneOtpDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Email OTP Verification Dialog
+    if (showEmailOtpDialog) {
+        AlertDialog(
+            onDismissRequest = { showEmailOtpDialog = false },
+            title = { Text("Verify Email via OTP") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "A verification code has been sent to ${currentUser.email.ifBlank { "your registered email" }}. Enter the 6-digit code below:",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = emailOtpInput,
+                        onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) emailOtpInput = it },
+                        label = { Text("6-Digit Email Code") },
+                        placeholder = { Text("e.g. 123456") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("email_otp_dialog_input")
+                    )
+
+                    if (verificationError != null) {
+                        Text(verificationError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ) {
+                        Text(
+                            "💡 Tip: For testing or demo purposes, you can use OTP code '123456'.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.verifyEmailWithOtp(
+                            otpCode = emailOtpInput,
+                            onSuccess = {
+                                verificationError = null
+                                showEmailOtpDialog = false
+                            },
+                            onError = { err ->
+                                verificationError = err
+                            }
+                        )
+                    },
+                    modifier = Modifier.testTag("confirm_email_otp_btn")
+                ) {
+                    Text("Confirm OTP")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEmailOtpDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 
     // Submit Document Dialog

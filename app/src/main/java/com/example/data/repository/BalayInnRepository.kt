@@ -46,7 +46,7 @@ class BalayInnRepository(context: Context) {
     private val commDao = db.communicationDao()
     private val platDao = db.platformDao()
 
-    val supabaseSyncManager = SupabaseSyncManager(propDao, viewDao, commDao)
+    val supabaseSyncManager = SupabaseSyncManager(propDao, viewDao, commDao, platDao)
     val gmailNotificationService = GmailNotificationService(context)
 
     // Current logged-in user state (defaults to Tenant Joshua Alcantara)
@@ -63,20 +63,13 @@ class BalayInnRepository(context: Context) {
             if (count == 0) {
                 // Seed Geographic Hierarchy
                 geoDao.insertCountries(listOf(MarketplaceDataSeed.country))
-                geoDao.insertRegions(listOf(MarketplaceDataSeed.regionVII))
+                geoDao.insertRegions(MarketplaceDataSeed.seedRegions)
                 geoDao.insertProvinces(MarketplaceDataSeed.provinces)
-                geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities + MarketplaceDataSeed.bacolodCities)
+                geoDao.insertCities(MarketplaceDataSeed.allCities)
                 geoDao.insertBarangays(MarketplaceDataSeed.generateBarangays())
 
-                // Seed Users
+                // Seed Predefined Users (Admin, Host, Renter)
                 userDao.insertUsers(MarketplaceDataSeed.seedUsers)
-
-                // Seed Properties & Images
-                propDao.insertProperties(PropertyDataSeed.sampleProperties)
-                propDao.insertImages(PropertyDataSeed.sampleImages)
-
-                // Seed Viewings
-                PropertyDataSeed.sampleViewingRequests.forEach { viewDao.insertViewingRequest(it) }
 
                 // Seed Conversations & Messages
                 PropertyDataSeed.sampleConversations.forEach { commDao.insertConversation(it) }
@@ -97,19 +90,21 @@ class BalayInnRepository(context: Context) {
                         actionType = "INITIAL_SEED",
                         entityType = "DATABASE",
                         entityId = "ALL",
-                        notes = "Balay-Inn database seeded with full Bohol 48 LGUs, Cebu hierarchy, verified demo properties, and roles."
+                        notes = "Balay-Inn database initialized for live cloud-backed operations."
                     )
                 )
             }
             try {
+                geoDao.insertRegions(MarketplaceDataSeed.seedRegions)
                 geoDao.insertProvinces(MarketplaceDataSeed.provinces)
-                geoDao.insertCities(MarketplaceDataSeed.boholMunicipalities + MarketplaceDataSeed.cebuCities + MarketplaceDataSeed.bacolodCities)
+                geoDao.insertCities(MarketplaceDataSeed.allCities)
                 geoDao.insertBarangays(MarketplaceDataSeed.generateBarangays())
-                val validIds = PropertyDataSeed.sampleProperties.map { it.id }
-                propDao.deletePropertiesNotIn(validIds)
-                propDao.deletePropertyImagesNotIn(validIds)
-                propDao.insertProperties(PropertyDataSeed.sampleProperties)
-                propDao.insertImages(PropertyDataSeed.sampleImages)
+
+                // Clean up any legacy mock/demo properties so only live cloud properties exist
+                val mockPropertyIds = PropertyDataSeed.sampleProperties.map { it.id }
+                mockPropertyIds.forEach { mockId ->
+                    propDao.deleteProperty(mockId)
+                }
             } catch (_: Exception) {}
 
             // Attempt background synchronization with Supabase if configured
@@ -121,9 +116,26 @@ class BalayInnRepository(context: Context) {
         }
     }
 
+    suspend fun syncWithCloud(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            supabaseSyncManager.syncAll()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    suspend fun syncLiveUpdates(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            supabaseSyncManager.syncLiveUpdates()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     // Geographic Queries
     fun getActiveCountries() = geoDao.getActiveCountries()
     fun getRegions(countryId: String) = geoDao.getRegionsByCountry(countryId)
+    fun getAllActiveRegions() = geoDao.getAllActiveRegions()
     fun getProvinces(regionId: String) = geoDao.getProvincesByRegion(regionId)
     fun getAllActiveProvinces() = geoDao.getAllActiveProvinces()
     fun getCities(provinceId: String) = geoDao.getCitiesByProvince(provinceId)
@@ -211,6 +223,19 @@ class BalayInnRepository(context: Context) {
         logAudit("UPDATE_STATUS", "PROPERTY", propertyId, "Status updated to $newStatus by ${requestedBy?.fullName ?: "System"}")
     }
 
+    suspend fun updateProperty(property: PropertyEntity, requestedBy: UserEntity? = null) = withContext(Dispatchers.IO) {
+        if (requestedBy != null && !canUserManageProperty(requestedBy, property.id)) {
+            throw SecurityException("User ${requestedBy.fullName} (${requestedBy.role}) is not authorized to modify property ${property.id}")
+        }
+        val updated = property.copy(updatedAt = System.currentTimeMillis())
+        propDao.updateProperty(updated)
+        logAudit("UPDATE_PROPERTY", "PROPERTY", property.id, "Property updated: ${property.title} by ${requestedBy?.fullName ?: "System"}")
+        try {
+            val images = propDao.getImagesForPropertySync(property.id)
+            supabaseSyncManager.pushPropertyToRemote(updated, images)
+        } catch (_: Exception) {}
+    }
+
     suspend fun deleteProperty(propertyId: String) = withContext(Dispatchers.IO) {
         propDao.deleteProperty(propertyId)
         logAudit("DELETE_PROPERTY", "PROPERTY", propertyId, "Property deleted: $propertyId")
@@ -224,7 +249,7 @@ class BalayInnRepository(context: Context) {
         propDao.insertImages(images)
         logAudit("CREATE_PROPERTY", "PROPERTY", property.id, "Property created: ${property.title} by ${property.posterName}")
         try {
-            supabaseSyncManager.pushPropertyToRemote(property)
+            supabaseSyncManager.pushPropertyToRemote(property, images)
         } catch (_: Exception) {}
     }
 
@@ -235,6 +260,9 @@ class BalayInnRepository(context: Context) {
         val isSaved = propDao.isPropertySaved(userId, propertyId).firstOrNull() ?: false
         if (isSaved) {
             propDao.deleteSavedProperty(userId, propertyId)
+            try {
+                supabaseSyncManager.deleteSavedListingRemote(userId, propertyId)
+            } catch (_: Exception) {}
         } else {
             propDao.insertSavedProperty(
                 SavedPropertyEntity(
@@ -243,6 +271,9 @@ class BalayInnRepository(context: Context) {
                     propertyId = propertyId
                 )
             )
+            try {
+                supabaseSyncManager.saveListingRemote(userId, propertyId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -262,7 +293,8 @@ class BalayInnRepository(context: Context) {
         date: String,
         time: String,
         visitors: Int,
-        message: String
+        message: String,
+        recipientEmail: String? = null
     ) = withContext(Dispatchers.IO) {
         val id = "view_${System.currentTimeMillis()}"
         val req = ViewingRequestEntity(
@@ -278,23 +310,48 @@ class BalayInnRepository(context: Context) {
         )
         viewDao.insertViewingRequest(req)
         try {
-            supabaseSyncManager.pushViewingRequestToRemote(req)
+            supabaseSyncManager.pushViewingRequestToRemote(
+                viewing = req,
+                recipientEmail = recipientEmail,
+                landlordId = posterId
+            )
         } catch (_: Exception) {}
 
-        // Trigger notification to poster
-        platDao.insertNotification(
-            NotificationEntity(
-                id = UUID.randomUUID().toString(),
-                userId = posterId,
-                title = "New Viewing Request",
-                message = "A tenant requested a viewing for your property on $date ($time).",
-                category = "VIEWING",
-                relatedPropertyId = propertyId
-            )
+        // 1. Live notification to Host (Poster)
+        val posterNotif = NotificationEntity(
+            id = "notif_${UUID.randomUUID()}",
+            userId = posterId,
+            title = "New Viewing Request",
+            message = "A tenant requested a viewing for your property on $date ($time).",
+            category = "VIEWING",
+            relatedPropertyId = propertyId
         )
+        platDao.insertNotification(posterNotif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(posterNotif)
+        } catch (_: Exception) {}
+
+        // 2. Live confirmation notification to Renter (Tenant)
+        val tenantNotif = NotificationEntity(
+            id = "notif_${UUID.randomUUID()}",
+            userId = tenantId,
+            title = "Viewing Request Sent",
+            message = "Your viewing request was sent for $date ($time). Awaiting host confirmation.",
+            category = "VIEWING",
+            relatedPropertyId = propertyId
+        )
+        platDao.insertNotification(tenantNotif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(tenantNotif)
+        } catch (_: Exception) {}
     }
 
-    suspend fun updateViewingStatus(viewing: ViewingRequestEntity, newStatus: String, responseNote: String = "") = withContext(Dispatchers.IO) {
+    suspend fun updateViewingStatus(
+        viewing: ViewingRequestEntity,
+        newStatus: String,
+        responseNote: String = "",
+        recipientEmail: String? = null
+    ) = withContext(Dispatchers.IO) {
         val updated = viewing.copy(
             status = newStatus,
             posterResponse = responseNote.ifBlank { viewing.posterResponse },
@@ -302,20 +359,40 @@ class BalayInnRepository(context: Context) {
         )
         viewDao.updateViewingRequest(updated)
         try {
-            supabaseSyncManager.pushViewingRequestToRemote(updated)
+            supabaseSyncManager.pushViewingRequestToRemote(
+                viewing = updated,
+                recipientEmail = recipientEmail,
+                landlordId = viewing.posterId
+            )
         } catch (_: Exception) {}
 
-        // Notify tenant
-        platDao.insertNotification(
-            NotificationEntity(
-                id = UUID.randomUUID().toString(),
-                userId = viewing.tenantId,
-                title = "Viewing Request Update",
-                message = "Your viewing request status is now: $newStatus. Note: $responseNote",
-                category = "VIEWING",
-                relatedPropertyId = viewing.propertyId
-            )
+        // 1. Live notification to Tenant
+        val tenantNotif = NotificationEntity(
+            id = "notif_${UUID.randomUUID()}",
+            userId = viewing.tenantId,
+            title = "Viewing Request Update",
+            message = "Your viewing request status is now: $newStatus.${if (responseNote.isNotBlank()) " Note: $responseNote" else ""}",
+            category = "VIEWING",
+            relatedPropertyId = viewing.propertyId
         )
+        platDao.insertNotification(tenantNotif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(tenantNotif)
+        } catch (_: Exception) {}
+
+        // 2. Live notification to Host
+        val hostNotif = NotificationEntity(
+            id = "notif_${UUID.randomUUID()}",
+            userId = viewing.posterId,
+            title = "Viewing Marked $newStatus",
+            message = "Viewing for ${viewing.preferredDate} (${viewing.preferredTime}) marked as $newStatus.",
+            category = "VIEWING",
+            relatedPropertyId = viewing.propertyId
+        )
+        platDao.insertNotification(hostNotif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(hostNotif)
+        } catch (_: Exception) {}
     }
 
     // Conversations & Messages
@@ -332,6 +409,40 @@ class BalayInnRepository(context: Context) {
             timestamp = System.currentTimeMillis()
         )
         commDao.insertMessage(msg)
+        try {
+            supabaseSyncManager.pushMessageToRemote(msg)
+        } catch (_: Exception) {}
+
+        // Update conversation last message & unread counters, then push to Supabase
+        val conv = commDao.getConversationById(conversationId).firstOrNull()
+        if (conv != null) {
+            val isSenderTenant = senderId == conv.tenantId
+            val updatedConv = conv.copy(
+                lastMessageText = text,
+                lastMessageTime = System.currentTimeMillis(),
+                unreadForTenant = if (isSenderTenant) conv.unreadForTenant else conv.unreadForTenant + 1,
+                unreadForPoster = if (!isSenderTenant) conv.unreadForPoster else conv.unreadForPoster + 1
+            )
+            commDao.updateConversation(updatedConv)
+            try {
+                supabaseSyncManager.pushConversationToRemote(updatedConv)
+            } catch (_: Exception) {}
+
+            // Send live notification to recipient
+            val recipientId = if (isSenderTenant) conv.posterId else conv.tenantId
+            val notif = NotificationEntity(
+                id = "notif_${UUID.randomUUID()}",
+                userId = recipientId,
+                title = "New Message from $senderName",
+                message = "Re: ${conv.propertyTitle} — \"$text\"",
+                category = "MESSAGE",
+                relatedPropertyId = conv.propertyId
+            )
+            platDao.insertNotification(notif)
+            try {
+                supabaseSyncManager.pushNotificationToRemote(notif)
+            } catch (_: Exception) {}
+        }
     }
 
     suspend fun startOrGetConversation(
@@ -358,7 +469,12 @@ class BalayInnRepository(context: Context) {
                 lastMessageTime = System.currentTimeMillis()
             )
             commDao.insertConversation(conv)
-            sendMessage(convId, tenantId, tenantName, initialMessage)
+            try {
+                supabaseSyncManager.pushConversationToRemote(conv)
+            } catch (_: Exception) {}
+            if (initialMessage.isNotBlank()) {
+                sendMessage(convId, tenantId, tenantName, initialMessage)
+            }
         } else if (initialMessage.isNotBlank()) {
             sendMessage(convId, tenantId, tenantName, initialMessage)
         }
@@ -464,6 +580,9 @@ class BalayInnRepository(context: Context) {
         )
         platDao.insertReport(report)
         logAudit("SUBMIT_REPORT", targetType, targetId, "Reported for $reason: $details")
+        try {
+            supabaseSyncManager.pushListingReport(report, targetId, "")
+        } catch (_: Exception) {}
     }
 
     suspend fun updateReportStatus(report: ReportEntity, newStatus: String) = withContext(Dispatchers.IO) {
@@ -503,16 +622,18 @@ class BalayInnRepository(context: Context) {
     fun getAuditLogs() = platDao.getAuditLogs()
 
     private suspend fun logAudit(action: String, entityType: String, entityId: String, notes: String) {
-        platDao.insertAuditLog(
-            AuditLogEntity(
-                id = UUID.randomUUID().toString(),
-                adminUserId = _currentUser.value.id,
-                actionType = action,
-                entityType = entityType,
-                entityId = entityId,
-                notes = notes
-            )
+        val logEntity = AuditLogEntity(
+            id = UUID.randomUUID().toString(),
+            adminUserId = _currentUser.value.id,
+            actionType = action,
+            entityType = entityType,
+            entityId = entityId,
+            notes = notes
         )
+        platDao.insertAuditLog(logEntity)
+        try {
+            supabaseSyncManager.pushAuditLog(logEntity)
+        } catch (_: Exception) {}
     }
 
     // Users

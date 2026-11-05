@@ -24,14 +24,38 @@ object MarketplaceDataSeed {
         isActive = true
     )
 
+    val regionNCR = RegionEntity(
+        id = "reg_ncr",
+        countryId = "ctry_ph",
+        name = "National Capital Region (NCR)",
+        code = "NCR",
+        isActive = true
+    )
+
+    val regionVI = RegionEntity(
+        id = "reg_vi",
+        countryId = "ctry_ph",
+        name = "Western Visayas (Region VI)",
+        code = "R06",
+        isActive = true
+    )
+
+    val regionVIII = RegionEntity(
+        id = "reg_viii",
+        countryId = "ctry_ph",
+        name = "Eastern Visayas (Region VIII)",
+        code = "R08",
+        isActive = true
+    )
+
+    val seedRegions = listOf(regionVII, regionVIII, regionNCR, regionVI)
+
+    val seedProvinces: List<ProvinceEntity> get() = provinces
+    val seedCities: List<CityMunicipalityEntity> get() = allCities
+    val seedBarangays: List<BarangayEntity> by lazy { generateBarangays() }
+
     val provinces = listOf(
-        ProvinceEntity(
-            id = "prov_bohol",
-            regionId = "reg_vii",
-            name = "Bohol",
-            code = "BOH",
-            isActive = true
-        ),
+        // Region VII (Central Visayas)
         ProvinceEntity(
             id = "prov_cebu",
             regionId = "reg_vii",
@@ -40,10 +64,75 @@ object MarketplaceDataSeed {
             isActive = true
         ),
         ProvinceEntity(
+            id = "prov_bohol",
+            regionId = "reg_vii",
+            name = "Bohol",
+            code = "BOH",
+            isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_negros_oriental",
+            regionId = "reg_vii",
+            name = "Negros Oriental",
+            code = "NER",
+            isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_siquijor",
+            regionId = "reg_vii",
+            name = "Siquijor",
+            code = "SIQ",
+            isActive = true
+        ),
+        ProvinceEntity(
             id = "prov_bacolod",
             regionId = "reg_vii",
             name = "Bacolod & Negros Occidental",
             code = "BCD",
+            isActive = true
+        ),
+
+        // Region VIII (Eastern Visayas)
+        ProvinceEntity(
+            id = "prov_leyte",
+            regionId = "reg_viii",
+            name = "Leyte",
+            code = "LEY",
+            isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_southern_leyte",
+            regionId = "reg_viii",
+            name = "Southern Leyte",
+            code = "SLE",
+            isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_samar",
+            regionId = "reg_viii",
+            name = "Samar (Western Samar)",
+            code = "WSA",
+            isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_eastern_samar",
+            regionId = "reg_viii",
+            name = "Eastern Samar",
+            code = "ESA",
+            isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_northern_samar",
+            regionId = "reg_viii",
+            name = "Northern Samar",
+            code = "NSA",
+            isActive = true
+        ),
+        ProvinceEntity(
+            id = "prov_biliran",
+            regionId = "reg_viii",
+            name = "Biliran",
+            code = "BIL",
             isActive = true
         )
     )
@@ -150,6 +239,114 @@ object MarketplaceDataSeed {
         CityMunicipalityEntity("bacolod_toboso", "prov_bacolod", "Toboso", "Municipality", "BCD_TOB"),
         CityMunicipalityEntity("bacolod_calatrava", "prov_bacolod", "Calatrava", "Municipality", "BCD_CAL")
     )
+
+    // Negros Oriental Cities & Municipalities
+    val negrosOrientalCities = listOf(
+        CityMunicipalityEntity("negor_dumaguete", "prov_negros_oriental", "Dumaguete City", "City", "NER_DUM"),
+        CityMunicipalityEntity("negor_sibulan", "prov_negros_oriental", "Sibulan", "Municipality", "NER_SIB"),
+        CityMunicipalityEntity("negor_valencia", "prov_negros_oriental", "Valencia", "Municipality", "NER_VAL"),
+        CityMunicipalityEntity("negor_bais", "prov_negros_oriental", "Bais City", "City", "NER_BAI"),
+        CityMunicipalityEntity("negor_tanjay", "prov_negros_oriental", "Tanjay City", "City", "NER_TAN"),
+        CityMunicipalityEntity("negor_bayawan", "prov_negros_oriental", "Bayawan City", "City", "NER_BAY"),
+        CityMunicipalityEntity("negor_guihulngan", "prov_negros_oriental", "Guihulngan City", "City", "NER_GUI"),
+        CityMunicipalityEntity("negor_canlaon", "prov_negros_oriental", "Canlaon City", "City", "NER_CAN"),
+        CityMunicipalityEntity("negor_bacong", "prov_negros_oriental", "Bacong", "Municipality", "NER_BAC"),
+        CityMunicipalityEntity("negor_dauin", "prov_negros_oriental", "Dauin", "Municipality", "NER_DAU"),
+        CityMunicipalityEntity("negor_siaton", "prov_negros_oriental", "Siaton", "Municipality", "NER_SIA"),
+        CityMunicipalityEntity("negor_amlan", "prov_negros_oriental", "Amlan", "Municipality", "NER_AML"),
+        CityMunicipalityEntity("negor_san_jose", "prov_negros_oriental", "San Jose", "Municipality", "NER_SJO")
+    )
+
+    // Siquijor Municipalities
+    val siquijorCities = listOf(
+        CityMunicipalityEntity("siq_siquijor", "prov_siquijor", "Siquijor", "Municipality", "SIQ_SIQ"),
+        CityMunicipalityEntity("siq_san_juan", "prov_siquijor", "San Juan", "Municipality", "SIQ_SJU"),
+        CityMunicipalityEntity("siq_larena", "prov_siquijor", "Larena", "Municipality", "SIQ_LAR"),
+        CityMunicipalityEntity("siq_lazi", "prov_siquijor", "Lazi", "Municipality", "SIQ_LAZ"),
+        CityMunicipalityEntity("siq_maria", "prov_siquijor", "Maria", "Municipality", "SIQ_MAR"),
+        CityMunicipalityEntity("siq_enrique_villanueva", "prov_siquijor", "Enrique Villanueva", "Municipality", "SIQ_EVI")
+    )
+
+    // Leyte Cities & Municipalities
+    val leyteCities = listOf(
+        CityMunicipalityEntity("leyte_tacloban", "prov_leyte", "Tacloban City", "City", "LEY_TAC"),
+        CityMunicipalityEntity("leyte_ormoc", "prov_leyte", "Ormoc City", "City", "LEY_ORM"),
+        CityMunicipalityEntity("leyte_palo", "prov_leyte", "Palo", "Municipality", "LEY_PAL"),
+        CityMunicipalityEntity("leyte_baybay", "prov_leyte", "Baybay City", "City", "LEY_BAY"),
+        CityMunicipalityEntity("leyte_tanauan", "prov_leyte", "Tanauan", "Municipality", "LEY_TAN"),
+        CityMunicipalityEntity("leyte_carigara", "prov_leyte", "Carigara", "Municipality", "LEY_CAR"),
+        CityMunicipalityEntity("leyte_albuera", "prov_leyte", "Albuera", "Municipality", "LEY_ALB"),
+        CityMunicipalityEntity("leyte_abuyog", "prov_leyte", "Abuyog", "Municipality", "LEY_ABU"),
+        CityMunicipalityEntity("leyte_dulag", "prov_leyte", "Dulag", "Municipality", "LEY_DUL"),
+        CityMunicipalityEntity("leyte_hilongos", "prov_leyte", "Hilongos", "Municipality", "LEY_HIL"),
+        CityMunicipalityEntity("leyte_isabel", "prov_leyte", "Isabel", "Municipality", "LEY_ISA"),
+        CityMunicipalityEntity("leyte_kananga", "prov_leyte", "Kananga", "Municipality", "LEY_KAN"),
+        CityMunicipalityEntity("leyte_palompon", "prov_leyte", "Palompon", "Municipality", "LEY_PLM")
+    )
+
+    // Southern Leyte Cities & Municipalities
+    val southernLeyteCities = listOf(
+        CityMunicipalityEntity("sleyte_maasin", "prov_southern_leyte", "Maasin City", "City", "SLE_MAA"),
+        CityMunicipalityEntity("sleyte_sogod", "prov_southern_leyte", "Sogod", "Municipality", "SLE_SOG"),
+        CityMunicipalityEntity("sleyte_macrohon", "prov_southern_leyte", "Macrohon", "Municipality", "SLE_MAC"),
+        CityMunicipalityEntity("sleyte_bontoc", "prov_southern_leyte", "Bontoc", "Municipality", "SLE_BON"),
+        CityMunicipalityEntity("sleyte_hinunangan", "prov_southern_leyte", "Hinunangan", "Municipality", "SLE_HNA"),
+        CityMunicipalityEntity("sleyte_malitbog", "prov_southern_leyte", "Malitbog", "Municipality", "SLE_MAL"),
+        CityMunicipalityEntity("sleyte_san_juan", "prov_southern_leyte", "San Juan (Cabalian)", "Municipality", "SLE_SJU"),
+        CityMunicipalityEntity("sleyte_silago", "prov_southern_leyte", "Silago", "Municipality", "SLE_SIL"),
+        CityMunicipalityEntity("sleyte_padre_burgos", "prov_southern_leyte", "Padre Burgos", "Municipality", "SLE_PBU")
+    )
+
+    // Samar (Western Samar) Cities & Municipalities
+    val samarCities = listOf(
+        CityMunicipalityEntity("samar_catbalogan", "prov_samar", "Catbalogan City", "City", "WSA_CAT"),
+        CityMunicipalityEntity("samar_calbayog", "prov_samar", "Calbayog City", "City", "WSA_CAL"),
+        CityMunicipalityEntity("samar_basey", "prov_samar", "Basey", "Municipality", "WSA_BAS"),
+        CityMunicipalityEntity("samar_paranas", "prov_samar", "Paranas", "Municipality", "WSA_PAR"),
+        CityMunicipalityEntity("samar_marabut", "prov_samar", "Marabut", "Municipality", "WSA_MAR"),
+        CityMunicipalityEntity("samar_sta_rita", "prov_samar", "Santa Rita", "Municipality", "WSA_SRT"),
+        CityMunicipalityEntity("samar_gandara", "prov_samar", "Gandara", "Municipality", "WSA_GAN"),
+        CityMunicipalityEntity("samar_san_jorge", "prov_samar", "San Jorge", "Municipality", "WSA_SJO")
+    )
+
+    // Eastern Samar Cities & Municipalities
+    val easternSamarCities = listOf(
+        CityMunicipalityEntity("esamar_borongan", "prov_eastern_samar", "Borongan City", "City", "ESA_BOR"),
+        CityMunicipalityEntity("esamar_guiuan", "prov_eastern_samar", "Guiuan", "Municipality", "ESA_GUI"),
+        CityMunicipalityEntity("esamar_dolores", "prov_eastern_samar", "Dolores", "Municipality", "ESA_DOL"),
+        CityMunicipalityEntity("esamar_balangiga", "prov_eastern_samar", "Balangiga", "Municipality", "ESA_BAL"),
+        CityMunicipalityEntity("esamar_llorente", "prov_eastern_samar", "Llorente", "Municipality", "ESA_LLO"),
+        CityMunicipalityEntity("esamar_oras", "prov_eastern_samar", "Oras", "Municipality", "ESA_ORA"),
+        CityMunicipalityEntity("esamar_san_julian", "prov_eastern_samar", "San Julian", "Municipality", "ESA_SJU"),
+        CityMunicipalityEntity("esamar_salcedo", "prov_eastern_samar", "Salcedo", "Municipality", "ESA_SAL")
+    )
+
+    // Northern Samar Municipalities
+    val northernSamarCities = listOf(
+        CityMunicipalityEntity("nsamar_catarman", "prov_northern_samar", "Catarman", "Municipality", "NSA_CAT"),
+        CityMunicipalityEntity("nsamar_laoang", "prov_northern_samar", "Laoang", "Municipality", "NSA_LAO"),
+        CityMunicipalityEntity("nsamar_allen", "prov_northern_samar", "Allen", "Municipality", "NSA_ALL"),
+        CityMunicipalityEntity("nsamar_san_jose", "prov_northern_samar", "San Jose", "Municipality", "NSA_SJO"),
+        CityMunicipalityEntity("nsamar_palapag", "prov_northern_samar", "Palapag", "Municipality", "NSA_PAL"),
+        CityMunicipalityEntity("nsamar_mondragon", "prov_northern_samar", "Mondragon", "Municipality", "NSA_MON"),
+        CityMunicipalityEntity("nsamar_bobon", "prov_northern_samar", "Bobon", "Municipality", "NSA_BOB"),
+        CityMunicipalityEntity("nsamar_san_roque", "prov_northern_samar", "San Roque", "Municipality", "NSA_SRO")
+    )
+
+    // Biliran Municipalities
+    val biliranCities = listOf(
+        CityMunicipalityEntity("biliran_naval", "prov_biliran", "Naval", "Municipality", "BIL_NAV"),
+        CityMunicipalityEntity("biliran_biliran", "prov_biliran", "Biliran", "Municipality", "BIL_BIL"),
+        CityMunicipalityEntity("biliran_caibiran", "prov_biliran", "Caibiran", "Municipality", "BIL_CAI"),
+        CityMunicipalityEntity("biliran_kawayan", "prov_biliran", "Kawayan", "Municipality", "BIL_KAW"),
+        CityMunicipalityEntity("biliran_almeria", "prov_biliran", "Almeria", "Municipality", "BIL_ALM"),
+        CityMunicipalityEntity("biliran_cabucgayan", "prov_biliran", "Cabucgayan", "Municipality", "BIL_CAB"),
+        CityMunicipalityEntity("biliran_culaba", "prov_biliran", "Culaba", "Municipality", "BIL_CUL")
+    )
+
+    val allCities: List<CityMunicipalityEntity>
+        get() = boholMunicipalities + cebuCities + bacolodCities + negrosOrientalCities + siquijorCities +
+                leyteCities + southernLeyteCities + samarCities + easternSamarCities + northernSamarCities + biliranCities
 
     fun generateBarangays(): List<BarangayEntity> {
         val list = mutableListOf<BarangayEntity>()
@@ -369,6 +566,73 @@ object MarketplaceDataSeed {
             list.add(BarangayEntity("bgy_${m.code.lowercase()}_san_isidro", m.id, "San Isidro", "${m.code}_SIS"))
             list.add(BarangayEntity("bgy_${m.code.lowercase()}_santa_cruz", m.id, "Santa Cruz", "${m.code}_STC"))
             list.add(BarangayEntity("bgy_${m.code.lowercase()}_central", m.id, "Central", "${m.code}_CEN"))
+        }
+
+        // 13. Dumaguete City Barangays
+        val dumagueteBgy = listOf("Bantayan", "Piapi", "Daro", "Taclobo", "Bagacay", "Junob", "Batinguel", "Looc", "Calindagan", "Mangnao-Canal", "Motong", "Bajumpandan", "Cadawinonan")
+        dumagueteBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_dum_$i", "negor_dumaguete", name, "NER_DUM_$i"))
+        }
+
+        // 14. Tacloban City Barangays
+        val taclobanBgy = listOf("Downtown (Poblacion)", "Marasbaras", "Abucay", "San Jose", "Sagkahan", "V&G Subdivision", "Utap", "Caibaan", "Cabalawan", "Bagacay", "Taguik")
+        taclobanBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_tac_$i", "leyte_tacloban", name, "LEY_TAC_$i"))
+        }
+
+        // 15. Ormoc City Barangays
+        val ormocBgy = listOf("District 1 (Poblacion)", "Cogon", "Linao", "Can-adieng", "Valencia", "Ipil", "Camp Downes", "Tambulilid", "Alegria")
+        ormocBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_orm_$i", "leyte_ormoc", name, "LEY_ORM_$i"))
+        }
+
+        // 16. Maasin City Barangays
+        val maasinBgy = listOf("Tunga-tunga", "Abgao", "Mantahan", "Combado", "Ibarra", "Asuncion", "Canturing", "Guadalupe", "Lib-og")
+        maasinBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_maa_$i", "sleyte_maasin", name, "SLE_MAA_$i"))
+        }
+
+        // 17. Catbalogan City Barangays
+        val catbaloganBgy = listOf("Poblacion 1", "Poblacion 2", "Ubay", "Guindapunan", "San Pablo", "Maulong", "Munoz", "Canlapwas")
+        catbaloganBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_cat_$i", "samar_catbalogan", name, "WSA_CAT_$i"))
+        }
+
+        // 18. Calbayog City Barangays
+        val calbayogBgy = listOf("Central (Poblacion)", "Obrero", "Rawis", "Hamorawon", "Dagum", "Matobato", "Nijaga", "Capoocan")
+        calbayogBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_cal_$i", "samar_calbayog", name, "WSA_CAL_$i"))
+        }
+
+        // 19. Borongan City Barangays
+        val boronganBgy = listOf("Songco", "Campesao", "Bugas", "Barangay 1 (Poblacion)", "Barangay 2", "Alang-alang", "Maypangdan", "Tabunan")
+        boronganBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_bor_$i", "esamar_borongan", name, "ESA_BOR_$i"))
+        }
+
+        // 20. Catarman Municipal Barangays
+        val catarmanBgy = listOf("Narra", "Acacia", "Molave", "Dalakit", "Mabolo", "Ipil-ipil", "Casoy", "Cawayan", "Macagtas")
+        catarmanBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_cta_$i", "nsamar_catarman", name, "NSA_CAT_$i"))
+        }
+
+        // 21. Naval (Biliran) Barangays
+        val navalBgy = listOf("Castin (Poblacion)", "Santissimo Rosario", "Atipolo", "P.I. Garcia", "Caraycaray", "Larrazabal", "Smo. Rosario")
+        navalBgy.forEachIndexed { i, name ->
+            list.add(BarangayEntity("bgy_nav_$i", "biliran_naval", name, "BIL_NAV_$i"))
+        }
+
+        // Seed default authentic Poblacion & neighboring barangays for all other Region VII & VIII cities
+        val otherCities = (negrosOrientalCities + siquijorCities + leyteCities + southernLeyteCities +
+                samarCities + easternSamarCities + northernSamarCities + biliranCities).filter { c ->
+            c.id !in listOf("negor_dumaguete", "leyte_tacloban", "leyte_ormoc", "sleyte_maasin", "samar_catbalogan", "samar_calbayog", "esamar_borongan", "nsamar_catarman", "biliran_naval")
+        }
+        otherCities.forEach { c ->
+            list.add(BarangayEntity("bgy_${c.code.lowercase()}_pob", c.id, "Poblacion", "${c.code}_POB"))
+            list.add(BarangayEntity("bgy_${c.code.lowercase()}_san_jose", c.id, "San Jose", "${c.code}_SJO"))
+            list.add(BarangayEntity("bgy_${c.code.lowercase()}_san_roque", c.id, "San Roque", "${c.code}_SRO"))
+            list.add(BarangayEntity("bgy_${c.code.lowercase()}_santa_cruz", c.id, "Santa Cruz", "${c.code}_STC"))
+            list.add(BarangayEntity("bgy_${c.code.lowercase()}_zone1", c.id, "Zone 1", "${c.code}_Z01"))
         }
 
         return list

@@ -26,7 +26,9 @@ import com.example.ui.theme.NavyPrimary
 fun BalayInnLogoHeader(
     isDark: Boolean,
     onToggleDarkMode: () -> Unit = {},
+    showThemeToggle: Boolean = true,
     onNotificationsClick: (() -> Unit)? = null,
+    notificationsCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -95,26 +97,9 @@ fun BalayInnLogoHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                IconButton(
-                    onClick = onToggleDarkMode,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(
-                            if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
-                            CircleShape
-                        )
-                ) {
-                    Icon(
-                        imageVector = if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
-                        contentDescription = "Toggle Dark Mode",
-                        tint = if (isDark) Color(0xFFFBBF24) else Color(0xFF475569),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                if (onNotificationsClick != null) {
+                if (showThemeToggle) {
                     IconButton(
-                        onClick = onNotificationsClick,
+                        onClick = onToggleDarkMode,
                         modifier = Modifier
                             .size(36.dp)
                             .background(
@@ -123,11 +108,52 @@ fun BalayInnLogoHeader(
                             )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications",
-                            tint = if (isDark) Color.White else Color(0xFF0F172A),
+                            imageVector = if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = "Toggle Dark Mode",
+                            tint = if (isDark) Color(0xFFFBBF24) else Color(0xFF475569),
                             modifier = Modifier.size(18.dp)
                         )
+                    }
+                }
+
+                if (onNotificationsClick != null) {
+                    Box(contentAlignment = Alignment.TopEnd) {
+                        IconButton(
+                            onClick = onNotificationsClick,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9),
+                                    CircleShape
+                                )
+                                .testTag("header_notifications_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = if (isDark) Color.White else Color(0xFF0F172A),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        if (notificationsCount > 0) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier
+                                    .offset(x = 2.dp, y = (-2).dp)
+                                    .size(16.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Text(
+                                        text = if (notificationsCount > 9) "9+" else "$notificationsCount",
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

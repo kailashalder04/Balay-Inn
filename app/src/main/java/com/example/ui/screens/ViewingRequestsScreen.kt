@@ -81,6 +81,7 @@ fun ViewingRequestsScreen(
     val savedProperties by viewModel.savedProperties.collectAsState()
     val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
 
+    val isHost = currentUser.role == "PROPERTY_OWNER"
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Viewings, 1 = Saved, 2 = Host Requests
 
     val savedItems = properties.filter { p -> savedProperties.any { it.propertyId == p.id } }
@@ -88,7 +89,12 @@ fun ViewingRequestsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Viewings & Saved", fontWeight = FontWeight.Bold) },
+                title = { 
+                    Text(
+                        if (isHost) "Renter Viewing Requests" else "Viewings & Saved", 
+                        fontWeight = FontWeight.Bold 
+                    ) 
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
@@ -99,46 +105,78 @@ fun ViewingRequestsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = {
+            if (!isHost) {
+                TabRow(selectedTabIndex = selectedTab) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = {
+                            Text(
+                                text = "Viewings (${tenantViewings.size})",
+                                fontSize = 12.sp,
+                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = {
+                            Text(
+                                text = "Saved (${savedItems.size})",
+                                fontSize = 12.sp,
+                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = {
+                            Text(
+                                text = "Requests (${posterViewings.size})",
+                                fontSize = 12.sp,
+                                fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    )
+                }
+            } else {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            text = "Viewings (${tenantViewings.size})",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            text = "Incoming Renter Appointments",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            Text(
+                                text = "${posterViewings.size} Requests",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
                     }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = {
-                        Text(
-                            text = "Saved (${savedItems.size})",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                    }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = {
-                        Text(
-                            text = "Requests (${posterViewings.size})",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                    }
-                )
+                }
             }
 
             LazyColumn(
@@ -148,7 +186,63 @@ fun ViewingRequestsScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(bottom = 70.dp)
             ) {
-                when (selectedTab) {
+                if (isHost) {
+                    // For host: ONLY show requests for viewing of every renter's requests
+                    if (posterViewings.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 40.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text("No received viewing requests", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "When prospective tenants request to tour your listed spaces or boarding houses, requests will appear here for you to confirm.",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        items(posterViewings, key = { it.id }) { viewing ->
+                            ViewingCard(
+                                viewing = viewing,
+                                isPoster = true,
+                                onAccept = {
+                                    viewModel.updateViewingStatus(viewing, "CONFIRMED", "Confirmed by host.", sendEmailAlert = true)
+                                },
+                                onCancel = {
+                                    viewModel.updateViewingStatus(viewing, "CANCELLED", "Cancelled by host.", sendEmailAlert = true)
+                                },
+                                onSendEmailAlert = {
+                                    viewModel.dispatchViewingStatusNotificationEmail(
+                                        recipientEmail = "tenant@balayinn.ph",
+                                        propertyTitle = "Balay-Inn Viewing Appointment",
+                                        status = viewing.status,
+                                        date = viewing.preferredDate,
+                                        time = viewing.preferredTime,
+                                        notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
+                                    )
+                                },
+                                onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
+                            )
+                        }
+                    }
+                } else {
+                    when (selectedTab) {
                     0 -> {
                         // Tenant Viewings
                         if (tenantViewings.isEmpty()) {
@@ -303,6 +397,7 @@ fun ViewingRequestsScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

@@ -351,6 +351,11 @@ fun PropertyDetailScreen(
                                 if (currentUser.isGuest) {
                                     guestActionPromptReason = "Sign in to schedule viewings."
                                 } else {
+                                    if (currentUser.verificationLevel < 2) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Sorry, verification is needed before renting property.")
+                                        }
+                                    }
                                     showViewingDialog = true
                                 }
                             },
@@ -812,6 +817,23 @@ fun PropertyDetailScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (currentUser.verificationLevel < 2) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ Sorry, verification is needed before renting property.",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+
                     // Inquiry Type Selector Chips
                     Row(
                         modifier = Modifier.fillMaxWidth(),
