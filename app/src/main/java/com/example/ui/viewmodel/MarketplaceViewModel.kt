@@ -504,21 +504,24 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             // Listed By
             val matchesListedBy = when (filter.listedBy) {
                 "All" -> true
-                "Direct Owner", "Property Owner", "Owner" ->
-                    prop.posterRole.contains("owner", ignoreCase = true)
+                "Host", "host", "Host (Direct Owner)", "Direct Owner", "Property Owner", "Owner" ->
+                    prop.posterRole.contains("owner", ignoreCase = true) ||
+                    prop.posterRole.contains("host", ignoreCase = true) ||
+                    prop.posterRole.contains("landlord", ignoreCase = true)
                 "Licensed Broker", "Broker" ->
                     prop.posterRole.contains("broker", ignoreCase = true) ||
                     prop.posterRole.contains("salesperson", ignoreCase = true) ||
                     prop.posterRole.contains("agent", ignoreCase = true)
                 "Property Manager" ->
                     prop.posterRole.contains("manager", ignoreCase = true)
-                "Caretaker" ->
+                "Caretaker", "Caretaker (Authorized)" ->
                     prop.posterRole.contains("caretaker", ignoreCase = true)
-                "Family Member" ->
+                "Family Member", "Family member (Authorized)" ->
                     prop.posterRole.contains("family", ignoreCase = true)
-                "Authorized Representative" ->
+                "Authorized Representative", "Representative" ->
                     prop.posterRole.contains("representative", ignoreCase = true) ||
-                    (prop.isPosterAuthorized && prop.posterRole.contains("authorized", ignoreCase = true))
+                    prop.posterRole.contains("authorized", ignoreCase = true) ||
+                    prop.isPosterAuthorized
                 else -> prop.posterRole.contains(filter.listedBy, ignoreCase = true)
             }
 
@@ -2412,8 +2415,8 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 propertyTitle = property.title,
                 tenantId = currentUser.value.id,
                 tenantName = currentUser.value.fullName,
-                posterId = property.posterId,
-                posterName = property.posterName,
+                posterId = property.ownerId.ifBlank { property.posterId },
+                posterName = property.posterName.ifBlank { "Host" },
                 initialMessage = message
             )
             try {
@@ -2719,37 +2722,29 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    // Location Display Helper
+    // Location Display Helper: strictly based on combination of Barangay, City, Province
     fun getLocationDisplay(property: PropertyEntity): String {
-        val city = allCities.value.find { it.id == property.cityMunicipalityId }?.name ?: ""
-        val prov = allProvinces.value.find { it.id == property.provinceId }?.name ?: ""
-        val bgy = allBarangays.value.find { it.id == property.barangayId }?.name ?: ""
-
-        return when {
-            bgy.isNotBlank() && city.isNotBlank() -> "$bgy, $city, $prov"
-            city.isNotBlank() -> "$city, $prov"
-            prov.isNotBlank() -> prov
-            else -> "Philippines"
+        if (property.location.isNotBlank() && property.location.contains(",")) {
+            val parts = property.location.split(",").map { it.trim() }.filter { it.isNotBlank() }
+            if (parts.size >= 2) return parts.joinToString(", ")
         }
+        val bgy = allBarangays.value.find { it.id == property.barangayId }?.name?.trim()
+            ?: property.neighborhood.trim().takeIf { it.isNotBlank() } ?: ""
+        val city = allCities.value.find { it.id == property.cityMunicipalityId }?.name?.trim() ?: ""
+        val prov = allProvinces.value.find { it.id == property.provinceId }?.name?.trim() ?: ""
+
+        val combined = listOfNotNull(
+            bgy.takeIf { it.isNotBlank() },
+            city.takeIf { it.isNotBlank() },
+            prov.takeIf { it.isNotBlank() }
+        ).joinToString(", ")
+
+        return if (combined.isNotBlank()) combined else property.location.ifBlank { "Cebu City, Cebu" }
     }
 
-    // Specific address helper: Barangay/District, Province only
+    // Combined location of Barangay, City, Province
     fun getBarangayProvinceDisplay(property: PropertyEntity): String {
-        val bgy = allBarangays.value.find { it.id == property.barangayId }?.name?.trim() ?: ""
-        val prov = allProvinces.value.find { it.id == property.provinceId }?.name?.trim() ?: ""
-        val city = allCities.value.find { it.id == property.cityMunicipalityId }?.name?.trim() ?: ""
-
-        val district = when {
-            bgy.isNotBlank() -> bgy
-            property.neighborhood.isNotBlank() -> property.neighborhood.trim()
-            city.isNotBlank() -> city
-            else -> "Kasambagan"
-        }
-        val province = when {
-            prov.isNotBlank() -> prov
-            else -> "Cebu"
-        }
-        return "$district, $province"
+        return getLocationDisplay(property)
     }
 
     fun getImagesForProperty(propertyId: String): Flow<List<PropertyImageEntity>> =

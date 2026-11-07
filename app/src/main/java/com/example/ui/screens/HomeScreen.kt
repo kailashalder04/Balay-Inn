@@ -22,6 +22,7 @@ fun HomeScreen(
     onNavigateToOnboarding: (String?) -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToPreferences: () -> Unit,
+    onNavigateToChat: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
@@ -36,6 +37,7 @@ fun HomeScreen(
                 onNavigateToPropertyDetail = onNavigateToPropertyDetail,
                 onNavigateToVerificationCenter = onNavigateToVerificationCenter,
                 onNavigateToLogin = onNavigateToLogin,
+                onNavigateToChat = onNavigateToChat,
                 modifier = modifier
             )
         }
@@ -46,6 +48,7 @@ fun HomeScreen(
                 onNavigateToPropertyDetail = onNavigateToPropertyDetail,
                 onNavigateToPostProperty = onNavigateToPostProperty,
                 onNavigateToVerificationCenter = onNavigateToVerificationCenter,
+                onNavigateToChat = onNavigateToChat,
                 modifier = modifier
             )
         }

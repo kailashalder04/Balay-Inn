@@ -82,6 +82,7 @@ import com.example.ui.theme.SteelBlueDarkBg
 import com.example.ui.components.BalayInnLogoHeader
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
+import com.example.ui.components.NotificationDetailDialog
 import java.util.Locale
 
 @Composable
@@ -91,6 +92,7 @@ fun LandlordHomeScreen(
     onNavigateToPropertyDetail: (String) -> Unit,
     onNavigateToPostProperty: () -> Unit,
     onNavigateToVerificationCenter: () -> Unit,
+    onNavigateToChat: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDark by viewModel.isDarkMode.collectAsState()
@@ -113,6 +115,7 @@ fun LandlordHomeScreen(
 
     var showVerificationWarningDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var showNotificationsSheet by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var selectedNotificationDetail by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<NotificationEntity?>(null) }
     var propertyToEdit by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<PropertyEntity?>(null) }
 
     fun handlePostPropertyClick() {
@@ -605,7 +608,30 @@ fun LandlordHomeScreen(
             notifications = notifications,
             totalViews = totalViews,
             totalSaves = totalSaves,
-            onDismiss = { showNotificationsSheet = false }
+            onDismiss = { showNotificationsSheet = false },
+            onNotificationClick = { notif ->
+                viewModel.markNotificationRead(notif.id)
+                selectedNotificationDetail = notif
+            },
+            onNavigateToChat = { convId ->
+                showNotificationsSheet = false
+                onNavigateToChat(convId)
+            }
+        )
+    }
+
+    selectedNotificationDetail?.let { notif ->
+        NotificationDetailDialog(
+            notification = notif,
+            onDismiss = { selectedNotificationDetail = null },
+            onNavigateToProperty = { propId ->
+                selectedNotificationDetail = null
+                onNavigateToPropertyDetail(propId)
+            },
+            onNavigateToChat = { convId ->
+                selectedNotificationDetail = null
+                onNavigateToChat(convId)
+            }
         )
     }
 
@@ -1154,7 +1180,9 @@ fun HostNotificationsDialog(
     notifications: List<NotificationEntity>,
     totalViews: Int,
     totalSaves: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onNotificationClick: (NotificationEntity) -> Unit = {},
+    onNavigateToChat: (String?) -> Unit = {}
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1195,7 +1223,9 @@ fun HostNotificationsDialog(
                             shape = RoundedCornerShape(10.dp),
                             color = categoryColor.copy(alpha = 0.08f),
                             border = BorderStroke(1.dp, categoryColor.copy(alpha = 0.3f)),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNotificationClick(notif) }
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Row(
@@ -1290,7 +1320,9 @@ fun HostNotificationsDialog(
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToChat(conv.id) }
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
                                 Text(

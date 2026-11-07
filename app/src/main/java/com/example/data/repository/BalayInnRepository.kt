@@ -244,7 +244,7 @@ class BalayInnRepository(context: Context) {
         propDao.updateProperty(updated)
         logAudit("UPDATE_STATUS", "PROPERTY", propertyId, "Status updated to $newStatus by ${requestedBy?.fullName ?: "System"}")
 
-        val isFullOrUnavailable = newStatus.uppercase() in listOf("OCCUPIED", "FULL", "UNAVAILABLE") || updated.totalAvailableBeds <= 0
+        val isFullOrUnavailable = newStatus.uppercase() in listOf("OCCUPIED", "FULL", "RENTED", "PAUSED", "UNAVAILABLE") || updated.totalAvailableBeds <= 0
         if (isFullOrUnavailable) {
             val hostId = updated.ownerId.ifBlank { updated.posterId }
             notifyPropertyFull(propertyId, hostId, updated.title)
@@ -269,7 +269,7 @@ class BalayInnRepository(context: Context) {
             supabaseSyncManager.pushPropertyToRemote(updated, images)
         } catch (_: Exception) {}
 
-        val isFullOrUnavailable = updated.status.uppercase() in listOf("OCCUPIED", "FULL", "UNAVAILABLE") || updated.totalAvailableBeds <= 0
+        val isFullOrUnavailable = updated.status.uppercase() in listOf("OCCUPIED", "FULL", "RENTED", "PAUSED", "UNAVAILABLE") || updated.totalAvailableBeds <= 0
         if (isFullOrUnavailable) {
             val hostId = updated.ownerId.ifBlank { updated.posterId }
             notifyPropertyFull(property.id, hostId, updated.title)
@@ -408,6 +408,39 @@ class BalayInnRepository(context: Context) {
         try {
             supabaseSyncManager.pushNotificationToRemote(tenantNotif)
         } catch (_: Exception) {}
+
+        // 3. Create conversation & in-app message with contact details so it appears in Messages on both Renter & Host dashboards
+        try {
+            val tenantUser = userDao.getUserByIdSync(tenantId)
+            val tenantName = tenantUser?.fullName?.ifBlank { null } ?: "Renter"
+            val hostName = prop?.posterName?.ifBlank { null } ?: "Host/Caretaker"
+            val contactInfo = listOfNotNull(
+                tenantUser?.phone?.takeIf { it.isNotBlank() }?.let { "📱 Phone: $it" },
+                tenantUser?.email?.takeIf { it.isNotBlank() }?.let { "✉️ Email: $it" }
+            ).joinToString(" | ")
+
+            val chatMessageContent = buildString {
+                append("📅 [Property Viewing Request: $propTitle]\n")
+                append("Scheduled: $date at $time ($visitors visitor${if (visitors > 1) "s" else ""})")
+                if (message.isNotBlank()) {
+                    append("\nRenter Message: \"$message\"")
+                }
+                if (contactInfo.isNotBlank()) {
+                    append("\nContact Details: $contactInfo")
+                }
+            }
+
+            val propertyOwner = prop?.ownerId?.takeIf { it.isNotBlank() } ?: posterId
+            startOrGetConversation(
+                propertyId = propertyId,
+                propertyTitle = propTitle,
+                tenantId = tenantId,
+                tenantName = tenantName,
+                posterId = propertyOwner,
+                posterName = hostName,
+                initialMessage = chatMessageContent
+            )
+        } catch (_: Exception) {}
     }
 
     suspend fun updateViewingStatus(
@@ -474,7 +507,7 @@ class BalayInnRepository(context: Context) {
             val tenantNotif = NotificationEntity(
                 id = "notif_${UUID.randomUUID()}",
                 userId = viewing.tenantId,
-                title = if (responseNote.isNotBlank()) "Host Replied to Your Viewing Request" else "Viewing Request: $newStatus",
+                title = "Host Response: $propTitle",
                 message = "Host response for '$propTitle': \"${responseNote.ifBlank { "Appointment $newStatus" }}\" (Status: $newStatus for ${viewing.preferredDate} at ${viewing.preferredTime}).",
                 category = "VIEWING",
                 relatedPropertyId = viewing.propertyId

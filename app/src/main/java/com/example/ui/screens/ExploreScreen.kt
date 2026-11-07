@@ -1607,11 +1607,12 @@ fun ExploreScreen(
 
                 // 7. Listed By Dropdown
                 val listedByOptions = listOf(
-                    "All" to "All Poster Roles",
-                    "Direct Owner" to "Direct Owner",
-                    "Licensed Broker" to "Licensed Broker",
+                    "All" to "All (Any Host / Poster)",
+                    "Host" to "Host (Direct Owner)",
+                    "Property Owner" to "Property Owner",
+                    "Caretaker" to "Caretaker (Authorized)",
                     "Property Manager" to "Property Manager",
-                    "Caretaker" to "Caretaker",
+                    "Licensed Broker" to "Licensed Broker",
                     "Family Member" to "Family Member",
                     "Authorized Representative" to "Authorized Representative"
                 )

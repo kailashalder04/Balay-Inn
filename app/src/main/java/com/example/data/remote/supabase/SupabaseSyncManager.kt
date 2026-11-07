@@ -148,7 +148,10 @@ class SupabaseSyncManager(
 
             // 4. Download messages from public.messages
             try {
-                val messagesResponse = api.getMessages()
+                var messagesResponse = api.getMessages()
+                if (!messagesResponse.isSuccessful && messagesResponse.code() == 400) {
+                    messagesResponse = api.getAllMessages()
+                }
                 if (messagesResponse.isSuccessful) {
                     val remoteMessages = messagesResponse.body() ?: emptyList()
                     remoteMessages.forEach { dto ->
@@ -157,15 +160,23 @@ class SupabaseSyncManager(
                                 val cid = msgEntity.conversationId
                                 val existing = communicationDao.getConversationById(cid).firstOrNull()
                                 if (existing == null) {
+                                    val prop = if (!dto.propertyId.isNullOrBlank()) {
+                                        try { propertyDao.getPropertyByIdSync(dto.propertyId) } catch (_: Exception) { null }
+                                    } else null
+                                    val propTitle = prop?.title ?: "Rental Property"
+                                    val ownerId = prop?.ownerId?.takeIf { it.isNotBlank() } ?: prop?.posterId?.takeIf { it.isNotBlank() } ?: dto.receiverId ?: ""
+                                    val posterName = prop?.posterName?.takeIf { it.isNotBlank() } ?: "Host"
+                                    val tenantId = if (dto.senderId == ownerId) (dto.receiverId ?: "") else (dto.senderId ?: "")
+
                                     communicationDao.insertConversation(
                                         ConversationEntity(
                                             id = cid,
                                             propertyId = dto.propertyId ?: "",
-                                            propertyTitle = "Rental Property",
-                                            tenantId = dto.senderId ?: "",
+                                            propertyTitle = propTitle,
+                                            tenantId = tenantId,
                                             tenantName = dto.senderName ?: "Tenant",
-                                            posterId = dto.receiverId ?: "",
-                                            posterName = "Host",
+                                            posterId = ownerId,
+                                            posterName = posterName,
                                             lastMessageText = msgEntity.messageText,
                                             lastMessageTime = msgEntity.timestamp,
                                             unreadForTenant = 0,
@@ -362,13 +373,32 @@ class SupabaseSyncManager(
         } catch (_: Exception) { null }
 
         val propId = conv?.propertyId?.ifBlank { null }
-        val receiverId = if (conv != null) {
-            if (senderId == conv.tenantId) conv.posterId else conv.tenantId
+        val prop = if (!propId.isNullOrBlank()) {
+            try { propertyDao.getPropertyByIdSync(propId) } catch (_: Exception) { null }
         } else null
 
+        // receiver_id will be the owner of the properties
+        val propertyOwnerId = prop?.ownerId?.takeIf { it.isNotBlank() }
+            ?: prop?.posterId?.takeIf { it.isNotBlank() }
+            ?: conv?.posterId?.takeIf { it.isNotBlank() }
+
+        val isSenderOwner = (propertyOwnerId != null && senderId.equals(propertyOwnerId, ignoreCase = true)) ||
+                (conv != null && senderId == conv.posterId && senderId != conv.tenantId)
+
+        // sender_id will be the user_id from the user_profiles
+        // receiver_id will be the owner of the properties
+        val resolvedSenderId = senderId
+        val resolvedReceiverId = if (isSenderOwner) {
+            // Owner is replying to the renter
+            conv?.tenantId?.takeIf { it.isNotBlank() }
+        } else {
+            // Renter is sending message to the owner of the property
+            propertyOwnerId ?: conv?.posterId
+        }
+
         val msgUuid = UuidHelper.toValidUuidOrNull(msgId) ?: UUID.randomUUID().toString()
-        val senderUuid = UuidHelper.toValidUuidOrNull(senderId)
-        val receiverUuid = UuidHelper.toValidUuidOrNull(receiverId)
+        val senderUuid = UuidHelper.toValidUuidOrNull(resolvedSenderId)
+        val receiverUuid = UuidHelper.toValidUuidOrNull(resolvedReceiverId)
         val propUuid = UuidHelper.toValidUuidOrNull(propId)
 
         // 1. Target exact public.messages schema: (id, sender_id, receiver_id, property_id, content, is_read, created_at)
@@ -384,38 +414,44 @@ class SupabaseSyncManager(
 
         var success = false
         try {
-            var res = api.upsertMessageRaw(payloadStandard)
+            // Standard INSERT via POST messages (triggers tr_messages_notifications and tr_notify_messages)
+            var res = api.postMessageRaw(payloadStandard)
             if (res.isSuccessful) {
-                Log.d("SupabaseSync", "Successfully pushed message $msgUuid (content) to Supabase")
+                Log.d("SupabaseSync", "Successfully saved message $msgUuid to public.messages (content, sender=$senderUuid, receiver=$receiverUuid)")
                 success = true
             } else {
                 val err = res.errorBody()?.string() ?: ""
-                Log.w("SupabaseSync", "Standard messages upsert returned: ${res.code()} - $err")
+                Log.w("SupabaseSync", "POST public.messages returned ${res.code()}: $err")
 
-                // Try plain POST
-                val postRes = api.postMessageRaw(payloadStandard)
-                if (postRes.isSuccessful) {
-                    Log.d("SupabaseSync", "Successfully plain POSTed message $msgUuid (content)")
-                    success = true
-                } else {
-                    // Fallback to legacy/custom schema with conversation_id & message_text
-                    val payloadFallback = mutableMapOf<String, Any?>(
-                        "id" to msgUuid,
-                        "conversation_id" to convId,
-                        "sender_id" to (senderUuid ?: senderId),
-                        "sender_name" to senderName,
-                        "message_text" to text,
-                        "is_read" to isRead,
-                        "timestamp" to isoTimestamp
-                    )
-                    val retryRes = api.upsertMessageRaw(payloadFallback)
+                // If conflict / duplicate on ID, attempt upsert
+                if (res.code() == 409 || err.contains("conflict", ignoreCase = true) || err.contains("duplicate", ignoreCase = true)) {
+                    val upsertRes = api.upsertMessageRaw(payloadStandard)
+                    if (upsertRes.isSuccessful) {
+                        Log.d("SupabaseSync", "Successfully upserted message $msgUuid to public.messages")
+                        success = true
+                    }
+                }
+
+                // If foreign key constraint violation on auth.users (e.g. mock seed user or receiver_id not in auth.users):
+                if (!success && (err.contains("foreign key", ignoreCase = true) || err.contains("23503") || err.contains("fkey", ignoreCase = true))) {
+                    Log.w("SupabaseSync", "Handling foreign key constraint on auth.users for sender/receiver, retrying with nullable receiver_id / sender_id")
+                    val safePayload = payloadStandard.toMutableMap()
+                    if (err.contains("receiver_id", ignoreCase = true)) {
+                        safePayload["receiver_id"] = null
+                    }
+                    if (err.contains("sender_id", ignoreCase = true)) {
+                        safePayload["sender_id"] = null
+                    }
+                    val retryRes = api.postMessageRaw(safePayload)
                     if (retryRes.isSuccessful) {
-                        Log.d("SupabaseSync", "Successfully pushed message with fallback message_text")
+                        Log.d("SupabaseSync", "Successfully saved message $msgUuid with nullable foreign keys")
                         success = true
                     } else {
-                        val postFallbackRes = api.postMessageRaw(payloadFallback)
-                        if (postFallbackRes.isSuccessful) {
-                            Log.d("SupabaseSync", "Successfully posted message with fallback message_text")
+                        safePayload["sender_id"] = null
+                        safePayload["receiver_id"] = null
+                        val fallbackRes = api.postMessageRaw(safePayload)
+                        if (fallbackRes.isSuccessful) {
+                            Log.d("SupabaseSync", "Successfully saved message $msgUuid with null sender/receiver")
                             success = true
                         }
                     }
@@ -524,22 +560,33 @@ class SupabaseSyncManager(
 
             // 3. Sync Messages
             try {
-                val msgRes = api.getMessages()
+                var msgRes = api.getMessages()
+                if (!msgRes.isSuccessful && msgRes.code() == 400) {
+                    msgRes = api.getAllMessages()
+                }
                 if (msgRes.isSuccessful) {
                     msgRes.body()?.forEach { dto ->
                         dto.toEntityOrNull()?.let { msgEntity ->
                             val cid = msgEntity.conversationId
                             val existing = communicationDao.getConversationById(cid).firstOrNull()
                             if (existing == null) {
+                                val prop = if (!dto.propertyId.isNullOrBlank()) {
+                                    try { propertyDao.getPropertyByIdSync(dto.propertyId) } catch (_: Exception) { null }
+                                } else null
+                                val propTitle = prop?.title ?: "Rental Property"
+                                val ownerId = prop?.ownerId?.takeIf { it.isNotBlank() } ?: prop?.posterId?.takeIf { it.isNotBlank() } ?: dto.receiverId ?: ""
+                                val posterName = prop?.posterName?.takeIf { it.isNotBlank() } ?: "Host"
+                                val tenantId = if (dto.senderId == ownerId) (dto.receiverId ?: "") else (dto.senderId ?: "")
+
                                 communicationDao.insertConversation(
                                     ConversationEntity(
                                         id = cid,
                                         propertyId = dto.propertyId ?: "",
-                                        propertyTitle = "Rental Property",
-                                        tenantId = dto.senderId ?: "",
+                                        propertyTitle = propTitle,
+                                        tenantId = tenantId,
                                         tenantName = dto.senderName ?: "Tenant",
-                                        posterId = dto.receiverId ?: "",
-                                        posterName = "Host",
+                                        posterId = ownerId,
+                                        posterName = posterName,
                                         lastMessageText = msgEntity.messageText,
                                         lastMessageTime = msgEntity.timestamp,
                                         unreadForTenant = 0,

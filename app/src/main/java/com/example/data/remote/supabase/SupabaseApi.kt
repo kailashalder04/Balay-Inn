@@ -72,8 +72,11 @@ interface SupabaseApi {
     suspend fun postConversationRaw(@Body payload: Map<String, @JvmSuppressWildcards Any?>): Response<ResponseBody>
 
     // Messages Endpoints
-    @GET("messages?select=*&order=timestamp.asc")
+    @GET("messages?select=*&order=created_at.asc")
     suspend fun getMessages(): Response<List<SupabaseMessageDto>>
+
+    @GET("messages?select=*")
+    suspend fun getAllMessages(): Response<List<SupabaseMessageDto>>
 
     @Headers("Prefer: resolution=merge-duplicates,return=representation")
     @POST("messages?on_conflict=id")

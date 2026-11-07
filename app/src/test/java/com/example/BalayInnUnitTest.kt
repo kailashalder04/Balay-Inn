@@ -4,6 +4,7 @@ import com.example.data.local.entity.PropertyEntity
 import com.example.data.remote.supabase.SupabasePropertyDto
 import com.example.data.remote.supabase.TimestampParser
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -179,5 +180,39 @@ class BalayInnUnitTest {
         assertEquals("Furnished", edited.furnishedStatus)
         assertEquals("RENTED", edited.status)
         assertEquals(original.id, edited.id)
+    }
+
+    @Test
+    fun testMessageSchemaMappingForSupabaseMessagesTable() {
+        val renterUserId = "00000000-0000-0000-0000-000000000001"
+        val propertyOwnerId = "00000000-0000-0000-0000-000000000002"
+        val propertyId = "00000000-0000-0000-0000-000000000003"
+        val messageEntity = com.example.data.local.entity.MessageEntity(
+            id = "msg_12345",
+            conversationId = "conv_${renterUserId}_${propertyId}",
+            senderId = renterUserId,
+            senderName = "Joshua Renter",
+            messageText = "Hello, is this property available for viewing tomorrow?",
+            timestamp = 1715000000000L,
+            isRead = false
+        )
+
+        val dto = com.example.data.remote.supabase.SupabaseMessageDto.fromEntity(
+            e = messageEntity,
+            receiverId = propertyOwnerId,
+            propertyId = propertyId
+        )
+
+        assertEquals(renterUserId, dto.senderId)
+        assertEquals(propertyOwnerId, dto.receiverId)
+        assertEquals(propertyId, dto.propertyId)
+        assertEquals("Hello, is this property available for viewing tomorrow?", dto.content)
+        assertEquals(false, dto.isRead)
+        assertNotNull(dto.createdAt)
+
+        val reconstructed = dto.toEntity()
+        assertEquals(dto.content, reconstructed.messageText)
+        assertEquals(renterUserId, reconstructed.senderId)
+        assertEquals(1715000000000L, reconstructed.timestamp)
     }
 }

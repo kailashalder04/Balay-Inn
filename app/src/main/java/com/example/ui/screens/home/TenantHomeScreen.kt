@@ -47,6 +47,10 @@ import com.example.ui.components.PropertyCard
 import com.example.ui.components.VerifiedIcon
 import com.example.ui.components.VerifiedPillBadge
 import com.example.ui.components.isPlatformVerified
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import com.example.ui.components.NotificationDetailDialog
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.MarketplaceViewModel
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +65,7 @@ fun TenantHomeScreen(
     onNavigateToPropertyDetail: (String) -> Unit,
     onNavigateToVerificationCenter: () -> Unit,
     onNavigateToLogin: () -> Unit = {},
+    onNavigateToChat: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDark by viewModel.isDarkMode.collectAsState()
@@ -79,9 +84,11 @@ fun TenantHomeScreen(
     val savedItems = properties.filter { it.id in savedPropIds }
     val comparedProperties by viewModel.comparedProperties.collectAsState()
     val comparedPropertyIds = remember(comparedProperties) { comparedProperties.map { it.id }.toSet() }
+    val context = LocalContext.current
     var showComparisonMatrix by remember { mutableStateOf(false) }
     var guestActionPromptReason by remember { mutableStateOf<String?>(null) }
     var showRenterNotifications by remember { mutableStateOf(false) }
+    var selectedNotificationDetail by remember { mutableStateOf<NotificationEntity?>(null) }
 
     val categoryConfigs = remember {
         listOf(
@@ -517,26 +524,111 @@ fun TenantHomeScreen(
                 }
 
                 items(savedItems.take(2), key = { "saved_home_${it.id}" }) { prop ->
-                    PropertyCard(
-                        property = prop,
-                        locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
-                        imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                        isSaved = true,
-                        onSaveToggle = {
-                            if (currentUser.isGuest) {
-                                guestActionPromptReason = "Sign in to save properties."
-                            } else {
-                                viewModel.toggleSave(prop.id)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                    ) {
+                        PropertyCard(
+                            property = prop,
+                            locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
+                            imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                            isSaved = true,
+                            onSaveToggle = {
+                                if (currentUser.isGuest) {
+                                    guestActionPromptReason = "Sign in to save properties."
+                                } else {
+                                    viewModel.toggleSave(prop.id)
+                                }
+                            },
+                            isCompared = prop.id in comparedPropertyIds,
+                            onCompareToggle = { viewModel.toggleCompare(prop) },
+                            onClick = {
+                                viewModel.recordPropertyView(prop.id)
+                                onNavigateToPropertyDetail(prop.id)
+                            },
+                            onViewOnMap = onNavigateToExplore
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Contact Caretaker / Host row with Mail and In-App Chat
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Inquire / Contact Host:",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Mail icon
+                                    IconButton(
+                                        onClick = {
+                                            val recipient = "support@balayinn.com"
+                                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                                data = Uri.parse("mailto:$recipient?subject=Inquiry%20regarding%20${Uri.encode(prop.title)}")
+                                            }
+                                            try {
+                                                context.startActivity(intent)
+                                            } catch (_: Exception) {}
+                                        },
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .minimumInteractiveComponentSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Email,
+                                            contentDescription = "Email Landlord",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    // Chat icon for in-app messaging
+                                    FilledTonalButton(
+                                        onClick = {
+                                            viewModel.startConversation(
+                                                property = prop,
+                                                message = "Hi, I am interested in your listing: ${prop.title}."
+                                            ) { convId ->
+                                                onNavigateToChat(convId)
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier
+                                            .height(34.dp)
+                                            .minimumInteractiveComponentSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Chat,
+                                            contentDescription = "Chat with Landlord",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Chat", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
                             }
-                        },
-                        isCompared = prop.id in comparedPropertyIds,
-                        onCompareToggle = { viewModel.toggleCompare(prop) },
-                        onClick = {
-                            viewModel.recordPropertyView(prop.id)
-                            onNavigateToPropertyDetail(prop.id)
-                        },
-                        onViewOnMap = onNavigateToExplore
-                    )
+                        }
+                    }
                 }
             }
         }
@@ -650,6 +742,29 @@ fun TenantHomeScreen(
             },
             onRemoveSaved = { propId ->
                 viewModel.toggleSave(propId)
+            },
+            onNotificationClick = { notif ->
+                viewModel.markNotificationRead(notif.id)
+                selectedNotificationDetail = notif
+            },
+            onNavigateToChat = { convId ->
+                showRenterNotifications = false
+                onNavigateToChat(convId)
+            }
+        )
+    }
+
+    selectedNotificationDetail?.let { notif ->
+        NotificationDetailDialog(
+            notification = notif,
+            onDismiss = { selectedNotificationDetail = null },
+            onNavigateToProperty = { propId ->
+                selectedNotificationDetail = null
+                onNavigateToPropertyDetail(propId)
+            },
+            onNavigateToChat = { convId ->
+                selectedNotificationDetail = null
+                onNavigateToChat(convId)
             }
         )
     }
@@ -941,8 +1056,11 @@ fun RenterNotificationsDialog(
     currentUserId: String,
     onDismiss: () -> Unit,
     onNavigateToDetail: (String) -> Unit,
-    onRemoveSaved: (String) -> Unit
+    onRemoveSaved: (String) -> Unit,
+    onNotificationClick: (NotificationEntity) -> Unit = {},
+    onNavigateToChat: (String?) -> Unit = {}
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Alerts & Unavailable, 1 = Host Messages, 2 = Viewing Updates
 
     // Filter conversations where host sent a message or last message is from host
@@ -1090,7 +1208,9 @@ fun RenterNotificationsDialog(
                                             containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
                                         ),
                                         border = BorderStroke(1.dp, catColor.copy(alpha = 0.35f)),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onNotificationClick(notif) }
                                     ) {
                                         Column(modifier = Modifier.padding(12.dp)) {
                                             Row(
@@ -1438,6 +1558,49 @@ fun RenterNotificationsDialog(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.End,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Mail Icon
+                                                IconButton(
+                                                    onClick = {
+                                                        val email = "host@balayinn.com"
+                                                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                                            data = Uri.parse("mailto:$email?subject=Viewing%20Schedule%20(${req.preferredDate})")
+                                                        }
+                                                        try { context.startActivity(intent) } catch (_: Exception) {}
+                                                    },
+                                                    modifier = Modifier.size(32.dp).minimumInteractiveComponentSize()
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Email,
+                                                        contentDescription = "Email Landlord",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.width(4.dp))
+
+                                                // Chat Icon beside Mail Icon
+                                                IconButton(
+                                                    onClick = {
+                                                        onNavigateToChat(null)
+                                                    },
+                                                    modifier = Modifier.size(32.dp).minimumInteractiveComponentSize()
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Chat,
+                                                        contentDescription = "In-App Chat with Host",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1449,7 +1612,9 @@ fun RenterNotificationsDialog(
                                             containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
                                         ),
                                         border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onNotificationClick(notif) }
                                     ) {
                                         Column(modifier = Modifier.padding(12.dp)) {
                                             Text(

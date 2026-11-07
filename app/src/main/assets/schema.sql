@@ -548,14 +548,23 @@ CREATE TABLE IF NOT EXISTS public.saved_listings (
 -- 11.1 NOTIFICATIONS TABLE (Host Messages, Saved Listing Status, Updates)
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS public.notifications (
-  id TEXT PRIMARY KEY DEFAULT ('notif-' || uuid_generate_v4()),
-  user_id TEXT NOT NULL,
-  property_id TEXT REFERENCES public.properties(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  notif_id UUID GENERATED ALWAYS AS (id) STORED,
+  user_id TEXT NULL,
+  property_id UUID REFERENCES public.properties(property_id) ON DELETE CASCADE,
+  viewing_request_id UUID REFERENCES public.viewing_requests(id) ON DELETE CASCADE,
+  sender_id TEXT NULL,
+  recipient_role TEXT NULL DEFAULT 'all' CHECK (recipient_role IN ('host', 'renter', 'admin', 'all')),
   title TEXT NOT NULL,
   message TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT 'SYSTEM' CHECK (
-    category IN ('MATCH', 'PRICE_DROP', 'VIEWING', 'MESSAGE', 'VERIFICATION', 'SYSTEM', 'UNAVAILABLE_SAVED', 'PROPERTY_UPDATE')
+    category IN (
+      'VIEWING_REQUEST', 'VIEWING_CANCELLED', 'VIEWING_RESPONSE',
+      'MESSAGE', 'PROPERTY_FULL', 'PROPERTY_UNAVAILABLE',
+      'VERIFICATION', 'APP_UPDATE', 'SYSTEM', 'MATCH', 'PRICE_DROP', 'SAVED', 'STATUS'
+    )
   ),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -563,6 +572,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_property_id ON public.notifications (property_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_category ON public.notifications (category);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications (created_at DESC);
 
 DROP TRIGGER IF EXISTS set_notifications_updated_at ON public.notifications;

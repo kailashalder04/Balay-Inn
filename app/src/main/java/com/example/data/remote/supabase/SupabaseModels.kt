@@ -83,9 +83,15 @@ data class SupabasePropertyDto(
     @Json(name = "updated_at") val updatedAt: Any? = null
 ) {
     fun toEntity(): PropertyEntity {
-        val prov = province ?: "Cebu"
-        val ct = city ?: "Cebu City"
-        val bgy = barangay ?: "Lahug"
+        val prov = province?.trim()?.takeIf { it.isNotBlank() } ?: "Cebu"
+        val ct = city?.trim()?.takeIf { it.isNotBlank() } ?: "Cebu City"
+        val bgy = barangay?.trim()?.takeIf { it.isNotBlank() } ?: neighborhood?.trim()?.takeIf { it.isNotBlank() } ?: "Lahug"
+
+        val combinedLocation = listOfNotNull(
+            bgy.takeIf { it.isNotBlank() },
+            ct.takeIf { it.isNotBlank() },
+            prov.takeIf { it.isNotBlank() }
+        ).joinToString(", ")
 
         val resolvedPropId = propertyIdCol?.trim()?.ifBlank { null } ?: id?.trim()?.ifBlank { null } ?: "prop_${System.currentTimeMillis()}"
         return PropertyEntity(
@@ -101,12 +107,7 @@ data class SupabasePropertyDto(
             barangayId = resolveBarangayId(bgy),
             neighborhood = neighborhood ?: "",
             nearbyLandmark = nearbyLandmark ?: "",
-            location = location?.takeIf { it.isNotBlank() } ?: listOfNotNull(
-                streetAddressPrivate?.takeIf { it.isNotBlank() },
-                bgy.takeIf { it.isNotBlank() },
-                ct.takeIf { it.isNotBlank() },
-                prov.takeIf { it.isNotBlank() }
-            ).joinToString(", "),
+            location = location?.takeIf { it.isNotBlank() } ?: if (combinedLocation.isNotBlank()) combinedLocation else "$bgy, $ct, $prov",
             coordinates = coordinates?.takeIf { it.isNotBlank() } ?: "${latitude ?: 10.3157}, ${longitude ?: 123.8854}",
             streetAddressPrivate = streetAddressPrivate ?: "",
             locationPrivacy = locationPrivacy ?: "APPROXIMATE",
@@ -516,10 +517,9 @@ data class SupabaseMessageDto(
         val r = receiverId ?: ""
         val p = propertyId ?: ""
         val convId = conversationId?.ifBlank { null }
-            ?: if (p.isNotBlank() && (s.isNotBlank() || r.isNotBlank())) {
-                val userA = minOf(s, r)
-                val userB = maxOf(s, r)
-                "conv_${p}_${userA}_$userB"
+            ?: if (p.isNotBlank()) {
+                val tenant = if (s.isNotBlank() && r.isNotBlank()) minOf(s, r) else s.ifBlank { r }
+                "conv_${tenant}_$p"
             } else if (s.isNotBlank() && r.isNotBlank()) {
                 "conv_${minOf(s, r)}_${maxOf(s, r)}"
             } else {
@@ -532,7 +532,7 @@ data class SupabaseMessageDto(
             senderId = s,
             senderName = senderName ?: "User",
             messageText = text,
-            timestamp = TimestampParser.toEpochMillis(timestamp ?: createdAt),
+            timestamp = TimestampParser.toEpochMillis(createdAt ?: timestamp),
             isRead = isRead ?: false
         )
     }
@@ -544,15 +544,22 @@ data class SupabaseMessageDto(
     }
 
     companion object {
-        fun fromEntity(e: MessageEntity): SupabaseMessageDto = SupabaseMessageDto(
-            id = e.id,
+        fun fromEntity(
+            e: MessageEntity,
+            receiverId: String? = null,
+            propertyId: String? = null
+        ): SupabaseMessageDto = SupabaseMessageDto(
+            id = UuidHelper.toValidUuidOrNull(e.id) ?: e.id,
             conversationId = e.conversationId,
-            senderId = e.senderId,
+            senderId = UuidHelper.toValidUuidOrNull(e.senderId) ?: e.senderId,
+            receiverId = UuidHelper.toValidUuidOrNull(receiverId),
+            propertyId = UuidHelper.toValidUuidOrNull(propertyId),
             senderName = e.senderName,
             messageText = e.messageText,
             message = null,
             content = e.messageText,
             timestamp = e.timestamp,
+            createdAt = try { java.time.Instant.ofEpochMilli(e.timestamp).toString() } catch (_: Exception) { null },
             isRead = e.isRead
         )
     }
@@ -607,37 +614,53 @@ data class SupabaseConversationDto(
 @JsonClass(generateAdapter = true)
 data class SupabaseNotificationDto(
     @Json(name = "id") val id: String? = null,
+    @Json(name = "notif_id") val notifId: String? = null,
     @Json(name = "user_id") val userId: String? = null,
     @Json(name = "property_id") val propertyId: String? = null,
+    @Json(name = "viewing_request_id") val viewingRequestId: String? = null,
+    @Json(name = "sender_id") val senderId: String? = null,
+    @Json(name = "recipient_role") val recipientRole: String? = null,
     @Json(name = "title") val title: String? = null,
     @Json(name = "message") val message: String? = null,
     @Json(name = "category") val category: String? = "SYSTEM",
+    @Json(name = "metadata") val metadata: Map<String, Any?>? = null,
     @Json(name = "is_read") val isRead: Boolean? = false,
     @Json(name = "created_at") val createdAt: Any? = null,
     @Json(name = "updated_at") val updatedAt: Any? = null
 ) {
-    fun toEntity(): NotificationEntity = NotificationEntity(
-        id = id?.ifBlank { null } ?: "notif_${System.currentTimeMillis()}",
-        userId = userId ?: "",
-        title = title ?: "Notification",
-        message = message ?: "",
-        category = category ?: "SYSTEM",
-        relatedPropertyId = propertyId,
-        isRead = isRead ?: false,
-        createdAt = TimestampParser.toEpochMillis(createdAt)
-    )
+    fun toEntity(): NotificationEntity {
+        val effectiveId = id?.ifBlank { null } ?: notifId?.ifBlank { null } ?: "notif_${System.currentTimeMillis()}"
+        return NotificationEntity(
+            id = effectiveId,
+            userId = userId ?: "",
+            title = title ?: "Notification",
+            message = message ?: "",
+            category = category ?: "SYSTEM",
+            relatedPropertyId = propertyId,
+            isRead = isRead ?: false,
+            createdAt = TimestampParser.toEpochMillis(createdAt)
+        )
+    }
 
     companion object {
-        fun fromEntity(e: NotificationEntity): SupabaseNotificationDto = SupabaseNotificationDto(
-            id = e.id,
-            userId = e.userId,
-            propertyId = e.relatedPropertyId,
-            title = e.title,
-            message = e.message,
-            category = e.category,
-            isRead = e.isRead,
-            createdAt = e.createdAt
-        )
+        fun fromEntity(e: NotificationEntity): SupabaseNotificationDto {
+            val safeId = try {
+                java.util.UUID.fromString(e.id).toString()
+            } catch (_: Exception) {
+                java.util.UUID.nameUUIDFromBytes(e.id.toByteArray()).toString()
+            }
+            return SupabaseNotificationDto(
+                id = safeId,
+                notifId = safeId,
+                userId = e.userId.ifBlank { null },
+                propertyId = e.relatedPropertyId?.ifBlank { null },
+                title = e.title,
+                message = e.message,
+                category = e.category,
+                isRead = e.isRead,
+                createdAt = e.createdAt
+            )
+        }
     }
 }
 

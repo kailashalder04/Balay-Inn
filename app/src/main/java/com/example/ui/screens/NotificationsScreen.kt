@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.NotificationEntity
+import com.example.ui.components.NotificationDetailDialog
 import com.example.ui.viewmodel.MarketplaceViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -68,14 +69,18 @@ import java.util.Locale
 fun NotificationsScreen(
     viewModel: MarketplaceViewModel,
     onNavigateToPropertyDetail: (String) -> Unit = {},
+    onNavigateToChat: ((String?) -> Unit)? = null,
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val allNotifications by viewModel.notifications.collectAsState()
+    val properties by viewModel.properties.collectAsState()
+    val isDark by viewModel.isDarkMode.collectAsState()
 
     val alertNotifications = allNotifications
 
     var selectedFilter by remember { mutableStateOf("ALL") } // ALL, UNREAD, VIEWING, MESSAGES
+    var selectedNotificationForDetail by remember { mutableStateOf<NotificationEntity?>(null) }
 
     val filteredNotifications = when (selectedFilter) {
         "UNREAD" -> alertNotifications.filter { !it.isRead }
@@ -236,13 +241,28 @@ fun NotificationsScreen(
                             onMarkRead = { viewModel.markNotificationRead(notif.id) },
                             onClick = {
                                 viewModel.markNotificationRead(notif.id)
-                                notif.relatedPropertyId?.let { onNavigateToPropertyDetail(it) }
+                                selectedNotificationForDetail = notif
                             }
                         )
                     }
                 }
             }
         }
+    }
+
+    selectedNotificationForDetail?.let { notif ->
+        val relatedProp = properties.find { it.id == notif.relatedPropertyId }
+        NotificationDetailDialog(
+            notification = notif,
+            property = relatedProp,
+            onDismiss = { selectedNotificationForDetail = null },
+            onNavigateToProperty = { propId ->
+                selectedNotificationForDetail = null
+                onNavigateToPropertyDetail(propId)
+            },
+            onNavigateToChat = onNavigateToChat,
+            isDark = isDark
+        )
     }
 }
 

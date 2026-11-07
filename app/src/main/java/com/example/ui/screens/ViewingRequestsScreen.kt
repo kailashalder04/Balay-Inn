@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
@@ -73,6 +74,7 @@ import com.example.ui.viewmodel.MarketplaceViewModel
 fun ViewingRequestsScreen(
     viewModel: MarketplaceViewModel,
     onNavigateToPropertyDetail: (String) -> Unit,
+    onNavigateToChat: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
@@ -88,6 +90,14 @@ fun ViewingRequestsScreen(
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Viewings, 1 = Saved, 2 = Host Requests
 
     val savedItems = properties.filter { p -> savedProperties.any { it.propertyId == p.id } }
+
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadViewingNotifs = remember(notifications) {
+        notifications.count { !it.isRead && it.category in listOf("VIEWING", "VIEWING_REQUEST", "VIEWING_RESPONSE", "VIEWING_CANCELLED") }
+    }
+    val pendingRequestsCount = remember(posterViewings) {
+        posterViewings.count { it.status == "REQUESTED" }
+    }
 
     Scaffold(
         topBar = {
@@ -114,8 +124,9 @@ fun ViewingRequestsScreen(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
                         text = {
+                            val viewingsLabel = if (unreadViewingNotifs > 0) "Viewings (${tenantViewings.size} • $unreadViewingNotifs new)" else "Viewings (${tenantViewings.size})"
                             Text(
-                                text = "Viewings (${tenantViewings.size})",
+                                text = viewingsLabel,
                                 fontSize = 12.sp,
                                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
                                 maxLines = 1,
@@ -140,8 +151,9 @@ fun ViewingRequestsScreen(
                         selected = selectedTab == 2,
                         onClick = { selectedTab = 2 },
                         text = {
+                            val reqLabel = if (pendingRequestsCount > 0) "Requests (${posterViewings.size} • $pendingRequestsCount pending)" else "Requests (${posterViewings.size})"
                             Text(
-                                text = "Requests (${posterViewings.size})",
+                                text = reqLabel,
                                 fontSize = 12.sp,
                                 fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium,
                                 maxLines = 1,
@@ -168,13 +180,13 @@ fun ViewingRequestsScreen(
                         )
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primary
+                            color = if (pendingRequestsCount > 0) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
                         ) {
                             Text(
-                                text = "${posterViewings.size} Requests",
+                                text = if (pendingRequestsCount > 0) "${posterViewings.size} Requests ($pendingRequestsCount pending)" else "${posterViewings.size} Requests",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary,
+                                color = Color.White,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
@@ -245,6 +257,10 @@ fun ViewingRequestsScreen(
                                         notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
                                     )
                                 },
+                                onChatClick = {
+                                    val convId = "conv_${viewing.tenantId}_${viewing.propertyId}"
+                                    onNavigateToChat(convId)
+                                },
                                 onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
                             )
                         }
@@ -304,6 +320,10 @@ fun ViewingRequestsScreen(
                                             notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
                                         )
                                     },
+                                    onChatClick = {
+                                        val convId = "conv_${viewing.tenantId}_${viewing.propertyId}"
+                                        onNavigateToChat(convId)
+                                    },
                                     onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
                                 )
                             }
@@ -341,14 +361,69 @@ fun ViewingRequestsScreen(
                             }
                         } else {
                             items(savedItems, key = { it.id }) { prop ->
-                                PropertyCard(
-                                    property = prop,
-                                    locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
-                                    imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
-                                    isSaved = true,
-                                    onSaveToggle = { viewModel.toggleSave(prop.id) },
-                                    onClick = { onNavigateToPropertyDetail(prop.id) }
-                                )
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    PropertyCard(
+                                        property = prop,
+                                        locationDisplay = viewModel.getBarangayProvinceDisplay(prop),
+                                        imageUrls = propertyImagesMap[prop.id] ?: emptyList(),
+                                        isSaved = true,
+                                        onSaveToggle = { viewModel.toggleSave(prop.id) },
+                                        onClick = { onNavigateToPropertyDetail(prop.id) }
+                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp, bottom = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Contact Landlord / Caretaker:",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    viewModel.dispatchViewingStatusNotificationEmail(
+                                                        recipientEmail = "host@balayinn.ph",
+                                                        propertyTitle = prop.title,
+                                                        status = "SAVED_INQUIRY",
+                                                        date = "Upcoming",
+                                                        time = "Flexible",
+                                                        notes = "Renter inquiry for ${prop.title}."
+                                                    )
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                                modifier = Modifier.height(32.dp)
+                                            ) {
+                                                Icon(Icons.Default.Email, contentDescription = "Send Email Alert", modifier = Modifier.size(15.dp), tint = Color(0xFFEA4335))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Email", fontSize = 11.sp)
+                                            }
+
+                                            Button(
+                                                onClick = {
+                                                    viewModel.startConversation(
+                                                        property = prop,
+                                                        message = "Hi, I am interested in viewing this property."
+                                                    ) { convId ->
+                                                        onNavigateToChat(convId)
+                                                    }
+                                                },
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                                modifier = Modifier.height(32.dp)
+                                            ) {
+                                                Icon(Icons.Default.Chat, contentDescription = "In-App Messaging", modifier = Modifier.size(15.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Chat", fontSize = 11.sp)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -408,6 +483,10 @@ fun ViewingRequestsScreen(
                                             notes = viewing.posterResponse.ifBlank { "Appointment reminder update." }
                                         )
                                     },
+                                    onChatClick = {
+                                        val convId = "conv_${viewing.tenantId}_${viewing.propertyId}"
+                                        onNavigateToChat(convId)
+                                    },
                                     onViewProperty = { onNavigateToPropertyDetail(viewing.propertyId) }
                                 )
                             }
@@ -429,6 +508,7 @@ fun ViewingCard(
     onAccept: () -> Unit,
     onCancel: () -> Unit,
     onSendEmailAlert: () -> Unit,
+    onChatClick: () -> Unit = {},
     onViewProperty: () -> Unit
 ) {
     Card(
@@ -619,6 +699,15 @@ fun ViewingCard(
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Icon(Icons.Default.Email, contentDescription = "Send Email Alert", modifier = Modifier.size(16.dp), tint = Color(0xFFEA4335))
+                }
+
+                OutlinedButton(
+                    onClick = onChatClick,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = "In-App Messaging", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }

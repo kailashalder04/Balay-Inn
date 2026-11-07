@@ -152,6 +152,19 @@ fun BalayInnApp(
 
     val currentUser by viewModel.currentUser.collectAsState()
     val isHost = currentUser.role == "PROPERTY_OWNER"
+    val notifications by viewModel.notifications.collectAsState()
+    val tenantViewings by viewModel.tenantViewings.collectAsState()
+    val posterViewings by viewModel.posterViewings.collectAsState()
+    val conversations by viewModel.conversations.collectAsState()
+
+    val viewingsBadgeCount = if (isHost) {
+        posterViewings.count { it.status == "REQUESTED" } + notifications.count { !it.isRead && it.category in listOf("VIEWING", "VIEWING_REQUEST", "VIEWING_CANCELLED") }
+    } else {
+        tenantViewings.count { it.status in listOf("CONFIRMED", "RESCHEDULED") } + notifications.count { !it.isRead && it.category in listOf("VIEWING", "VIEWING_RESPONSE") }
+    }
+
+    val messagesBadgeCount = conversations.sumOf { if (isHost) it.unreadForPoster else it.unreadForTenant } +
+        notifications.count { !it.isRead && it.category == "MESSAGE" }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -161,6 +174,8 @@ fun BalayInnApp(
                 ResponsiveBottomNav(
                     currentScreen = currentScreen,
                     isHost = isHost,
+                    viewingsBadgeCount = viewingsBadgeCount,
+                    messagesBadgeCount = messagesBadgeCount,
                     onNavigate = { navigateTo(it) }
                 )
             }
@@ -187,7 +202,8 @@ fun BalayInnApp(
                         onNavigateToLogin = { navigateTo(AppScreen.Login) },
                         onNavigateToOnboarding = { role -> navigateTo(AppScreen.Onboarding(role)) },
                         onNavigateToNotifications = { navigateTo(AppScreen.Notifications) },
-                        onNavigateToPreferences = { navigateTo(AppScreen.TenantRequirements) }
+                        onNavigateToPreferences = { navigateTo(AppScreen.TenantRequirements) },
+                        onNavigateToChat = { convId -> navigateTo(AppScreen.Messages(convId)) }
                     )
                 }
                 is AppScreen.Explore -> {
@@ -201,6 +217,7 @@ fun BalayInnApp(
                     NotificationsScreen(
                         viewModel = viewModel,
                         onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) },
+                        onNavigateToChat = { convId -> navigateTo(AppScreen.Messages(convId)) },
                         onBack = { navigateBack() }
                     )
                 }
@@ -214,7 +231,8 @@ fun BalayInnApp(
                 is AppScreen.Viewings -> {
                     ViewingRequestsScreen(
                         viewModel = viewModel,
-                        onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) }
+                        onNavigateToPropertyDetail = { propId -> navigateTo(AppScreen.PropertyDetail(propId)) },
+                        onNavigateToChat = { convId -> navigateTo(AppScreen.Messages(convId)) }
                     )
                 }
                 is AppScreen.Messages -> {
@@ -306,7 +324,8 @@ private data class NavItemData(
     val label: String,
     val icon: ImageVector,
     val screen: AppScreen,
-    val tag: String
+    val tag: String,
+    val badgeCount: Int = 0
 )
 
 @Composable
@@ -314,6 +333,8 @@ fun ResponsiveBottomNav(
     currentScreen: AppScreen,
     onNavigate: (AppScreen) -> Unit,
     isHost: Boolean = false,
+    viewingsBadgeCount: Int = 0,
+    messagesBadgeCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -339,8 +360,8 @@ fun ResponsiveBottomNav(
                 if (!isHost) {
                     add(NavItemData("Explore", Icons.Default.Explore, AppScreen.Explore, "nav_explore"))
                 }
-                add(NavItemData("Viewings", Icons.Default.CalendarMonth, AppScreen.Viewings, "nav_viewings"))
-                add(NavItemData("Messages", Icons.Default.Chat, AppScreen.Messages(), "nav_messages"))
+                add(NavItemData("Viewings", Icons.Default.CalendarMonth, AppScreen.Viewings, "nav_viewings", badgeCount = viewingsBadgeCount))
+                add(NavItemData("Messages", Icons.Default.Chat, AppScreen.Messages(), "nav_messages", badgeCount = messagesBadgeCount))
                 add(NavItemData("Profile", Icons.Default.Person, AppScreen.Dashboard, "nav_dashboard"))
             }
 
@@ -384,12 +405,29 @@ fun ResponsiveBottomNav(
                                 .padding(horizontal = if (totalWidth < 360.dp) 8.dp else 12.dp, vertical = 3.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = item.label,
-                                modifier = Modifier.size(iconSize),
-                                tint = if (isSelected) activeColor else inactiveColor
-                            )
+                            androidx.compose.material3.BadgedBox(
+                                badge = {
+                                    if (item.badgeCount > 0) {
+                                        androidx.compose.material3.Badge(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            contentColor = MaterialTheme.colorScheme.onError
+                                        ) {
+                                            Text(
+                                                text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString(),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
+                                    modifier = Modifier.size(iconSize),
+                                    tint = if (isSelected) activeColor else inactiveColor
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(2.dp))
