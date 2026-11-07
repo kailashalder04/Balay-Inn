@@ -17,6 +17,9 @@ interface SupabaseApi {
     @GET("properties?select=*&order=created_at.desc")
     suspend fun getProperties(): Response<List<SupabasePropertyDto>>
 
+    @GET("properties?select=*")
+    suspend fun getPropertyById(@Query("id") idFilter: String): Response<List<SupabasePropertyDto>>
+
     @Headers("Prefer: return=representation")
     @POST("properties")
     suspend fun createProperty(@Body property: SupabasePropertyDto): Response<List<SupabasePropertyDto>>

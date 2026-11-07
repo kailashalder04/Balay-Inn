@@ -184,8 +184,8 @@ class BalayInnUnitTest {
 
     @Test
     fun testMessageSchemaMappingForSupabaseMessagesTable() {
-        val renterUserId = "00000000-0000-0000-0000-000000000001"
-        val propertyOwnerId = "00000000-0000-0000-0000-000000000002"
+        val renterUserId = "00000000-0000-0000-0000-000000000001" // user_id from user_profiles
+        val propertyHostId = "00000000-0000-0000-0000-000000000002" // host_id from properties table
         val propertyId = "00000000-0000-0000-0000-000000000003"
         val messageEntity = com.example.data.local.entity.MessageEntity(
             id = "msg_12345",
@@ -197,14 +197,15 @@ class BalayInnUnitTest {
             isRead = false
         )
 
+        // receiver_id must strictly be the host_id from the properties table
         val dto = com.example.data.remote.supabase.SupabaseMessageDto.fromEntity(
             e = messageEntity,
-            receiverId = propertyOwnerId,
+            receiverId = propertyHostId,
             propertyId = propertyId
         )
 
         assertEquals(renterUserId, dto.senderId)
-        assertEquals(propertyOwnerId, dto.receiverId)
+        assertEquals(propertyHostId, dto.receiverId)
         assertEquals(propertyId, dto.propertyId)
         assertEquals("Hello, is this property available for viewing tomorrow?", dto.content)
         assertEquals(false, dto.isRead)
@@ -214,5 +215,22 @@ class BalayInnUnitTest {
         assertEquals(dto.content, reconstructed.messageText)
         assertEquals(renterUserId, reconstructed.senderId)
         assertEquals(1715000000000L, reconstructed.timestamp)
+    }
+
+    @Test
+    fun testPropertyDtoMapsHostIdToOwnerAndPoster() {
+        val hostUuid = "a1b2c3d4-0000-0000-0000-000000000099"
+        val dto = com.example.data.remote.supabase.SupabasePropertyDto(
+            id = "prop_123",
+            title = "Balay-Inn Boarding House",
+            hostId = hostUuid,
+            ownerId = "fallback_owner",
+            monthlyRent = 3500.0,
+            location = "Cebu City"
+        )
+        val entity = dto.toEntity()
+        // Must prioritize host_id from properties table
+        assertEquals(hostUuid, entity.ownerId)
+        assertEquals(hostUuid, entity.posterId)
     }
 }

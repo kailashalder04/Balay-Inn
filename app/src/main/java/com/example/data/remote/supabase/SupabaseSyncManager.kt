@@ -36,6 +36,7 @@ class SupabaseSyncManager(
     private val communicationDao: CommunicationDao,
     private val platformDao: PlatformDao
 ) {
+    private val propertyHostMap = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val _syncStatus = MutableStateFlow<SupabaseSyncStatus>(
         if (SupabaseClient.isConfigured) SupabaseSyncStatus.Idle else SupabaseSyncStatus.Unconfigured
     )
@@ -71,6 +72,13 @@ class SupabaseSyncManager(
                 }
                 remoteProperties.forEach { dto ->
                     try {
+                        val hostId = dto.hostId?.trim()?.ifBlank { null }
+                            ?: dto.ownerId?.trim()?.ifBlank { null }
+                            ?: dto.posterId?.trim()?.ifBlank { null }
+                        if (!hostId.isNullOrBlank()) {
+                            dto.id?.trim()?.ifBlank { null }?.let { propertyHostMap[it] = hostId }
+                            dto.propertyIdCol?.trim()?.ifBlank { null }?.let { propertyHostMap[it] = hostId }
+                        }
                         val propEntity = dto.toEntity()
                         propertyDao.insertProperty(propEntity)
                         val images = dto.toImageEntities()
@@ -352,6 +360,42 @@ class SupabaseSyncManager(
         success
     }
 
+    suspend fun resolveHostIdForProperty(propId: String?): String? = withContext(Dispatchers.IO) {
+        if (propId.isNullOrBlank()) return@withContext null
+        propertyHostMap[propId]?.takeIf { it.isNotBlank() }?.let { return@withContext it }
+
+        // 1. Check local PropertyEntity (which mapped host_id to ownerId/posterId)
+        val localProp = try { propertyDao.getPropertyByIdSync(propId) } catch (_: Exception) { null }
+        val localHost = localProp?.ownerId?.takeIf { it.isNotBlank() } ?: localProp?.posterId?.takeIf { it.isNotBlank() }
+        if (!localHost.isNullOrBlank()) {
+            propertyHostMap[propId] = localHost
+            return@withContext localHost
+        }
+
+        // 2. Fetch directly from public.properties table in Supabase
+        val api = SupabaseClient.api ?: return@withContext null
+        try {
+            var res = api.getPropertyById("eq.$propId")
+            if (!res.isSuccessful || res.body().isNullOrEmpty()) {
+                val uuid = UuidHelper.toValidUuidOrNull(propId)
+                if (uuid != null) {
+                    res = api.getPropertyById("eq.$uuid")
+                }
+            }
+            val remoteProp = res.body()?.firstOrNull()
+            val remoteHost = remoteProp?.hostId?.trim()?.ifBlank { null }
+                ?: remoteProp?.ownerId?.trim()?.ifBlank { null }
+                ?: remoteProp?.posterId?.trim()?.ifBlank { null }
+            if (!remoteHost.isNullOrBlank()) {
+                propertyHostMap[propId] = remoteHost
+                remoteProp?.id?.let { propertyHostMap[it] = remoteHost }
+                return@withContext remoteHost
+            }
+        } catch (_: Exception) {}
+
+        null
+    }
+
     suspend fun pushMessageToRemote(message: MessageEntity): Boolean = withContext(Dispatchers.IO) {
         val api = SupabaseClient.api ?: return@withContext false
         val msgId = message.id
@@ -377,23 +421,25 @@ class SupabaseSyncManager(
             try { propertyDao.getPropertyByIdSync(propId) } catch (_: Exception) { null }
         } else null
 
-        // receiver_id will be the owner of the properties
-        val propertyOwnerId = prop?.ownerId?.takeIf { it.isNotBlank() }
+        // Explicit user constraint:
+        // "receiver_id must be the host_id from the properties table"
+        val hostIdFromPropertiesTable = resolveHostIdForProperty(propId)
+            ?: prop?.ownerId?.takeIf { it.isNotBlank() }
             ?: prop?.posterId?.takeIf { it.isNotBlank() }
             ?: conv?.posterId?.takeIf { it.isNotBlank() }
 
-        val isSenderOwner = (propertyOwnerId != null && senderId.equals(propertyOwnerId, ignoreCase = true)) ||
+        val isSenderHost = (hostIdFromPropertiesTable != null && senderId.equals(hostIdFromPropertiesTable, ignoreCase = true)) ||
                 (conv != null && senderId == conv.posterId && senderId != conv.tenantId)
 
         // sender_id will be the user_id from the user_profiles
-        // receiver_id will be the owner of the properties
+        // receiver_id must strictly be the host_id from the properties table when sending to host
         val resolvedSenderId = senderId
-        val resolvedReceiverId = if (isSenderOwner) {
-            // Owner is replying to the renter
+        val resolvedReceiverId = if (isSenderHost) {
+            // Host is replying to the renter
             conv?.tenantId?.takeIf { it.isNotBlank() }
         } else {
-            // Renter is sending message to the owner of the property
-            propertyOwnerId ?: conv?.posterId
+            // Renter is sending message to host: receiver_id is strictly the host_id from the properties table
+            hostIdFromPropertiesTable ?: conv?.posterId
         }
 
         val msgUuid = UuidHelper.toValidUuidOrNull(msgId) ?: UUID.randomUUID().toString()
