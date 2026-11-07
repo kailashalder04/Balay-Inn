@@ -46,6 +46,14 @@ interface ViewingDao {
     @Query("SELECT * FROM viewing_requests WHERE poster_id = :posterId ORDER BY created_at DESC")
     fun getViewingsForPoster(posterId: String): Flow<List<ViewingRequestEntity>>
 
+    @Query("""
+        SELECT * FROM viewing_requests 
+        WHERE poster_id = :hostId 
+           OR property_id IN (SELECT id FROM properties WHERE owner_id = :hostId OR poster_id = :hostId)
+        ORDER BY created_at DESC
+    """)
+    fun getViewingsForHost(hostId: String): Flow<List<ViewingRequestEntity>>
+
     @Query("SELECT * FROM viewing_requests WHERE property_id IN (SELECT id FROM properties WHERE owner_id = :ownerId) ORDER BY created_at DESC")
     fun getViewingsForOwner(ownerId: String): Flow<List<ViewingRequestEntity>>
 
@@ -82,8 +90,14 @@ interface CommunicationDao {
 
 @Dao
 interface PlatformDao {
-    // Notifications
-    @Query("SELECT * FROM notifications WHERE user_id = :userId ORDER BY created_at DESC")
+    @Query("""
+        SELECT * FROM notifications 
+        WHERE user_id = :userId 
+           OR user_id = 'all' 
+           OR user_id = '' 
+           OR related_property_id IN (SELECT id FROM properties WHERE owner_id = :userId OR poster_id = :userId)
+        ORDER BY created_at DESC
+    """)
     fun getNotificationsForUser(userId: String): Flow<List<NotificationEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

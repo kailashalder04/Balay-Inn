@@ -11,6 +11,7 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class SupabasePropertyDto(
     @Json(name = "id") val id: String? = null,
+    @Json(name = "property_id") val propertyIdCol: String? = null,
     @Json(name = "title") val title: String? = null,
     @Json(name = "short_description") val shortDescription: String? = null,
     @Json(name = "description") val description: String? = null,
@@ -86,8 +87,9 @@ data class SupabasePropertyDto(
         val ct = city ?: "Cebu City"
         val bgy = barangay ?: "Lahug"
 
+        val resolvedPropId = propertyIdCol?.trim()?.ifBlank { null } ?: id?.trim()?.ifBlank { null } ?: "prop_${System.currentTimeMillis()}"
         return PropertyEntity(
-            id = id?.ifBlank { null } ?: "prop_${System.currentTimeMillis()}",
+            id = resolvedPropId,
             title = title ?: shortDescription ?: "Untitled Property",
             description = description ?: fullDescription ?: "",
             propertyType = propertyType ?: "Condominium",
@@ -152,12 +154,12 @@ data class SupabasePropertyDto(
     }
 
     fun toEntityOrNull(): PropertyEntity? {
-        val propId = id?.trim()?.ifBlank { null } ?: return null
+        val propId = propertyIdCol?.trim()?.ifBlank { null } ?: id?.trim()?.ifBlank { null } ?: return null
         return toEntity().copy(id = propId)
     }
 
     fun toImageEntities(): List<com.example.data.local.entity.PropertyImageEntity> {
-        val propId = id?.trim()?.ifBlank { null } ?: return emptyList()
+        val propId = propertyIdCol?.trim()?.ifBlank { null } ?: id?.trim()?.ifBlank { null } ?: return emptyList()
         val urls = imageUrls?.filter { it.isNotBlank() } ?: emptyList()
         return if (urls.isNotEmpty()) {
             urls.mapIndexed { index, url ->
@@ -498,6 +500,8 @@ data class SupabaseMessageDto(
     @Json(name = "id") val id: String? = null,
     @Json(name = "conversation_id") val conversationId: String? = null,
     @Json(name = "sender_id") val senderId: String? = null,
+    @Json(name = "receiver_id") val receiverId: String? = null,
+    @Json(name = "property_id") val propertyId: String? = null,
     @Json(name = "sender_name") val senderName: String? = null,
     @Json(name = "message_text") val messageText: String? = null,
     @Json(name = "message") val message: String? = null,
@@ -507,11 +511,25 @@ data class SupabaseMessageDto(
     @Json(name = "is_read") val isRead: Boolean? = null
 ) {
     fun toEntity(): MessageEntity {
-        val text = messageText ?: message ?: content ?: ""
+        val text = content ?: messageText ?: message ?: ""
+        val s = senderId ?: ""
+        val r = receiverId ?: ""
+        val p = propertyId ?: ""
+        val convId = conversationId?.ifBlank { null }
+            ?: if (p.isNotBlank() && (s.isNotBlank() || r.isNotBlank())) {
+                val userA = minOf(s, r)
+                val userB = maxOf(s, r)
+                "conv_${p}_${userA}_$userB"
+            } else if (s.isNotBlank() && r.isNotBlank()) {
+                "conv_${minOf(s, r)}_${maxOf(s, r)}"
+            } else {
+                "conv_${s.ifBlank { "general" }}"
+            }
+
         return MessageEntity(
             id = id?.ifBlank { null } ?: "msg_${System.currentTimeMillis()}",
-            conversationId = conversationId ?: "",
-            senderId = senderId ?: "",
+            conversationId = convId,
+            senderId = s,
             senderName = senderName ?: "User",
             messageText = text,
             timestamp = TimestampParser.toEpochMillis(timestamp ?: createdAt),
@@ -520,9 +538,9 @@ data class SupabaseMessageDto(
     }
 
     fun toEntityOrNull(): MessageEntity? {
-        val cid = conversationId?.trim() ?: return null
-        if (cid.isBlank()) return null
-        return toEntity().copy(conversationId = cid)
+        val text = (content ?: messageText ?: message)?.trim() ?: return null
+        if (text.isBlank()) return null
+        return toEntity()
     }
 
     companion object {
@@ -532,7 +550,7 @@ data class SupabaseMessageDto(
             senderId = e.senderId,
             senderName = e.senderName,
             messageText = e.messageText,
-            message = e.messageText,
+            message = null,
             content = e.messageText,
             timestamp = e.timestamp,
             isRead = e.isRead
@@ -750,9 +768,35 @@ data class SupabaseAuthError(
 // Extended Backend Schema DTOs (PostgreSQL Alignments)
 // ==========================================
 
+object SavedListingsHelper {
+    fun parseSavedListingIds(raw: Any?): MutableList<Map<String, String>> {
+        val list = mutableListOf<Map<String, String>>()
+        if (raw is List<*>) {
+            for (item in raw) {
+                when (item) {
+                    is Map<*, *> -> {
+                        val pid = item["property_id"]?.toString() ?: item["id"]?.toString() ?: ""
+                        val title = item["title"]?.toString() ?: item["name"]?.toString() ?: "Rental Listing"
+                        if (pid.isNotBlank()) {
+                            list.add(mapOf("property_id" to pid, "title" to title))
+                        }
+                    }
+                    is String -> {
+                        if (item.isNotBlank()) {
+                            list.add(mapOf("property_id" to item, "title" to "Rental Listing"))
+                        }
+                    }
+                }
+            }
+        }
+        return list
+    }
+}
+
 @JsonClass(generateAdapter = true)
 data class SupabaseUserProfileDto(
-    @Json(name = "id") val id: String,
+    @Json(name = "user_id") val userId: String? = null,
+    @Json(name = "id") val id: String? = null,
     @Json(name = "full_name") val fullName: String = "",
     @Json(name = "email") val email: String? = null,
     @Json(name = "phone_no") val phoneNo: String? = null,
@@ -761,14 +805,18 @@ data class SupabaseUserProfileDto(
     @Json(name = "is_verified") val isVerified: Boolean = false,
     @Json(name = "privacy_preferences") val privacyPreferences: Map<String, Any?>? = null,
     @Json(name = "log_at") val logAt: String? = null,
-    @Json(name = "saved_listing_ids") val savedListingIds: List<String>? = null,
+    @Json(name = "saved_listing_ids") val savedListingIds: List<Any>? = null,
     @Json(name = "created_at") val createdAt: Any? = null,
     @Json(name = "updated_at") val updatedAt: Any? = null
 ) {
+    val profileId: String get() = userId?.ifBlank { null } ?: id ?: ""
     val name: String get() = fullName
     val phone: String? get() = phoneNo
     val isPhoneVerified: Boolean get() = isVerified
     val isHost: Boolean get() = role.equals("host", ignoreCase = true)
+
+    fun getSavedListings(): List<Map<String, String>> =
+        SavedListingsHelper.parseSavedListingIds(savedListingIds)
 }
 
 @JsonClass(generateAdapter = true)

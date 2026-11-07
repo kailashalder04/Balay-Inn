@@ -91,4 +91,7 @@ interface PropertyDao {
 
     @Query("DELETE FROM saved_properties WHERE user_id = :userId AND property_id = :propertyId")
     suspend fun deleteSavedProperty(userId: String, propertyId: String)
+
+    @Query("SELECT user_id FROM saved_properties WHERE property_id = :propertyId")
+    suspend fun getRenterIdsWhoSavedProperty(propertyId: String): List<String>
 }

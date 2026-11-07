@@ -1028,7 +1028,7 @@ fun RenterNotificationsDialog(
                         onClick = { selectedTab = 0 },
                         text = {
                             Text(
-                                text = "Unavailable (${unavailableProperties.size})",
+                                text = "Live Alerts (${notifications.size + unavailableProperties.size})",
                                 fontSize = 11.sp,
                                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
                                 maxLines = 1,
@@ -1072,8 +1072,65 @@ fun RenterNotificationsDialog(
                 ) {
                     when (selectedTab) {
                         0 -> {
-                            // Unavailable Saved Properties Tab
-                            if (unavailableProperties.isEmpty()) {
+                            // Live Notifications & Alerts Tab
+                            if (notifications.isNotEmpty()) {
+                                items(notifications, key = { "live_notif_${it.id}" }) { notif ->
+                                    val catColor = when (notif.category) {
+                                        "VIEWING" -> Color(0xFFD97706)
+                                        "MESSAGE" -> MaterialTheme.colorScheme.primary
+                                        "VERIFICATION" -> Color(0xFF16A34A)
+                                        "STATUS" -> Color(0xFFDC2626)
+                                        "SAVED" -> Color(0xFFE11D48)
+                                        "SYSTEM" -> Color(0xFF4F46E5)
+                                        else -> MaterialTheme.colorScheme.secondary
+                                    }
+                                    Card(
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        border = BorderStroke(1.dp, catColor.copy(alpha = 0.35f)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = notif.title,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = catColor,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = catColor.copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = notif.category,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = catColor,
+                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = notif.message,
+                                                fontSize = 11.5.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (unavailableProperties.isEmpty() && notifications.isEmpty()) {
                                 item {
                                     Card(
                                         shape = RoundedCornerShape(12.dp),
@@ -1095,14 +1152,14 @@ fun RenterNotificationsDialog(
                                             )
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Text(
-                                                text = "All saved listings are currently available",
+                                                text = "All caught up - No active alerts",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.SemiBold,
                                                 textAlign = TextAlign.Center,
                                                 color = if (isDark) Color.White else Color(0xFF0F172A)
                                             )
                                             Text(
-                                                text = "You'll be alerted here if any saved room or property gets rented out or paused by the host.",
+                                                text = "Host responses, updates, and availability changes will appear here live.",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 textAlign = TextAlign.Center
@@ -1110,7 +1167,7 @@ fun RenterNotificationsDialog(
                                         }
                                     }
                                 }
-                            } else {
+                            } else if (unavailableProperties.isNotEmpty()) {
                                 items(unavailableProperties, key = { "unavail_${it.id}" }) { prop ->
                                     Card(
                                         shape = RoundedCornerShape(14.dp),

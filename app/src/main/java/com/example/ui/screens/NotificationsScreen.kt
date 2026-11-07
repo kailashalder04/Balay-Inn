@@ -73,16 +73,14 @@ fun NotificationsScreen(
 ) {
     val allNotifications by viewModel.notifications.collectAsState()
 
-    // Exclude messages from notifications since messages live on their own page
-    val alertNotifications = remember(allNotifications) {
-        allNotifications.filter { it.category != "MESSAGE" && !it.category.contains("MESSAGE", ignoreCase = true) }
-    }
+    val alertNotifications = allNotifications
 
-    var selectedFilter by remember { mutableStateOf("ALL") } // ALL, UNREAD, VIEWING
+    var selectedFilter by remember { mutableStateOf("ALL") } // ALL, UNREAD, VIEWING, MESSAGES
 
     val filteredNotifications = when (selectedFilter) {
         "UNREAD" -> alertNotifications.filter { !it.isRead }
         "VIEWING" -> alertNotifications.filter { it.category == "VIEWING" }
+        "MESSAGES" -> alertNotifications.filter { it.category == "MESSAGE" || it.title.contains("Replied", ignoreCase = true) }
         else -> alertNotifications
     }
 
@@ -179,6 +177,11 @@ fun NotificationsScreen(
                     selected = selectedFilter == "VIEWING",
                     onClick = { selectedFilter = "VIEWING" },
                     label = { Text("Viewings", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = selectedFilter == "MESSAGES",
+                    onClick = { selectedFilter = "MESSAGES" },
+                    label = { Text("Messages", fontSize = 12.sp) }
                 )
             }
 

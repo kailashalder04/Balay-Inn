@@ -95,6 +95,7 @@ fun LandlordHomeScreen(
 ) {
     val isDark by viewModel.isDarkMode.collectAsState()
     val managedProperties by viewModel.managedProperties.collectAsState()
+    val properties by viewModel.properties.collectAsState()
     val userViewings by viewModel.userViewings.collectAsState()
     val conversations by viewModel.conversations.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
@@ -383,8 +384,10 @@ fun LandlordHomeScreen(
             }
         } else {
             items(pendingViewings.take(3), key = { "landlord_view_${it.id}" }) { req ->
+                val prop = managedProperties.find { it.id == req.propertyId } ?: properties.find { it.id == req.propertyId }
                 LandlordViewingActionCard(
                     viewing = req,
+                    propertyTitle = prop?.title ?: "Rental Listing",
                     onAccept = { viewModel.updateViewingStatus(req, "CONFIRMED", "Confirmed by owner.") },
                     onDecline = { viewModel.updateViewingStatus(req, "CANCELLED", "Declined by owner.") }
                 )
@@ -670,6 +673,7 @@ private fun PerformanceMetric(
 @Composable
 private fun LandlordViewingActionCard(
     viewing: ViewingRequestEntity,
+    propertyTitle: String = "Rental Listing",
     onAccept: () -> Unit,
     onDecline: () -> Unit
 ) {
@@ -685,13 +689,24 @@ private fun LandlordViewingActionCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Visit: ${viewing.preferredDate} (${viewing.preferredTime})",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    softWrap = false
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        Icons.Default.Home,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = propertyTitle,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.5.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = Color(0xFFFEF3C7)
@@ -706,6 +721,26 @@ private fun LandlordViewingActionCard(
                         softWrap = false
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = "Visit: ${viewing.preferredDate} (${viewing.preferredTime})",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
 
             if (viewing.tenantMessage.isNotBlank()) {
@@ -1151,6 +1186,9 @@ fun HostNotificationsDialog(
                             "VIEWING" -> Color(0xFFD97706)
                             "MESSAGE" -> MaterialTheme.colorScheme.primary
                             "VERIFICATION" -> Color(0xFF16A34A)
+                            "STATUS" -> Color(0xFFDC2626)
+                            "SAVED" -> Color(0xFFE11D48)
+                            "SYSTEM" -> Color(0xFF4F46E5)
                             else -> MaterialTheme.colorScheme.secondary
                         }
                         Surface(

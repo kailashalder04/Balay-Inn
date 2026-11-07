@@ -72,4 +72,31 @@ class ExampleUnitTest {
     val dtoWithEmail = SupabaseViewingDto.fromEntity(req, recipientEmail = "host@balayinn.ph")
     assertEquals("host@balayinn.ph", dtoWithEmail.recipientEmail)
   }
+
+  @Test
+  fun testSavedListingsHelper() {
+    // Legacy string format
+    val legacy = listOf("prop_1", "prop_2")
+    val parsedLegacy = com.example.data.remote.supabase.SavedListingsHelper.parseSavedListingIds(legacy)
+    assertEquals(2, parsedLegacy.size)
+    assertEquals("prop_1", parsedLegacy[0]["property_id"])
+
+    // Object format with property_id and title
+    val objects = listOf(
+      mapOf("property_id" to "prop_boh_01", "title" to "Bohol Heritage Suite"),
+      mapOf("property_id" to "prop_cebu_02", "title" to "Mabolo Modern Bedspace")
+    )
+    val parsedObjects = com.example.data.remote.supabase.SavedListingsHelper.parseSavedListingIds(objects)
+    assertEquals(2, parsedObjects.size)
+    assertEquals("Bohol Heritage Suite", parsedObjects[0]["title"])
+    assertEquals("prop_boh_01", parsedObjects[0]["property_id"])
+
+    // Test add and remove
+    parsedObjects.removeAll { it["property_id"] == "prop_boh_01" }
+    assertEquals(1, parsedObjects.size)
+    assertEquals("prop_cebu_02", parsedObjects[0]["property_id"])
+
+    parsedObjects.add(mapOf("property_id" to "prop_lahug_03", "title" to "Lahug Studio Room"))
+    assertEquals(2, parsedObjects.size)
+  }
 }

@@ -9,6 +9,7 @@ import com.example.data.local.entity.ConversationEntity
 import com.example.data.local.entity.MessageEntity
 import com.example.data.local.entity.NotificationEntity
 import com.example.data.local.entity.PropertyEntity
+import com.example.data.local.entity.totalAvailableBeds
 import com.example.data.local.entity.PropertyImageEntity
 import com.example.data.local.entity.ProvinceEntity
 import com.example.data.local.entity.ReportEntity
@@ -20,6 +21,7 @@ import com.example.data.local.entity.VerificationDocumentEntity
 import com.example.data.local.entity.ViewingRequestEntity
 import com.example.data.remote.gmail.GmailNotificationService
 import com.example.data.remote.supabase.SupabaseSyncManager
+import com.example.data.remote.supabase.SupabaseUserProfileDto
 import com.example.data.seed.MarketplaceDataSeed
 import com.example.data.seed.PropertyDataSeed
 import kotlinx.coroutines.Dispatchers
@@ -116,20 +118,40 @@ class BalayInnRepository(context: Context) {
         }
     }
 
-    suspend fun syncWithCloud(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncWithCloud(activeUserId: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
+            val user = activeUserId ?: _currentUser.value.id
+            if (user.isNotBlank() && user != "usr_guest") {
+                supabaseSyncManager.syncSavedPropertiesForUser(user)
+            }
             supabaseSyncManager.syncAll()
         } catch (_: Exception) {
             false
         }
     }
 
-    suspend fun syncLiveUpdates(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncLiveUpdates(activeUserId: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
+            val user = activeUserId ?: _currentUser.value.id
+            if (user.isNotBlank() && user != "usr_guest") {
+                supabaseSyncManager.syncSavedPropertiesForUser(user)
+            }
             supabaseSyncManager.syncLiveUpdates()
         } catch (_: Exception) {
             false
         }
+    }
+
+    suspend fun updatePrivacyPreferences(userId: String, pushNotification: Boolean, isDarkMode: Boolean): Boolean = withContext(Dispatchers.IO) {
+        supabaseSyncManager.updatePrivacyPreferences(userId, pushNotification, isDarkMode)
+    }
+
+    suspend fun fetchUserProfile(userId: String): SupabaseUserProfileDto? = withContext(Dispatchers.IO) {
+        supabaseSyncManager.fetchUserProfile(userId)
+    }
+
+    suspend fun syncSavedPropertiesForUser(userId: String): Boolean = withContext(Dispatchers.IO) {
+        supabaseSyncManager.syncSavedPropertiesForUser(userId)
     }
 
     // Geographic Queries
@@ -221,6 +243,18 @@ class BalayInnRepository(context: Context) {
         val updated = existing.copy(status = newStatus, updatedAt = System.currentTimeMillis())
         propDao.updateProperty(updated)
         logAudit("UPDATE_STATUS", "PROPERTY", propertyId, "Status updated to $newStatus by ${requestedBy?.fullName ?: "System"}")
+
+        val isFullOrUnavailable = newStatus.uppercase() in listOf("OCCUPIED", "FULL", "UNAVAILABLE") || updated.totalAvailableBeds <= 0
+        if (isFullOrUnavailable) {
+            val hostId = updated.ownerId.ifBlank { updated.posterId }
+            notifyPropertyFull(propertyId, hostId, updated.title)
+            try {
+                val savedRenters = propDao.getRenterIdsWhoSavedProperty(propertyId)
+                savedRenters.forEach { renterId ->
+                    notifySavedPropertyUnavailable(renterId, propertyId, updated.title)
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     suspend fun updateProperty(property: PropertyEntity, requestedBy: UserEntity? = null) = withContext(Dispatchers.IO) {
@@ -234,6 +268,18 @@ class BalayInnRepository(context: Context) {
             val images = propDao.getImagesForPropertySync(property.id)
             supabaseSyncManager.pushPropertyToRemote(updated, images)
         } catch (_: Exception) {}
+
+        val isFullOrUnavailable = updated.status.uppercase() in listOf("OCCUPIED", "FULL", "UNAVAILABLE") || updated.totalAvailableBeds <= 0
+        if (isFullOrUnavailable) {
+            val hostId = updated.ownerId.ifBlank { updated.posterId }
+            notifyPropertyFull(property.id, hostId, updated.title)
+            try {
+                val savedRenters = propDao.getRenterIdsWhoSavedProperty(property.id)
+                savedRenters.forEach { renterId ->
+                    notifySavedPropertyUnavailable(renterId, property.id, updated.title)
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     suspend fun deleteProperty(propertyId: String) = withContext(Dispatchers.IO) {
@@ -258,6 +304,10 @@ class BalayInnRepository(context: Context) {
     fun isPropertySaved(userId: String, propertyId: String) = propDao.isPropertySaved(userId, propertyId)
     suspend fun toggleSaveProperty(userId: String, propertyId: String) = withContext(Dispatchers.IO) {
         val isSaved = propDao.isPropertySaved(userId, propertyId).firstOrNull() ?: false
+        val property = propDao.getPropertyById(propertyId).firstOrNull()
+            ?: com.example.data.seed.PropertyDataSeed.sampleProperties.find { it.id == propertyId }
+        val title = property?.title ?: "Rental Listing"
+
         if (isSaved) {
             propDao.deleteSavedProperty(userId, propertyId)
             try {
@@ -272,7 +322,7 @@ class BalayInnRepository(context: Context) {
                 )
             )
             try {
-                supabaseSyncManager.saveListingRemote(userId, propertyId)
+                supabaseSyncManager.saveListingRemote(userId, propertyId, title)
             } catch (_: Exception) {}
         }
     }
@@ -280,6 +330,7 @@ class BalayInnRepository(context: Context) {
     // Viewings
     fun getViewingsForTenant(tenantId: String) = viewDao.getViewingsForTenant(tenantId)
     fun getViewingsForPoster(posterId: String) = viewDao.getViewingsForPoster(posterId)
+    fun getViewingsForHost(hostId: String) = viewDao.getViewingsForHost(hostId)
     fun getViewingsForOwner(ownerId: String) = viewDao.getViewingsForOwner(ownerId)
     fun getAllViewings() = viewDao.getAllViewings()
 
@@ -317,12 +368,16 @@ class BalayInnRepository(context: Context) {
             )
         } catch (_: Exception) {}
 
-        // 1. Live notification to Host (Poster)
+        val prop = propDao.getPropertyById(propertyId).firstOrNull()
+        val propTitle = prop?.title ?: "Rental Listing"
+        val noteSuffix = if (message.isNotBlank()) " Note: \"$message\"." else ""
+
+        // 1. Live notification to Host with full viewing request details
         val posterNotif = NotificationEntity(
             id = "notif_${UUID.randomUUID()}",
             userId = posterId,
-            title = "New Viewing Request",
-            message = "A tenant requested a viewing for your property on $date ($time).",
+            title = "New Viewing Request: $propTitle",
+            message = "Viewing request available for $propTitle on $date at $time for $visitors visitor(s).$noteSuffix",
             category = "VIEWING",
             relatedPropertyId = propertyId
         )
@@ -331,12 +386,21 @@ class BalayInnRepository(context: Context) {
             supabaseSyncManager.pushNotificationToRemote(posterNotif)
         } catch (_: Exception) {}
 
+        // If property owner is separate, notify them as well
+        if (prop != null && prop.ownerId.isNotBlank() && prop.ownerId != posterId) {
+            val ownerNotif = posterNotif.copy(id = "notif_${UUID.randomUUID()}", userId = prop.ownerId)
+            platDao.insertNotification(ownerNotif)
+            try {
+                supabaseSyncManager.pushNotificationToRemote(ownerNotif)
+            } catch (_: Exception) {}
+        }
+
         // 2. Live confirmation notification to Renter (Tenant)
         val tenantNotif = NotificationEntity(
             id = "notif_${UUID.randomUUID()}",
             userId = tenantId,
-            title = "Viewing Request Sent",
-            message = "Your viewing request was sent for $date ($time). Awaiting host confirmation.",
+            title = "Viewing Request Sent: $propTitle",
+            message = "Your viewing request for $propTitle was submitted for $date at $time ($visitors visitor(s)). Awaiting host confirmation.",
             category = "VIEWING",
             relatedPropertyId = propertyId
         )
@@ -366,33 +430,74 @@ class BalayInnRepository(context: Context) {
             )
         } catch (_: Exception) {}
 
-        // 1. Live notification to Tenant
-        val tenantNotif = NotificationEntity(
-            id = "notif_${UUID.randomUUID()}",
-            userId = viewing.tenantId,
-            title = "Viewing Request Update",
-            message = "Your viewing request status is now: $newStatus.${if (responseNote.isNotBlank()) " Note: $responseNote" else ""}",
-            category = "VIEWING",
-            relatedPropertyId = viewing.propertyId
-        )
-        platDao.insertNotification(tenantNotif)
-        try {
-            supabaseSyncManager.pushNotificationToRemote(tenantNotif)
-        } catch (_: Exception) {}
+        val prop = propDao.getPropertyById(viewing.propertyId).firstOrNull()
+        val propTitle = prop?.title ?: "Rental Listing"
 
-        // 2. Live notification to Host
-        val hostNotif = NotificationEntity(
-            id = "notif_${UUID.randomUUID()}",
-            userId = viewing.posterId,
-            title = "Viewing Marked $newStatus",
-            message = "Viewing for ${viewing.preferredDate} (${viewing.preferredTime}) marked as $newStatus.",
-            category = "VIEWING",
-            relatedPropertyId = viewing.propertyId
-        )
-        platDao.insertNotification(hostNotif)
-        try {
-            supabaseSyncManager.pushNotificationToRemote(hostNotif)
-        } catch (_: Exception) {}
+        if (newStatus == "CANCELLED") {
+            // Host notification when renter cancels viewing request or transaction
+            val hostCancelNotif = NotificationEntity(
+                id = "notif_${UUID.randomUUID()}",
+                userId = viewing.posterId,
+                title = "Viewing Request Cancelled",
+                message = "The viewing request for '$propTitle' on ${viewing.preferredDate} (${viewing.preferredTime}) was cancelled by the renter.${if (responseNote.isNotBlank()) " Reason: $responseNote" else ""}",
+                category = "VIEWING",
+                relatedPropertyId = viewing.propertyId
+            )
+            platDao.insertNotification(hostCancelNotif)
+            try {
+                supabaseSyncManager.pushNotificationToRemote(hostCancelNotif)
+            } catch (_: Exception) {}
+
+            if (prop != null && prop.ownerId.isNotBlank() && prop.ownerId != viewing.posterId) {
+                val ownerCancelNotif = hostCancelNotif.copy(id = "notif_${UUID.randomUUID()}", userId = prop.ownerId)
+                platDao.insertNotification(ownerCancelNotif)
+                try {
+                    supabaseSyncManager.pushNotificationToRemote(ownerCancelNotif)
+                } catch (_: Exception) {}
+            }
+
+            // Tenant confirmation
+            val tenantCancelNotif = NotificationEntity(
+                id = "notif_${UUID.randomUUID()}",
+                userId = viewing.tenantId,
+                title = "Viewing Cancelled",
+                message = "Your viewing appointment for '$propTitle' on ${viewing.preferredDate} (${viewing.preferredTime}) has been cancelled.",
+                category = "VIEWING",
+                relatedPropertyId = viewing.propertyId
+            )
+            platDao.insertNotification(tenantCancelNotif)
+            try {
+                supabaseSyncManager.pushNotificationToRemote(tenantCancelNotif)
+            } catch (_: Exception) {}
+        } else {
+            // 1. Live notification to Tenant (Host replied / confirmed / rescheduled)
+            val tenantNotif = NotificationEntity(
+                id = "notif_${UUID.randomUUID()}",
+                userId = viewing.tenantId,
+                title = if (responseNote.isNotBlank()) "Host Replied to Your Viewing Request" else "Viewing Request: $newStatus",
+                message = "Host response for '$propTitle': \"${responseNote.ifBlank { "Appointment $newStatus" }}\" (Status: $newStatus for ${viewing.preferredDate} at ${viewing.preferredTime}).",
+                category = "VIEWING",
+                relatedPropertyId = viewing.propertyId
+            )
+            platDao.insertNotification(tenantNotif)
+            try {
+                supabaseSyncManager.pushNotificationToRemote(tenantNotif)
+            } catch (_: Exception) {}
+
+            // 2. Live confirmation to Host
+            val hostNotif = NotificationEntity(
+                id = "notif_${UUID.randomUUID()}",
+                userId = viewing.posterId,
+                title = "Viewing Marked $newStatus",
+                message = "Viewing for '$propTitle' on ${viewing.preferredDate} (${viewing.preferredTime}) marked as $newStatus.",
+                category = "VIEWING",
+                relatedPropertyId = viewing.propertyId
+            )
+            platDao.insertNotification(hostNotif)
+            try {
+                supabaseSyncManager.pushNotificationToRemote(hostNotif)
+            } catch (_: Exception) {}
+        }
     }
 
     // Conversations & Messages
@@ -408,12 +513,7 @@ class BalayInnRepository(context: Context) {
             messageText = text,
             timestamp = System.currentTimeMillis()
         )
-        commDao.insertMessage(msg)
-        try {
-            supabaseSyncManager.pushMessageToRemote(msg)
-        } catch (_: Exception) {}
-
-        // Update conversation last message & unread counters, then push to Supabase
+        // 1. Update conversation last message & unread counters in local DB & Supabase FIRST
         val conv = commDao.getConversationById(conversationId).firstOrNull()
         if (conv != null) {
             val isSenderTenant = senderId == conv.tenantId
@@ -428,12 +528,13 @@ class BalayInnRepository(context: Context) {
                 supabaseSyncManager.pushConversationToRemote(updatedConv)
             } catch (_: Exception) {}
 
-            // Send live notification to recipient
+            // Send live notification to recipient: if host replied, notify renter
             val recipientId = if (isSenderTenant) conv.posterId else conv.tenantId
+            val notifTitle = if (isSenderTenant) "New Inquiry from $senderName" else "Host Replied: $senderName"
             val notif = NotificationEntity(
                 id = "notif_${UUID.randomUUID()}",
                 userId = recipientId,
-                title = "New Message from $senderName",
+                title = notifTitle,
                 message = "Re: ${conv.propertyTitle} — \"$text\"",
                 category = "MESSAGE",
                 relatedPropertyId = conv.propertyId
@@ -443,6 +544,12 @@ class BalayInnRepository(context: Context) {
                 supabaseSyncManager.pushNotificationToRemote(notif)
             } catch (_: Exception) {}
         }
+
+        // 2. Insert message and push to Supabase
+        commDao.insertMessage(msg)
+        try {
+            supabaseSyncManager.pushMessageToRemote(msg)
+        } catch (_: Exception) {}
     }
 
     suspend fun startOrGetConversation(
@@ -485,6 +592,77 @@ class BalayInnRepository(context: Context) {
     fun getNotifications(userId: String) = platDao.getNotificationsForUser(userId)
     suspend fun markNotificationRead(id: String) = withContext(Dispatchers.IO) {
         platDao.markNotificationAsRead(id)
+    }
+
+    suspend fun insertNotification(notification: NotificationEntity) = withContext(Dispatchers.IO) {
+        platDao.insertNotification(notification)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(notification)
+        } catch (_: Exception) {}
+    }
+
+    suspend fun notifyPropertyFull(propertyId: String, hostId: String, title: String) = withContext(Dispatchers.IO) {
+        val notif = NotificationEntity(
+            id = "notif_full_${propertyId}_${System.currentTimeMillis()}",
+            userId = hostId,
+            title = "Property Full: $title",
+            message = "Your property '$title' has reached full occupancy (0 available beds). The listing is now marked as occupied.",
+            category = "STATUS",
+            relatedPropertyId = propertyId
+        )
+        platDao.insertNotification(notif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(notif)
+        } catch (_: Exception) {}
+    }
+
+    suspend fun notifyAccountVerified(userId: String, isHost: Boolean) = withContext(Dispatchers.IO) {
+        val notif = NotificationEntity(
+            id = "notif_verified_${userId}_${System.currentTimeMillis()}",
+            userId = userId,
+            title = "Account Verified Successfully ✓",
+            message = if (isHost) {
+                "Congratulations! Your host identity and property documents have been verified. Your verified badge is now active on all listings."
+            } else {
+                "Congratulations! Your tenant profile has been verified. You now have full verified access to book viewings and message hosts."
+            },
+            category = "VERIFICATION",
+            relatedPropertyId = null
+        )
+        platDao.insertNotification(notif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(notif)
+        } catch (_: Exception) {}
+    }
+
+    suspend fun notifyAppUpdate(userId: String) = withContext(Dispatchers.IO) {
+        val notif = NotificationEntity(
+            id = "notif_app_update_v24_${userId}",
+            userId = userId,
+            title = "Balay-Inn App Update 🚀",
+            message = "Balay-Inn v2.4 is active with improved real-time viewing sync, instant renter messaging, and automated availability status.",
+            category = "SYSTEM",
+            relatedPropertyId = null
+        )
+        platDao.insertNotification(notif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(notif)
+        } catch (_: Exception) {}
+    }
+
+    suspend fun notifySavedPropertyUnavailable(userId: String, propertyId: String, title: String) = withContext(Dispatchers.IO) {
+        val notif = NotificationEntity(
+            id = "notif_unavail_${userId}_${propertyId}",
+            userId = userId,
+            title = "Hearted Place Now Unavailable",
+            message = "'$title' on your saved list has been marked as fully occupied or unavailable. Explore similar rentals nearby!",
+            category = "SAVED",
+            relatedPropertyId = propertyId
+        )
+        platDao.insertNotification(notif)
+        try {
+            supabaseSyncManager.pushNotificationToRemote(notif)
+        } catch (_: Exception) {}
     }
 
     // Tenant Requirements & Transparent Match Calculator
@@ -616,6 +794,12 @@ class BalayInnRepository(context: Context) {
         )
         platDao.updateDocument(updated)
         logAudit("REVIEW_DOCUMENT", "VERIFICATION_DOC", doc.id, "Status: $newStatus, Notes: $notes")
+
+        if (newStatus.equals("APPROVED", ignoreCase = true) || newStatus.equals("VERIFIED", ignoreCase = true)) {
+            val user = userDao.getUserById(doc.userId).firstOrNull()
+            val isHost = user?.canonicalRole?.isLandlord == true || user?.role?.equals("host", ignoreCase = true) == true || user?.role == "PROPERTY_OWNER"
+            notifyAccountVerified(doc.userId, isHost = isHost)
+        }
     }
 
     // Audit Log

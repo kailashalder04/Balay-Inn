@@ -49,19 +49,19 @@ FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 -- 2. USER PROFILES TABLE (Extended Preferences, Avatar & Privacy)
 -- =========================================================================
 CREATE TABLE IF NOT EXISTS public.user_profiles (
-  id TEXT PRIMARY KEY, -- Maps to auth.uid() or users.id as string
-  name TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  full_name TEXT NOT NULL,
   email TEXT,
-  phone TEXT DEFAULT '',
-  is_phone_verified BOOLEAN DEFAULT FALSE,
-  avatar TEXT DEFAULT '',
-  character_id TEXT DEFAULT 'explorer',
-  role TEXT NOT NULL DEFAULT 'renter' CHECK (role IN ('guest', 'renter', 'host', 'admin')),
-  is_host BOOLEAN DEFAULT FALSE,
+  phone_no TEXT,
+  is_verified BOOLEAN DEFAULT FALSE,
+  avatar TEXT DEFAULT ''::text,
+  role TEXT NOT NULL DEFAULT 'renter'::text CHECK (role = ANY (ARRAY['renter'::text, 'host'::text, 'admin'::text])),
   saved_listing_ids JSONB DEFAULT '[]'::jsonb,
-  privacy_preferences JSONB DEFAULT '{"sharePhoneWithHost": false, "allowLocationTracking": true}'::jsonb,
+  privacy_preferences JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  log_at TEXT CHECK (log_at IS NULL OR (log_at = ANY (ARRAY['manual'::text, 'facebook'::text, 'google'::text]))),
+  CONSTRAINT user_profiles_pkey PRIMARY KEY (user_id)
 );
 
 DROP TRIGGER IF EXISTS set_user_profiles_updated_at ON public.user_profiles;
@@ -516,17 +516,21 @@ CREATE TABLE IF NOT EXISTS public.conversations (
 CREATE INDEX IF NOT EXISTS idx_conversations_participants ON public.conversations (tenant_id, poster_id);
 
 CREATE TABLE IF NOT EXISTS public.messages (
-  id TEXT PRIMARY KEY DEFAULT ('msg_' || replace(uuid_generate_v4()::text, '-', '')),
-  conversation_id TEXT NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-  sender_id TEXT NOT NULL,
-  sender_name TEXT NOT NULL,
-  message_text TEXT NOT NULL,
-  timestamp TIMESTAMPTZ DEFAULT NOW(),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  is_read BOOLEAN NOT NULL DEFAULT FALSE
+  id UUID NOT NULL DEFAULT gen_random_uuid(),
+  sender_id UUID,
+  receiver_id UUID,
+  property_id UUID,
+  content TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT messages_pkey PRIMARY KEY (id),
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES auth.users(id),
+  CONSTRAINT messages_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES auth.users(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages (conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON public.messages (sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON public.messages (receiver_id);
+CREATE INDEX IF NOT EXISTS idx_messages_property_id ON public.messages (property_id);
 
 -- =========================================================================
 -- 11. SAVED LISTINGS, REPORTS, & AUDIT LOGS

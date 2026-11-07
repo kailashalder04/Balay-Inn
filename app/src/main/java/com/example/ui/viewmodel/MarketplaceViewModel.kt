@@ -13,6 +13,7 @@ import com.example.data.local.entity.CountryEntity
 import com.example.data.local.entity.MessageEntity
 import com.example.data.local.entity.NotificationEntity
 import com.example.data.local.entity.PropertyEntity
+import com.example.data.local.entity.totalAvailableBeds
 import com.example.data.local.entity.PropertyImageEntity
 import com.example.data.local.entity.ProvinceEntity
 import com.example.data.local.entity.RegionEntity
@@ -179,11 +180,30 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         val newValue = !_isDarkMode.value
         _isDarkMode.value = newValue
         prefs.edit().putBoolean("is_dark_mode", newValue).apply()
+        savePrivacyPreferencesToRemote(pushNotification = _pushNotificationsEnabled.value, isDark = newValue)
     }
 
     fun setDarkMode(enabled: Boolean) {
         _isDarkMode.value = enabled
         prefs.edit().putBoolean("is_dark_mode", enabled).apply()
+        savePrivacyPreferencesToRemote(pushNotification = _pushNotificationsEnabled.value, isDark = enabled)
+    }
+
+    private fun savePrivacyPreferencesToRemote(pushNotification: Boolean, isDark: Boolean) {
+        val user = currentUser.value
+        if (user.id.isNotBlank() && !user.isGuest) {
+            viewModelScope.launch {
+                repository.updatePrivacyPreferences(user.id, pushNotification, isDark)
+            }
+        }
+    }
+
+    fun buildCurrentPrivacyPreferences(): Map<String, Any> {
+        return mapOf(
+            "push_notification" to _pushNotificationsEnabled.value,
+            "theme" to if (_isDarkMode.value) "dark" else "light",
+            "is_dark_mode" to _isDarkMode.value
+        )
     }
 
     // Canonical Role for Current User
@@ -221,8 +241,8 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         when (user.canonicalRole) {
             UserRole.TENANT -> allViewings.filter { it.tenantId == user.id }
             UserRole.LANDLORD -> {
-                val ownedPropIds = allProps.filter { it.ownerId == user.id }.map { it.id }.toSet()
-                allViewings.filter { it.propertyId in ownedPropIds }
+                val ownedPropIds = allProps.filter { it.ownerId == user.id || it.posterId == user.id }.map { it.id }.toSet()
+                allViewings.filter { it.posterId == user.id || it.propertyId in ownedPropIds }
             }
             UserRole.REPRESENTATIVE -> allViewings.filter { it.posterId == user.id }
             UserRole.ADMIN -> allViewings
@@ -275,19 +295,49 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         viewModelScope.launch {
-            // Live background sync loop for messages, viewings, and notifications
+            currentUser.collect { user ->
+                if (user.id.isNotBlank() && !user.isGuest) {
+                    checkAppUpdateNotification(user.id)
+                    loadUserRemotePreferences(user.id)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            // Live background sync loop for messages, viewings, notifications, and saved listings
             while (isActive) {
-                delay(4000)
+                delay(3000)
                 try {
-                    repository.syncLiveUpdates()
+                    val uid = currentUser.value.id.takeIf { it.isNotBlank() && !currentUser.value.isGuest }
+                    repository.syncLiveUpdates(uid)
                 } catch (_: Exception) {}
             }
         }
     }
 
+    fun loadUserRemotePreferences(userId: String) {
+        viewModelScope.launch {
+            val profile = repository.fetchUserProfile(userId) ?: return@launch
+            profile.privacyPreferences?.let { prefsMap ->
+                (prefsMap["push_notification"] as? Boolean)?.let { push ->
+                    _pushNotificationsEnabled.value = push
+                    prefs.edit().putBoolean("push_notifications_enabled", push).apply()
+                }
+                val themeStr = prefsMap["theme"] as? String
+                val isDarkFromRemote = (themeStr.equals("dark", ignoreCase = true)) || (prefsMap["is_dark_mode"] as? Boolean == true)
+                if (themeStr != null || prefsMap.containsKey("is_dark_mode")) {
+                    _isDarkMode.value = isDarkFromRemote
+                    prefs.edit().putBoolean("is_dark_mode", isDarkFromRemote).apply()
+                }
+            }
+            repository.syncSavedPropertiesForUser(userId)
+        }
+    }
+
     fun refreshFromCloud() {
         viewModelScope.launch {
-            repository.syncWithCloud()
+            val uid = currentUser.value.id.takeIf { it.isNotBlank() && !currentUser.value.isGuest }
+            repository.syncWithCloud(uid)
         }
     }
 
@@ -643,7 +693,10 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 it.status.equals("RENTED", ignoreCase = true) ||
                 it.status.equals("PAUSED", ignoreCase = true) ||
                 it.status.equals("UNAVAILABLE", ignoreCase = true) ||
-                it.status.equals("INACTIVE", ignoreCase = true)
+                it.status.equals("INACTIVE", ignoreCase = true) ||
+                it.status.equals("OCCUPIED", ignoreCase = true) ||
+                it.status.equals("FULL", ignoreCase = true) ||
+                it.totalAvailableBeds <= 0
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -655,6 +708,13 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             val userId = currentUser.value.id
             repository.toggleSaveProperty(userId, propertyId)
+            val prop = properties.value.find { it.id == propertyId }
+            if (prop != null) {
+                val isUnavailable = prop.status.uppercase() in listOf("RENTED", "PAUSED", "UNAVAILABLE", "INACTIVE", "OCCUPIED", "FULL") || prop.totalAvailableBeds <= 0
+                if (isUnavailable) {
+                    repository.notifySavedPropertyUnavailable(userId, prop.id, prop.title)
+                }
+            }
         }
     }
 
@@ -1192,7 +1252,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                                         role = roleCanonical,
                                         avatar = "",
                                         isVerified = false,
-                                        privacyPreferences = null,
+                                        privacyPreferences = buildCurrentPrivacyPreferences(),
                                         logAt = "manual",
                                         savedListingIds = emptyList<String>(),
                                         createdAt = null
@@ -1276,7 +1336,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                         role = roleCanonical,
                         avatar = "",
                         isVerified = false,
-                        privacyPreferences = null,
+                        privacyPreferences = buildCurrentPrivacyPreferences(),
                         logAt = "manual",
                         savedListingIds = emptyList<String>(),
                         createdAt = null
@@ -1309,9 +1369,11 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             repository.registerUser(updated)
             repository.switchUser(updated)
 
+            val isHostUser = updated.canonicalRole.isLandlord || updated.canonicalRole.isRepresentative || updated.role.equals("host", ignoreCase = true) || updated.role == "PROPERTY_OWNER"
+            repository.notifyAccountVerified(user.id, isHost = isHostUser)
+
             if (SupabaseClient.isConfigured && !updated.isGuest) {
                 try {
-                    val isHostUser = updated.canonicalRole.isLandlord || updated.canonicalRole.isRepresentative
                     val profileDto = SupabaseUserProfileDto(
                         id = updated.id,
                         fullName = updated.fullName,
@@ -1320,7 +1382,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                         role = if (isHostUser) "host" else "renter",
                         avatar = "",
                         isVerified = true,
-                        privacyPreferences = null,
+                        privacyPreferences = buildCurrentPrivacyPreferences(),
                         logAt = "manual",
                         savedListingIds = emptyList<String>(),
                         createdAt = null
@@ -1352,9 +1414,11 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
             repository.registerUser(updated)
             repository.switchUser(updated)
 
+            val isHostUser = updated.canonicalRole.isLandlord || updated.canonicalRole.isRepresentative || updated.role.equals("host", ignoreCase = true) || updated.role == "PROPERTY_OWNER"
+            repository.notifyAccountVerified(user.id, isHost = isHostUser)
+
             if (SupabaseClient.isConfigured && !updated.isGuest) {
                 try {
-                    val isHostUser = updated.canonicalRole.isLandlord || updated.canonicalRole.isRepresentative
                     val profileDto = SupabaseUserProfileDto(
                         id = updated.id,
                         fullName = updated.fullName,
@@ -1363,7 +1427,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                         role = if (isHostUser) "host" else "renter",
                         avatar = "",
                         isVerified = updated.phoneVerified || updated.emailVerified,
-                        privacyPreferences = null,
+                        privacyPreferences = buildCurrentPrivacyPreferences(),
                         logAt = "manual",
                         savedListingIds = emptyList<String>(),
                         createdAt = null
@@ -1374,6 +1438,15 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
             onSuccess()
+        }
+    }
+
+    fun checkAppUpdateNotification(userId: String) {
+        viewModelScope.launch {
+            val notifs = repository.getNotifications(userId).firstOrNull() ?: emptyList()
+            if (notifs.none { it.category == "SYSTEM" && it.title.contains("App Update", ignoreCase = true) }) {
+                repository.notifyAppUpdate(userId)
+            }
         }
     }
 
@@ -1470,7 +1543,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                             role = if (isHost) "host" else "renter",
                             avatar = "",
                             isVerified = true,
-                            privacyPreferences = null,
+                            privacyPreferences = buildCurrentPrivacyPreferences(),
                             logAt = "google",
                             savedListingIds = emptyList()
                         )
@@ -1507,7 +1580,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                             role = "renter",
                             avatar = "",
                             isVerified = false,
-                            privacyPreferences = null,
+                            privacyPreferences = buildCurrentPrivacyPreferences(),
                             logAt = "google",
                             savedListingIds = emptyList()
                         )
@@ -1543,7 +1616,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                             role = if (isHost) "host" else "renter",
                             avatar = "",
                             isVerified = true,
-                            privacyPreferences = null,
+                            privacyPreferences = buildCurrentPrivacyPreferences(),
                             logAt = "facebook",
                             savedListingIds = emptyList()
                         )
@@ -1580,7 +1653,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                             role = "renter",
                             avatar = "",
                             isVerified = false,
-                            privacyPreferences = null,
+                            privacyPreferences = buildCurrentPrivacyPreferences(),
                             logAt = "facebook",
                             savedListingIds = emptyList()
                         )
@@ -1786,7 +1859,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                                             role = roleCanonical,
                                             avatar = "",
                                             isVerified = isHost || userEntity.phoneVerified || userEntity.emailVerified,
-                                            privacyPreferences = null,
+                                            privacyPreferences = buildCurrentPrivacyPreferences(),
                                             logAt = "manual",
                                             savedListingIds = emptyList()
                                         )
@@ -1833,7 +1906,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                                     if (profile != null) {
                                         val isHost = profile.isHost || profile.role == "host"
                                         val restoredUser = UserEntity(
-                                            id = profile.id,
+                                            id = profile.profileId.ifBlank { "usr_${System.currentTimeMillis()}" },
                                             fullName = profile.fullName.ifBlank { profile.name }.ifBlank { "Balay-Inn User" },
                                             email = profile.email ?: cleanEmail,
                                             phone = profile.phoneNo ?: profile.phone ?: "",
@@ -1888,6 +1961,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
     fun setPushNotificationsEnabled(enabled: Boolean) {
         _pushNotificationsEnabled.value = enabled
         prefs.edit().putBoolean("push_notifications_enabled", enabled).apply()
+        savePrivacyPreferencesToRemote(pushNotification = enabled, isDark = _isDarkMode.value)
     }
 
     // Dual OTP Verification for Tenants (Mobile SMS + Gmail ID)
@@ -2163,7 +2237,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val posterViewings: StateFlow<List<ViewingRequestEntity>> = currentUser
-        .flatMapLatest { user -> repository.getViewingsForPoster(user.id) }
+        .flatMapLatest { user -> repository.getViewingsForHost(user.id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun requestViewing(
@@ -2549,7 +2623,7 @@ class MarketplaceViewModel(application: Application) : AndroidViewModel(applicat
                         role = "host",
                         avatar = "",
                         isVerified = true,
-                        privacyPreferences = null,
+                        privacyPreferences = buildCurrentPrivacyPreferences(),
                         logAt = "manual",
                         savedListingIds = emptyList()
                     )

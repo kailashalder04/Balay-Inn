@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
@@ -78,10 +79,12 @@ fun ViewingRequestsScreen(
     val tenantViewings by viewModel.tenantViewings.collectAsState()
     val posterViewings by viewModel.posterViewings.collectAsState()
     val properties by viewModel.properties.collectAsState()
+    val allProperties by viewModel.allUnfilteredProperties.collectAsState()
+    val allUsers by viewModel.allUsers.collectAsState()
     val savedProperties by viewModel.savedProperties.collectAsState()
     val propertyImagesMap by viewModel.propertyImagesMap.collectAsState()
 
-    val isHost = currentUser.role == "PROPERTY_OWNER"
+    val isHost = currentUser.role == "PROPERTY_OWNER" || currentUser.role.equals("host", ignoreCase = true) || currentUser.canonicalRole.isLandlord
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Viewings, 1 = Saved, 2 = Host Requests
 
     val savedItems = properties.filter { p -> savedProperties.any { it.propertyId == p.id } }
@@ -218,8 +221,13 @@ fun ViewingRequestsScreen(
                         }
                     } else {
                         items(posterViewings, key = { it.id }) { viewing ->
+                            val prop = properties.find { it.id == viewing.propertyId } ?: allProperties.find { it.id == viewing.propertyId }
+                            val propTitle = prop?.title ?: "Rental Space"
+                            val tenant = allUsers.find { it.id == viewing.tenantId }
                             ViewingCard(
                                 viewing = viewing,
+                                propertyTitle = propTitle,
+                                tenantName = tenant?.fullName,
                                 isPoster = true,
                                 onAccept = {
                                     viewModel.updateViewingStatus(viewing, "CONFIRMED", "Confirmed by host.", sendEmailAlert = true)
@@ -230,7 +238,7 @@ fun ViewingRequestsScreen(
                                 onSendEmailAlert = {
                                     viewModel.dispatchViewingStatusNotificationEmail(
                                         recipientEmail = "tenant@balayinn.ph",
-                                        propertyTitle = "Balay-Inn Viewing Appointment",
+                                        propertyTitle = propTitle,
                                         status = viewing.status,
                                         date = viewing.preferredDate,
                                         time = viewing.preferredTime,
@@ -275,8 +283,12 @@ fun ViewingRequestsScreen(
                             }
                         } else {
                             items(tenantViewings, key = { it.id }) { viewing ->
+                                val prop = properties.find { it.id == viewing.propertyId } ?: allProperties.find { it.id == viewing.propertyId }
+                                val propTitle = prop?.title ?: "Rental Space"
                                 ViewingCard(
                                     viewing = viewing,
+                                    propertyTitle = propTitle,
+                                    tenantName = null,
                                     isPoster = false,
                                     onAccept = {},
                                     onCancel = {
@@ -285,7 +297,7 @@ fun ViewingRequestsScreen(
                                     onSendEmailAlert = {
                                         viewModel.dispatchViewingStatusNotificationEmail(
                                             recipientEmail = "host@balayinn.ph",
-                                            propertyTitle = "Balay-Inn Viewing Appointment",
+                                            propertyTitle = propTitle,
                                             status = viewing.status,
                                             date = viewing.preferredDate,
                                             time = viewing.preferredTime,
@@ -372,8 +384,13 @@ fun ViewingRequestsScreen(
                             }
                         } else {
                             items(posterViewings, key = { it.id }) { viewing ->
+                                val prop = properties.find { it.id == viewing.propertyId } ?: allProperties.find { it.id == viewing.propertyId }
+                                val propTitle = prop?.title ?: "Rental Space"
+                                val tenant = allUsers.find { it.id == viewing.tenantId }
                                 ViewingCard(
                                     viewing = viewing,
+                                    propertyTitle = propTitle,
+                                    tenantName = tenant?.fullName,
                                     isPoster = true,
                                     onAccept = {
                                         viewModel.updateViewingStatus(viewing, "CONFIRMED", "Confirmed by host.", sendEmailAlert = true)
@@ -384,7 +401,7 @@ fun ViewingRequestsScreen(
                                     onSendEmailAlert = {
                                         viewModel.dispatchViewingStatusNotificationEmail(
                                             recipientEmail = "tenant@balayinn.ph",
-                                            propertyTitle = "Balay-Inn Viewing Appointment",
+                                            propertyTitle = propTitle,
                                             status = viewing.status,
                                             date = viewing.preferredDate,
                                             time = viewing.preferredTime,
@@ -406,6 +423,8 @@ fun ViewingRequestsScreen(
 @Composable
 fun ViewingCard(
     viewing: ViewingRequestEntity,
+    propertyTitle: String = "Rental Space",
+    tenantName: String? = null,
     isPoster: Boolean,
     onAccept: () -> Unit,
     onCancel: () -> Unit,
@@ -448,17 +467,74 @@ fun ViewingCard(
                     )
                 }
 
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = "${viewing.numberOfVisitors} visitor(s)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Property Title
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    Icons.Default.Home,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "${viewing.numberOfVisitors} visitor(s)",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = propertyTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // Renter info if shown to host
+            if (isPoster) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Renter: ${tenantName ?: viewing.tenantId.take(12)}",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Preferred Date & Time
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -472,20 +548,27 @@ fun ViewingCard(
 
             if (viewing.tenantMessage.isNotBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "\"${viewing.tenantMessage}\"",
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "\"${viewing.tenantMessage}\"",
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
 
             if (viewing.posterResponse.isNotBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Poster note: ${viewing.posterResponse}",
-                    fontSize = 11.sp,
+                    text = "Host note: ${viewing.posterResponse}",
+                    fontSize = 11.5.sp,
                     lineHeight = 16.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium

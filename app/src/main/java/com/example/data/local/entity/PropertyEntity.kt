@@ -121,6 +121,12 @@ data class PropertyEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
 )
 
+val PropertyEntity.totalAvailableBeds: Int
+    get() {
+        if (status.uppercase() in listOf("OCCUPIED", "FULL", "UNAVAILABLE", "RENTED", "INACTIVE")) return 0
+        return bedrooms.coerceAtLeast(1)
+    }
+
 @Entity(
     tableName = "property_images",
     foreignKeys = [
